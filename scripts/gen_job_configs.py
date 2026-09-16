@@ -21,7 +21,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 TASKS_DIR = ROOT / "tasks"
 OUT_DIR = ROOT / "configs"
-AGENT_IMPORT_PATH = "opc_agents.hermes:Hermes"
+AGENT_IMPORT_PATH = "opc.agents.hermes:Hermes"
 
 
 def load_defaults() -> dict:

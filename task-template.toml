@@ -16,6 +16,27 @@ tags = []
 expert_time_estimate_hours = 0
 relevant_experience = ""
 
+# 本题的跑法。省略的字段回落到 run-policy.toml 的 [defaults]。
+[metadata.opc]
+base_image = "opc-benchmark/hermes-base:local"
+verifier_image = "opc-benchmark/verifier-base:local"
+
+# --- 差分判分（可选）---
+# 判分器用同一套凭证调同一个真 API 取真值，再跟 agent 的产出比，不预设期望值。
+# 这样换谁的账号都能程序判分。三个字段一起用，make lint 会check：
+#
+# scoring = "differential"
+# # 题面里那个看似合理的错答案，必须是 instruction.md 里的原文。
+# # 没有它，判分器调 API、agent 也调 API，比的是 API 跟它自己，测不出母题。
+# decoy_prior = ""
+# # 判分器需要哪些环境变量。凭证由 .env 提供，运行时注入，不进镜像层。
+# verifier_credentials = []
+#
+# 另外两件事写在题面里，lint 管不了但更容易出错：
+#   1. 查询口径要写死（账期、产品码、取哪个字段）。agent 和判分器口径差一点，
+#      数字就对不上，而差异来自口径不是编造——你会看到一堆假阴性。
+#   2. 时间窗要取已关账的历史区间，当月数据还在变。
+
 [verifier]
 environment_mode = "separate"
 timeout_sec = 120.0

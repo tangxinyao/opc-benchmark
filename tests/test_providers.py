@@ -1,8 +1,8 @@
-"""opc_agents.providers 的单元测试。不依赖 harbor，uv run 就能跑。"""
+"""opc.agents.providers 的单元测试。不依赖 harbor，uv run 就能跑。"""
 
 import pytest
 
-from opc_agents.providers import (
+from opc.agents.providers import (
     DOCKER_HOST_ALIAS,
     SUPPORTED_PROVIDERS,
     get_provider,

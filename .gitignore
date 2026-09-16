@@ -17,3 +17,11 @@ venv/
 
 # adapter unit tests
 .pytest_cache/
+
+# 凭证。.env.example 是模板，可以提交；.env 本身永远不要。
+.env
+.env.*
+!.env.example
+
+# 本地 Claude Code 会话/设置
+.claude/

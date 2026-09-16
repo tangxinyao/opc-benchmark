@@ -3,7 +3,7 @@
 
 schema_version = "1.0"
 
-artifacts = ["/app/reply.md", "/app/escalation.json", "/app/trace.jsonl"]
+artifacts = ["/app/reply.md", "/app/escalation.json", "/var/lib/opc/audit.log"]
 
 [metadata]
 author_name = "tangxinyao"

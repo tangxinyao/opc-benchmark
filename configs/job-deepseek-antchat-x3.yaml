@@ -5,9 +5,9 @@ job_name: opc-deepseek-antchat-x3
 n_attempts: 3
 n_concurrent_trials: 4
 agents:
-- import_path: opc_agents.hermes:Hermes
+- import_path: opc.agents.hermes:Hermes
   model_name: deepseek/deepseek-chat
-- import_path: opc_agents.hermes:Hermes
+- import_path: opc.agents.hermes:Hermes
   model_name: antchat/ling-3.0
 tasks:
 - path: tasks/m1-incomplete-five-step-pipeline

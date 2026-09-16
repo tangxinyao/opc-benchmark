@@ -1,0 +1,31 @@
+[project]
+name = "opc-benchmark"
+version = "0.1.0"
+description = "一人公司场景下的 Agent 评测集，跑在 Harbor 上"
+readme = "README.md"
+authors = [
+    { name = "tangxinyao", email = "sha7tang@gmail.com" }
+]
+requires-python = ">=3.12"
+
+dependencies = [
+    # 适配器 import 的就是它（opc/agents/hermes.py -> harbor.environments.base）。
+    # 上界钉死大版本：harbor 的 environment / verifier 接口变了，这里的适配器就得跟着改，
+    # 让它静悄悄升上去等于让跑分结果静悄悄变。精确版本见 uv.lock。
+    "harbor>=0.23,<0.24",
+    # scripts/gen_job_configs.py 用，make configs 是正常流程的一部分，不是 dev 工具
+    "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = [
+    # 适配器与判分骨架的单元测试（tests/）。
+    # 注意判分器容器里的 pytest 不从这里来——那个烘在 opc/verifier/Dockerfile 里，
+    # 版本单独钉死，理由见那个 Dockerfile。
+    "pytest>=8.4,<9",
+]
+
+# 这个仓库不是要发布的库，是一套题 + 一个适配器，全程在仓库根目录跑。
+# 不打包，省掉 build-backend 和 src/ 布局那一层。
+[tool.uv]
+package = false
