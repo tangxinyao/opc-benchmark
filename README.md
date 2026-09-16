@@ -54,6 +54,9 @@ tasks/<task-name>/
     ├── test.sh            # 入口，把 0/1 写进 /logs/verifier/reward.txt
     └── test_state.py      # 判分器
 shared/                    # 模拟工具与判分脚手架的唯一事实来源
+opc_agents/                # 自写的 Harbor agent 适配器（hermes + provider 路由）
+images/hermes-base/        # agent 基础镜像：hermes 预烘在里面
+tests/                     # 适配器单元测试
 scripts/                   # sync-shared.sh / smoke.sh / validate.sh
 docs/                      # 母题的出处、案例集、讲稿
 ```
@@ -72,23 +75,59 @@ docs/                      # 母题的出处、案例集、讲稿
 
 ## 跑起来
 
+评测跑在 [Harbor](https://github.com/harbor-framework/harbor) 上，agent 用本仓库自带的
+hermes 适配器（`opc_agents/hermes.py`）。
+
 ```bash
 uv tool install harbor      # 或 pip install harbor
+make image                  # 构建 agent 基础镜像（hermes 预烘在里面）
 
 # 单题
 harbor run -p tasks/m4-no-allocation-platform-fee \
-  --agent claude-code -m anthropic/claude-opus-5
+  --agent opc_agents.hermes:Hermes -m deepseek/deepseek-chat
 
 # 全集
-harbor run -p tasks --agent claude-code -m anthropic/claude-opus-5 --n-concurrent 4
+harbor run -p tasks --agent opc_agents.hermes:Hermes \
+  -m antchat/<model> --n-concurrent 4
 ```
+
+> `--agent` 传的是 import path，所以仓库根目录要在 `PYTHONPATH` 上
+> （在仓库根目录跑就行）。
+
+### agent 适配器
+
+`opc_agents/hermes.py` 是自己写的，和 harbor 自带的那个 hermes 适配器有三点不同：
+
+1. **`install()` 不装东西。** hermes 和依赖全部预烘进 `images/hermes-base`，
+   install 只做一次存在性校验，镜像不对时在 setup 阶段就失败，
+   而不是烧掉任务启动时间之后在 run 中途失败。
+   镜像可信、想省掉这次 exec：`--ak assume_installed=true`。
+2. **只路由三个 provider，没有 OpenRouter 兜底**（`opc_agents/providers.py`）：
+
+   | provider 前缀 | base_url 默认值 | key 环境变量 |
+   |---|---|---|
+   | `deepseek/` | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` |
+   | `antchat/` | `https://antchat.alipay.com` | `ANTCHAT_API_KEY` / `ANTCHAT_TOKEN` |
+   | `local/` | `http://localhost:8000/v1` | `LOCAL_API_KEY`（可不给） |
+
+   不在表里的 provider 直接报错。**悄悄兜底到另一条链路，等于测了个别的东西。**
+3. **base_url 显式管理**，且 `localhost` / `127.0.0.1` 会自动改写成
+   `host.docker.internal`——容器里的 localhost 指向容器自己，不改写连不上
+   宿主机上的推理服务。Linux 的 Docker 还要
+   `--add-host=host.docker.internal:host-gateway`。
+   推理服务和 agent 在同一个容器里时：`--ak rewrite_localhost=false`。
+
+常用 `--ak`：`base_url=` 覆盖地址、`max_turns=` 调轮数、`toolsets=` 选工具集。
 
 ### 改题之后必须做的两件事
 
 ```bash
-scripts/smoke.sh     # 不需要 Docker：oracle 必须满分，nop 必须零分
-scripts/validate.sh  # 需要 Docker + harbor：真容器里再跑一遍 oracle / nop
+make check           # = make unit + make smoke
 ```
+
+- `make unit` —— 适配器的 provider 路由单元测试（不需要 Docker，也不需要装 harbor）。
+- `make smoke` —— 每道题 oracle 必须满分、nop 必须零分（不需要 Docker）。
+- `scripts/validate.sh` —— 需要 Docker + harbor，在真容器里再跑一遍 oracle / nop。
 
 **nop 能通过的题，量不出任何东西。** 这条基线比分数本身重要。
 
