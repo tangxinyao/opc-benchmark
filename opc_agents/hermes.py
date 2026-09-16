@@ -2,8 +2,9 @@
 
 与 harbor 自带的 harbor.agents.installed.hermes 的区别：
 
-1. **install() 不再装东西。** hermes、uv、ripgrep 等全部预先烘进基础镜像
-   （images/hermes-base/Dockerfile），install() 只做一次存在性校验，
+1. **install() 不再装东西。** 官方安装脚本
+   （https://hermes-agent.nousresearch.com/install.sh）在构建基础镜像时就跑完了
+   （images/hermes-base/Dockerfile），版本由构建参数钉死。install() 只做一次存在性校验，
    镜像不对时立刻报错，而不是等到 run 中途给一段看不懂的堆栈。
    校验可以用 ``--ak assume_installed=true`` 关掉。
 2. **provider 只有三个**：deepseek / antchat / local，没有 OpenRouter 兜底。
@@ -210,8 +211,15 @@ class Hermes(BaseInstalledAgent):
                 environment, command=skills_command, env=env, timeout_sec=10
             )
 
+        # CLI 形态与 harbor 自带的 hermes 适配器保持一致：
+        #   hermes --yolo chat [--resume ID] -q <prompt> -Q --model M [--provider P] [--toolsets T]
+        # hermes 已 symlink 到 /usr/local/bin，不需要再 export PATH。
         cli_parts = ["hermes --yolo chat"]
         if self._resume:
+            if self._native_session_id is None:
+                # 上一轮没导出成会话 ID 就只能赌 latest——记一笔，
+                # 否则续跑串了会话都查不出原因。
+                self.logger.debug("没有原生会话 ID，--resume 回落到 latest")
             cli_parts.extend(
                 ["--resume", shlex.quote(self._native_session_id or "latest")]
             )

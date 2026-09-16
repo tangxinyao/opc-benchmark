@@ -1,6 +1,6 @@
 IMAGE ?= opc-benchmark/hermes-base:local
 VERIFIER_IMAGE ?= opc-benchmark/verifier-base:local
-HERMES_VERSION ?= 0.0.0
+HERMES_VERSION ?=
 PIP_INDEX_URL ?= https://pypi.org/simple
 UV_RUN := uv run --python 3.12 --no-project
 
