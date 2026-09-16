@@ -25,7 +25,14 @@ dev = [
     "pytest>=8.4,<9",
 ]
 
-# 这个仓库不是要发布的库，是一套题 + 一个适配器，全程在仓库根目录跑。
-# 不打包，省掉 build-backend 和 src/ 布局那一层。
-[tool.uv]
-package = false
+# 这个仓库不是要发布的库，但仍然要可编辑安装 opc/。
+# 原因：job config 和 --agent 传的都是 import path（opc.agents.hermes:Hermes），
+# harbor 是 console script，sys.path[0] 是 .venv/bin 而不是 cwd，
+# 不装进 venv 的话在任何目录都 import 不到 opc。
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# 只有 opc/ 进包；tasks/、configs/、scripts/ 是仓库内容，不是库的一部分。
+[tool.hatch.build.targets.wheel]
+packages = ["opc"]
