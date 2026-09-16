@@ -9,6 +9,7 @@ for task in "$ROOT"/tasks/*/; do
   mkdir -p "$task/environment/tools" "$task/tests"
   cp "$ROOT"/shared/tools/* "$task/environment/tools/"
   cp "$ROOT"/shared/test.sh "$task/tests/test.sh"
+  cp "$ROOT"/shared/tests.Dockerfile "$task/tests/Dockerfile"
   chmod +x "$task/tests/test.sh"
   echo "synced $(basename "$task")"
 done
