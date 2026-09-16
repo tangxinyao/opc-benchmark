@@ -134,7 +134,7 @@ tasks/*/task.toml      ─┘      按 (models, attempts) 分组
 # tasks/<name>/task.toml
 [metadata.opc]
 attempts = 5                 # 省略则回落到 configs/policy.toml 的 defaults
-models = ["deepseek/deepseek-chat"]
+models = ["deepseek/deepseek-flash"]
 base_image = "opc-benchmark/hermes-base:local"
 verifier_image = "opc-benchmark/verifier-base:local"
 ```
@@ -162,7 +162,7 @@ verifier_image = "opc-benchmark/verifier-base:local"
 OPC_BILL_CYCLE = "${OPC_BILL_CYCLE}"
 
 [verifier.environment]
-allow_internet = true                  # 判分器要调真 API
+network_mode = "public"                # 判分器要调真 API
 
 [verifier.environment.env]             # 进判分器容器
 ALIBABA_CLOUD_ACCESS_KEY_ID = "${ALIBABA_CLOUD_ACCESS_KEY_ID}"

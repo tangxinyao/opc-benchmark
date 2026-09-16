@@ -50,4 +50,6 @@ cpus = 1
 memory_mb = 2048
 storage_mb = 10240
 gpus = 0
-allow_internet = false
+# 默认断网：题目不该让 agent 上网找答案。模型端点不用在这里放行——
+# hermes 适配器跑 agent 时会临时只放行本次 provider 的那一个主机，跑完恢复。
+network_mode = "no-network"

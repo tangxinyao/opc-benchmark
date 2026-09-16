@@ -1,7 +1,7 @@
 # 开始使用
 
-前置：**Docker** 和 **uv**。全程在仓库根目录执行——`--agent` 传的是 import path，
-换个目录 `opc` 包就导不进去了。
+前置：**Docker** 和 **uv**。下面的路径都按仓库根目录写，所以在根目录跑最省事；
+`uv sync` 会把 `opc` 可编辑安装进 `.venv`，import path 在哪个目录都解析得到。
 
 ## 五步跑起来
 
@@ -72,7 +72,7 @@ scripts/validate.sh                                        # 7 道全跑
 ```bash
 . scripts/load-env.sh
 harbor run -p tasks/m4-no-allocation-platform-fee \
-  --agent opc.agents.hermes:Hermes -m deepseek/deepseek-chat
+  --agent opc.agents.hermes:Hermes -m deepseek/deepseek-flash
 ```
 
 这一步验的是前两级都验不到的：API key 有没有正确进到容器、provider 路由对不对、
@@ -98,7 +98,7 @@ make run CONFIG=configs/jobs/job-deepseek-x5.yaml    # 4 道题 × 5 遍 = 20 �
 两条规矩：
 
 - **最小权限。** 差分判分意味着一个任意模型拿着你的凭证联网（那些题的
-  `allow_internet` 必须为 `true`）。只读、只给必要的那一个服务。
+  `network_mode` 必须是 `"public"`）。只读、只给必要的那一个服务。
 - **审计日志会脱敏。** `/var/lib/opc/audit.log` 记录完整 argv 且会被当 artifact 收走，
   `opc/tools/_audit.py` 把 argv 和异常文本里的 key/secret/token 打码。
 
@@ -112,6 +112,7 @@ make run CONFIG=configs/jobs/job-deepseek-x5.yaml    # 4 道题 × 5 遍 = 20 �
 | 想知道哪条断言挂了 | `/logs/verifier/ctrf.json`，pytest 每条断言分开报告 |
 | 想知道 agent 到底调没调工具 | 容器里的 `/var/lib/opc/audit.log` |
 | 差分判分假阴性 | `/logs/verifier/oracle.json`，判分器当时取到的真值 |
+| hermes 报 `can't reach the model provider` | 环境策略没放行模型端点。题目默认 `network_mode = "no-network"`，适配器会在 agent 阶段临时放行本次 provider 的主机——这条报错说明放行失败（环境不支持运行时改策略，或 base_url 指到了别处） |
 
 ## 几个会绊人的点
 

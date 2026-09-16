@@ -213,10 +213,10 @@ def check_differential(task: Path, rel: Path, opc: dict, config: dict) -> list[s
                 )
 
     if config.get("verifier", {}).get("environment", {}).get(
-            "allow_internet") is not True:
+            "network_mode") != "public":
         problems.append(
             f"{rel}: scoring=\"differential\" 但 [verifier.environment] "
-            "没开 allow_internet——判分器调不了真 API"
+            "的 network_mode 不是 \"public\"——判分器调不了真 API"
         )
 
     if not (task / "tests" / "oracle.py").exists():

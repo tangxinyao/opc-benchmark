@@ -15,7 +15,7 @@ attempts = 3
 
 # 用哪些模型跑。provider 前缀必须是适配器支持的三个之一。
 models = [
-  "deepseek/deepseek-chat",
+  "deepseek/deepseek-flash",
 ]
 
 # 两个基础镜像。task.toml 里声明的必须与任务 Dockerfile 的 ARG 默认值一致，
