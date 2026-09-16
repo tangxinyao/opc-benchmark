@@ -44,6 +44,6 @@ check: lint unit smoke  ## 以上全部，都不需要 Docker
 env-check:  ## 检查每道题声明要的环境变量是否都已就位（不打印值）
 	$(WITH_ENV) $(UV_RUN) python scripts/check_env.py'
 
-run:  ## 跑一个 job config：make run CONFIG=configs/job-xxx.yaml
-	@test -n "$(CONFIG)" || (echo "用法: make run CONFIG=configs/job-xxx.yaml"; exit 1)
+run:  ## 跑一个 job config：make run CONFIG=configs/jobs/job-xxx.yaml
+	@test -n "$(CONFIG)" || (echo "用法: make run CONFIG=configs/jobs/job-xxx.yaml"; exit 1)
 	$(WITH_ENV) uv run harbor run -c $(CONFIG)'

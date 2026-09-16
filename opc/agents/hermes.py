@@ -100,7 +100,7 @@ class Hermes(BaseInstalledAgent):
 
     @override
     def get_version_command(self) -> str | None:
-        return "hermes version"
+        return "hermes --version"
 
     # ------------------------------------------------------------------
     # install：不装东西，只确认镜像是对的

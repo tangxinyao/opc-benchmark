@@ -1,4 +1,9 @@
-# 全仓库的默认跑法。每道题可以在自己的 task.toml 的 [metadata.opc] 里覆盖。
+# 全仓库的默认跑法：configs/jobs/ 下所有 job config 的基底。
+#
+# 这个文件是**输入**，是 configs/ 里唯一需要手改的东西；
+# 同级的 jobs/ 整个目录都是 make configs 生成的产物，可以随时删掉重建。
+#
+# 每道题可以在自己的 task.toml 的 [metadata.opc] 里覆盖。
 #
 # 为什么默认值放在这里而不是散在每道题里：跑分要可比，
 # 同一批题用不同的模型或不同的遍数跑出来的分放在一张表上是没有意义的。
@@ -11,7 +16,6 @@ attempts = 3
 # 用哪些模型跑。provider 前缀必须是适配器支持的三个之一。
 models = [
   "deepseek/deepseek-chat",
-  "antchat/ling-3.0",
 ]
 
 # 两个基础镜像。task.toml 里声明的必须与任务 Dockerfile 的 ARG 默认值一致，

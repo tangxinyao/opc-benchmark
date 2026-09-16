@@ -3,10 +3,11 @@
 为什么需要这一步：harbor 的「跑几遍」（n_attempts）和「用哪些模型」（agents）
 是 **job 级**的，task.toml 里没有这两个字段——一道题不该自己决定谁来考它，
 否则各题的分数不可比。所以 task.toml 里的 [metadata.opc] 是**声明**，
-由这个脚本按 (models, attempts) 把题分组，每组生成一个 job config。
+由这个脚本按 (models, attempts) 把题分组，
+每组在 configs/policy.toml 的默认值之上生成一个 job config。
 
-    make configs        # 生成到 configs/
-    harbor run -c configs/job-<组名>.yaml
+    make configs        # 读 configs/policy.toml，生成到 configs/jobs/
+    harbor run -c configs/jobs/job-<组名>.yaml
 """
 
 from __future__ import annotations
@@ -20,13 +21,14 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 TASKS_DIR = ROOT / "tasks"
-OUT_DIR = ROOT / "configs"
+# configs/ 分两层：policy.toml 是手改的输入，jobs/ 整个目录是产物。
+POLICY = ROOT / "configs" / "policy.toml"
+OUT_DIR = ROOT / "configs" / "jobs"
 AGENT_IMPORT_PATH = "opc.agents.hermes:Hermes"
 
 
 def load_defaults() -> dict:
-    data = tomllib.loads((ROOT / "run-policy.toml").read_bytes().decode())
-    return data["defaults"]
+    return tomllib.loads(POLICY.read_bytes().decode())["defaults"]
 
 
 def task_policy(task: Path, defaults: dict) -> dict:
@@ -92,7 +94,7 @@ def main() -> int:
     for task in tasks:
         groups[group_key(policies[task.name])].append(task.name)
 
-    OUT_DIR.mkdir(exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     for stale in OUT_DIR.glob("job-*.yaml"):
         stale.unlink()
 
@@ -112,7 +114,7 @@ def main() -> int:
         path = OUT_DIR / f"job-{name}.yaml"
         path.write_text(
             "# 由 scripts/gen_job_configs.py 生成，不要手改。\n"
-            "# 改题的跑法请改 task.toml 的 [metadata.opc] 或 run-policy.toml，\n"
+            "# 改题的跑法请改 task.toml 的 [metadata.opc] 或 configs/policy.toml，\n"
             "# 然后 make configs。\n"
             + yaml.dump(config, sort_keys=False, allow_unicode=True),
             encoding="utf-8",

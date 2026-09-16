@@ -19,7 +19,7 @@ uv sync
 
 # 2. 构建两个基础镜像（agent 用 + 判分用，各约几分钟）
 #    HERMES_VERSION 留空装最新版；正式跑分请钉死版本。
-make images HERMES_VERSION=v1.4.2
+make images HERMES_VERSION=v2026.9.14
 
 # 3. 给模型凭证：填 .env（模板 .env.example，.env 不会被提交）
 cp .env.example .env && $EDITOR .env
@@ -30,8 +30,8 @@ scripts/validate.sh
 
 # 5. 跑
 make configs
-make run CONFIG=configs/job-deepseek-antchat-x5.yaml
-make run CONFIG=configs/job-deepseek-antchat-x3.yaml
+make run CONFIG=configs/jobs/job-deepseek-x5.yaml
+make run CONFIG=configs/jobs/job-deepseek-x3.yaml
 ```
 
 只想先看一道题通不通：
@@ -113,8 +113,10 @@ opc/                       # 本仓库自己的代码，题目在 tasks/，不�
 └── verifier/              #   进判分容器的东西（同步到 tasks/*/tests/）
                            #     oracle.py / test.sh / Dockerfile（判分基础镜像）
 tests/                     # 适配器单元测试
-run-policy.toml            # 全仓库默认跑法（遍数、模型、镜像）
-configs/                   # 由 make configs 生成的 harbor job config
+configs/                   # 所有配置文件。jobs/ 是产物，其余是手改的输入
+├── policy.toml            #   全仓库默认跑法（遍数、模型、镜像），gen_job_configs.py 读
+├── task-template.toml     #   新建题的元数据模板，harbor tasks init 读
+└── jobs/                  #   生成的 harbor job config，可随时删掉重建
 scripts/                   # sync-tasks.sh / smoke.sh / validate.sh / check_env.py
 docs/                      # 母题的出处、案例集、讲稿
 ```
@@ -181,7 +183,7 @@ harbor.verifier  →  tests/test.sh  →  pytest /tests/test_state.py  →  rewa
 `5%`、合同号、90000 这些全部失效，判分只能退回去让模型当裁判——那是这个仓库拒绝的东西。
 
 **差分判分**绕开这一点：不预设答案，判分器用同一套凭证调同一个真 API 现场取真值，再比对。
-声明方式见 `task-template.toml` 的 `[metadata.opc]`，骨架在 `opc/verifier/oracle.py`。
+声明方式见 `configs/task-template.toml` 的 `[metadata.opc]`，骨架在 `opc/verifier/oracle.py`。
 
 三条硬约束（前两条 `make lint` 会check）：
 
@@ -215,14 +217,14 @@ harbor.verifier  →  tests/test.sh  →  pytest /tests/test_state.py  →  rewa
 ```bash
 cp .env.example .env      # 填进去
 make env-check            # 确认每道题要的变量都就位（只报在不在，不打印值）
-make run CONFIG=configs/job-deepseek-antchat-x5.yaml
+make run CONFIG=configs/jobs/job-deepseek-x5.yaml
 ```
 
 `make` 的目标会自己 `. scripts/load-env.sh`。手敲 `harbor run` 的话自己先 source 一次：
 
 ```bash
 . scripts/load-env.sh
-harbor run -c configs/job-deepseek-antchat-x5.yaml
+harbor run -c configs/jobs/job-deepseek-x5.yaml
 ```
 
 在 shell 层读而不是在适配器里读，是因为凭证有三个去处——harbor 本体、agent 容器、
@@ -302,18 +304,18 @@ harbor 的 trial 数是 `任务 × agents × n_attempts`，**一道题不能自�
 ```toml
 # tasks/<name>/task.toml
 [metadata.opc]
-attempts = 5                 # 省略则回落到 run-policy.toml 的 [defaults]
+attempts = 5                 # 省略则回落到 configs/policy.toml 的 defaults
 models = ["deepseek/deepseek-chat"]
 base_image = "opc-benchmark/hermes-base:local"
 verifier_image = "opc-benchmark/verifier-base:local"
 ```
 
 ```bash
-make configs                          # 生成 configs/job-*.yaml
-harbor run -c configs/job-deepseek-antchat-x5.yaml
+make configs                          # 生成 configs/jobs/job-*.yaml
+harbor run -c configs/jobs/job-deepseek-x5.yaml
 ```
 
-仓库默认值在 `run-policy.toml`。**默认值集中放、覆盖写在题里**，是因为跑分要可比，
+仓库默认值在 `configs/policy.toml`。**默认值集中放、覆盖写在题里**，是因为跑分要可比，
 例外应该显眼。
 
 三条自动检查（都在 `make lint` 里）：
@@ -350,7 +352,7 @@ make check           # = make lint + make unit + make smoke
 
 - `make lint` —— 任务目录静态检查：canary、四元标签、判分工具是否烘进镜像、
   每道拒答题是否都有配对的对照题、`[metadata.opc]` 与 Dockerfile 是否一致，
-  并重新生成 `configs/`。
+  并重新生成 `configs/jobs/`。
 - `make unit` —— 适配器的 provider 路由单元测试（不需要 Docker，也不需要装 harbor）。
 - `make smoke` —— 每道题 oracle 必须满分、nop 必须零分（不需要 Docker）。
 - `scripts/validate.sh` —— 需要 Docker + harbor，在真容器里再跑一遍 oracle / nop。
@@ -360,9 +362,9 @@ make check           # = make lint + make unit + make smoke
 ## 加一道新题
 
 ```bash
-harbor tasks init <task-name> --metadata-template task-template.toml \
+harbor tasks init <task-name> --metadata-template configs/task-template.toml \
   --include-canary-strings -p tasks/
-scripts/sync-shared.sh
+scripts/sync-tasks.sh
 ```
 
 然后：写题面 → 写 `solution/solve.sh` → 写判分器 → `scripts/smoke.sh` 必须 PASS。

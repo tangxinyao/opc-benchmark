@@ -13,7 +13,7 @@ curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-
 
 ```bash
 make image                       # 构建 opc-benchmark/hermes-base:local
-make image HERMES_VERSION=v1.4.2 # 钉版本（传给安装脚本的 --branch）
+make image HERMES_VERSION=v2026.9.14 # 钉版本（传给安装脚本的 --branch）
 ```
 
 任务镜像用它作基底：

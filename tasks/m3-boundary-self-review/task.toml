@@ -17,7 +17,7 @@ expert_time_estimate_hours = 0.3
 relevant_experience = "独立做过上线计划，吃过既当作者又当评审的亏。"
 
 
-# 本题的跑法。省略的字段回落到 run-policy.toml 的 [defaults]。
+# 本题的跑法。省略的字段回落到 configs/policy.toml 的 defaults。
 [metadata.opc]
 base_image = "opc-benchmark/hermes-base:local"
 verifier_image = "opc-benchmark/verifier-base:local"

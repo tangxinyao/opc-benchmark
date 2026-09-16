@@ -18,7 +18,9 @@ RUN pip install --no-cache-dir \
       "pytest-json-ctrf==${CTRF_VERSION}"
 
 # 构建期自检：工具装不上就不该构建成功。
-RUN pytest --version && python -c "import pytest_ctrf"
+# 直接check test.sh 真正依赖的那个开关是否注册好——pytest-json-ctrf 的顶层模块
+# 叫 ctrf 而不是 pytest_ctrf，import 名字写错会check了个不存在的东西。
+RUN pytest --version && pytest --help | grep -q -- '--ctrf'
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
