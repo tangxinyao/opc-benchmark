@@ -15,13 +15,17 @@
 用法：
 
     harbor run -p tasks --agent opc.agents.hermes:Hermes \
-      -m deepseek/deepseek-chat
+      -m deepseek/deepseek-flash
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
+import os
 import shlex
+import socket
 import uuid
 from pathlib import Path
 from typing import Annotated, Any, override
@@ -34,6 +38,7 @@ from harbor.agents.installed.base import BaseInstalledAgent, with_prompt_templat
 from harbor.agents.options import Cli, InstalledAgentOptions
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
+from harbor.models.task.config import NetworkMode, NetworkPolicy
 from harbor.models.trajectories import (
     Agent,
     FinalMetrics,
@@ -44,7 +49,13 @@ from harbor.models.trajectories import (
     Trajectory,
 )
 
-from opc.agents.providers import SUPPORTED_PROVIDERS, get_provider, resolve_credentials
+from opc.agents.providers import (
+    SUPPORTED_PROVIDERS,
+    NativeProvider,
+    get_provider,
+    provider_host,
+    resolve_credentials,
+)
 
 HERMES_HOME = "/opt/hermes"
 """基础镜像里 hermes 的家目录。必须与 opc/agents/Dockerfile 一致。"""
@@ -169,6 +180,143 @@ class Hermes(BaseInstalledAgent):
     # 运行
     # ------------------------------------------------------------------
 
+    async def _probe_egress(
+        self,
+        environment: BaseEnvironment,
+        env: dict[str, str],
+        provider: NativeProvider,
+        host: str,
+    ) -> None:
+        """OPC_DEBUG_EGRESS=1 时，从 agent 容器里探一次模型端点。
+
+        hermes 把所有 API 失败都归成一句「can't reach the model provider」，
+        分不出是 DNS 挂了、TCP 被拦了、还是 4xx/5xx。这里直接看 curl 的
+        退出码和 HTTP 状态码。只在显式开关下跑，正常跑分不额外发请求。
+        """
+        base_url = env[provider.inject_base_url_as]
+        script = (
+            "echo \"--- resolv.conf\"; cat /etc/resolv.conf; "
+            "echo \"--- hosts\"; grep %(host)s /etc/hosts || echo 'no pin'; "
+            "echo \"--- resolve\"; getent hosts %(host)s || echo 'DNS FAILED'; "
+            "echo \"--- tcp+tls\"; "
+            "curl -sS -o /dev/null -m 20 "
+            "-w 'http=%%{http_code} exit=%%{exitcode} err=%%{errormsg}\\n' "
+            "-H \"Authorization: Bearer $%(key_var)s\" "
+            "%(base_url)s/models || echo \"curl rc=$?\""
+        ) % {
+            "host": shlex.quote(host),
+            "key_var": provider.inject_key_as,
+            "base_url": shlex.quote(base_url.rstrip("/")),
+        }
+        try:
+            result = await self.exec_as_agent(
+                environment, command=script, env=env, timeout_sec=60
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning("出网探针没跑成: %s", exc)
+            return
+        self.logger.warning("出网探针（%s）:\n%s", host, getattr(result, "stdout", result))
+
+    HOSTS_MARKER = "# opc-model-endpoint"
+    """写进 agent 容器 /etc/hosts 的标记，跑完按它删干净。"""
+
+    async def _pin_model_endpoint_dns(
+        self, environment: BaseEnvironment, host: str
+    ) -> list[str]:
+        """把模型端点的 IP 钉进 agent 容器的 /etc/hosts。
+
+        为什么需要这一步：agent 容器与 egress sidecar 共享 netns，但 /etc/hosts
+        和 /etc/resolv.conf 还是各自的。sidecar 的 nftables 只放行
+        **sidecar 自己** resolv.conf 里那几个 nameserver（Docker 的内嵌 DNS
+        127.0.0.11），而 agent 容器的 resolv.conf 指向宿主机那几个外部
+        nameserver——不在放行名单里，UDP 53 被 `meta l4proto != tcp reject` 拦掉，
+        于是解析直接失败，连 gost 的 SNI 白名单都走不到。
+
+        解析放在宿主机做（那里 DNS 是通的），把结果钉进容器。之后 TCP 仍然全部
+        被 redirect 到 gost，由 gost 按 SNI 对白名单做最终判定——钉 IP 不会绕过
+        白名单，只是把「解析」这一步挪走。
+        """
+        infos = await asyncio.to_thread(
+            socket.getaddrinfo, host, 443, 0, socket.SOCK_STREAM
+        )
+        ips = list(dict.fromkeys(info[4][0] for info in infos))
+        if not ips:
+            raise ValueError(f"宿主机也解析不出 {host}")
+
+        lines = "".join(
+            f"{ip}\t{host}\t{self.HOSTS_MARKER}\n" for ip in ips
+        )
+        await self.exec_as_root(
+            environment,
+            command=(
+                f"cat >> /etc/hosts << 'OPCHOSTS'\n{lines}OPCHOSTS"
+            ),
+            timeout_sec=10,
+        )
+        return ips
+
+    async def _unpin_model_endpoint_dns(self, environment: BaseEnvironment) -> None:
+        with contextlib.suppress(Exception):
+            await self.exec_as_root(
+                environment,
+                command=(
+                    f"sed -i '/{self.HOSTS_MARKER}$/d' /etc/hosts"
+                ),
+                timeout_sec=10,
+            )
+
+    @contextlib.asynccontextmanager
+    async def _model_endpoint_reachable(
+        self,
+        environment: BaseEnvironment,
+        env: dict[str, str],
+        provider: NativeProvider,
+    ):
+        """临时放行模型端点，跑完恢复原策略。
+
+        任务声明的是 no-network——题目不该让 agent 上网找答案。但 hermes 自己
+        跑在 agent 容器里，模型请求也要从这个容器出去，一点都不放行的话第一次
+        API 调用就挂在「can't reach the model provider」上。
+
+        放行的范围是本次真正用到的那一个 provider 主机，不是整张 provider 表：
+        task.toml 里不写任何 provider 主机名，换 provider 不用改题。
+        """
+        original = environment.network_policy
+        if original.network_mode == NetworkMode.PUBLIC:
+            # 已经全放开了（差分判分那类题），不用也不能收窄——
+            # 全放开的环境根本没起 egress sidecar。
+            yield
+            return
+
+        host = provider_host(env, provider)
+        if not environment.capabilities.dynamic_network_policy:
+            raise ValueError(
+                f"环境 {environment.type()} 不支持运行时改网络策略，"
+                f"而任务声明的是 {original.network_mode.value}——"
+                f"hermes 连不上 {host}。"
+                " 要么换支持的环境，要么在 task.toml 里把 [environment] 写成"
+                f' network_mode = "allowlist" / allowed_hosts = ["{host}"]。'
+            )
+
+        ips = await self._pin_model_endpoint_dns(environment, host)
+        await environment.set_network_policy(
+            NetworkPolicy(
+                network_mode=NetworkMode.ALLOWLIST, allowed_hosts=[host, *ips]
+            )
+        )
+        self.logger.debug(
+            "已放行模型端点 %s（%s），其余出网仍然封着", host, ", ".join(ips)
+        )
+        if os.environ.get("OPC_DEBUG_EGRESS"):
+            await self._probe_egress(environment, env, provider, host)
+        try:
+            yield
+        finally:
+            # 恢复原策略，别把判分阶段也留在放行状态。
+            with contextlib.suppress(Exception):
+                await environment.set_network_policy(original)
+            await self._unpin_model_endpoint_dns(environment)
+
     @with_prompt_template
     async def run(
         self,
@@ -241,7 +389,8 @@ class Hermes(BaseInstalledAgent):
         )
 
         try:
-            await self.exec_as_agent(environment, command=run_cmd, env=env)
+            async with self._model_endpoint_reachable(environment, env, provider):
+                await self.exec_as_agent(environment, command=run_cmd, env=env)
         finally:
             await self._export_session(environment)
 

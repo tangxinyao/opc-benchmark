@@ -125,3 +125,18 @@ def resolve_credentials(
     env[provider.inject_base_url_as] = base_url
     env.update(provider.extra_env)
     return env
+
+
+def provider_host(env: dict[str, str], provider: NativeProvider) -> str:
+    """从已解析的注入环境里取出 provider 的主机名。
+
+    用于给 agent 容器开一个「只放行模型端点」的出网白名单：任务本身是
+    no-network 的，但 hermes 跑在容器里，不放行就连不上模型。
+    取的是改写过 localhost 之后的值，所以 local provider 拿到的是
+    host.docker.internal 而不是 127.0.0.1。
+    """
+    base_url = env[provider.inject_base_url_as]
+    host = urlparse(base_url).hostname
+    if not host:
+        raise ValueError(f"base_url 里解析不出主机名: {base_url!r}")
+    return host
