@@ -8,6 +8,53 @@
 > 这不是一个基准，是一个**模板**。语料是我自己的，所以分数你不用信；
 > 题型和判分器可以直接拿走，把语料换成你的。
 
+## 五步跑起来
+
+前置：**Docker** 和 **uv**。全程在仓库根目录执行——`--agent` 传的是 import path，
+换个目录 `opc_agents` 就导不进去了。
+
+```bash
+# 1. 装 harbor
+uv tool install harbor
+
+# 2. 构建两个基础镜像（agent 用 + 判分用，各约几分钟）
+#    HERMES_VERSION 留空装最新版；正式跑分请钉死版本。
+make images HERMES_VERSION=v1.4.2
+
+# 3. 给模型凭证（按你要跑的 provider 选，local/ 不需要 key）
+export DEEPSEEK_API_KEY=sk-...
+export ANTCHAT_API_KEY=...
+
+# 4. 钉基线：每道题 oracle 必须满分、nop 必须零分
+scripts/validate.sh
+
+# 5. 跑
+make configs
+harbor run -c configs/job-deepseek-antchat-x5.yaml
+harbor run -c configs/job-deepseek-antchat-x3.yaml
+```
+
+只想先看一道题通不通：
+
+```bash
+harbor run -p tasks/m4-no-allocation-platform-fee \
+  --agent opc_agents.hermes:Hermes -m deepseek/deepseek-chat
+```
+
+**第 4 步不要跳。** `make check` 只在宿主机上验证了解法与判分器的逻辑，
+没验证 Dockerfile 和 harbor 集成；第一次进真容器大概率有路径或权限的小毛病要修。
+**nop 能通过的题量不出任何东西，oracle 过不了的题量的是你的判分器。**
+
+几个会绊人的点：
+
+- 用 `local/` provider 且模型服务在宿主机上时，Linux 的 Docker 要加
+  `--add-host=host.docker.internal:host-gateway`（适配器已经把 URL 改写好了，
+  但 host 别名得 Docker 那边给）。
+- 跑在远程环境（`--env daytona/modal/...`）时，两个基础镜像要先推到 registry，
+  任务 Dockerfile 的 `ARG *BASE_IMAGE` 默认值换成带仓库前缀的全名，
+  并同步改 `[metadata.opc]` 里的声明（`make lint` 会check两边一致）。
+- 改完题、改完适配器，先 `make check`（lint + unit + smoke，都不需要 Docker）。
+
 ## 题目一览
 
 | 任务 | 母题 | 在问什么 | 判分方式 |
@@ -80,26 +127,9 @@ docs/                      # 母题的出处、案例集、讲稿
 
 改了 `shared/` 之后跑 `scripts/sync-shared.sh` 同步到各任务目录。
 
-## 跑起来
+## 怎么配、怎么改
 
-评测跑在 [Harbor](https://github.com/harbor-framework/harbor) 上，agent 用本仓库自带的
-hermes 适配器（`opc_agents/hermes.py`）。
-
-```bash
-uv tool install harbor      # 或 pip install harbor
-make images                 # 构建两个基础镜像（agent 用 + 判分用）
-
-# 单题
-harbor run -p tasks/m4-no-allocation-platform-fee \
-  --agent opc_agents.hermes:Hermes -m deepseek/deepseek-chat
-
-# 全集
-harbor run -p tasks --agent opc_agents.hermes:Hermes \
-  -m antchat/<model> --n-concurrent 4
-```
-
-> `--agent` 传的是 import path，所以仓库根目录要在 `PYTHONPATH` 上
-> （在仓库根目录跑就行）。
+上面五步是最短路径，这一节是里面每个部分的来龙去脉。
 
 ### agent 适配器
 
