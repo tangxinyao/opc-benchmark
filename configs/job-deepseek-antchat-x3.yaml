@@ -1,0 +1,15 @@
+# 由 scripts/gen_job_configs.py 生成，不要手改。
+# 改题的跑法请改 task.toml 的 [metadata.opc] 或 run-policy.toml，
+# 然后 make configs。
+job_name: opc-deepseek-antchat-x3
+n_attempts: 3
+n_concurrent_trials: 4
+agents:
+- import_path: opc_agents.hermes:Hermes
+  model_name: deepseek/deepseek-chat
+- import_path: opc_agents.hermes:Hermes
+  model_name: antchat/ling-3.0
+tasks:
+- path: tasks/m1-incomplete-five-step-pipeline
+- path: tasks/m3-boundary-self-review
+- path: tasks/m4-no-allocation-platform-fee

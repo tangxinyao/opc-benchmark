@@ -62,6 +62,8 @@ opc_agents/                # 自写的 Harbor agent 适配器（hermes + provide
 images/hermes-base/        # agent 基础镜像：hermes 预烘在里面
 images/verifier-base/      # 判分基础镜像：pytest 预烘在里面
 tests/                     # 适配器单元测试
+run-policy.toml            # 全仓库默认跑法（遍数、模型、镜像）
+configs/                   # 由 make configs 生成的 harbor job config
 scripts/                   # sync-shared.sh / smoke.sh / validate.sh
 docs/                      # 母题的出处、案例集、讲稿
 ```
@@ -124,6 +126,47 @@ harbor run -p tasks --agent opc_agents.hermes:Hermes \
 
 常用 `--ak`：`base_url=` 覆盖地址、`max_turns=` 调轮数、`toolsets=` 选工具集。
 
+### 每道题跑几遍、用哪些模型、用哪个镜像
+
+先说清楚 harbor 的分层，因为这三件事不在同一层：
+
+| 想配的东西 | harbor 支持在哪一层 | 本仓库怎么写 |
+|---|---|---|
+| **docker 镜像** | ✅ 任务级原生（`[environment] docker_image` / `[verifier.environment]`） | 任务 Dockerfile 的 `ARG BASE_IMAGE`，并在 `[metadata.opc]` 里声明 |
+| **跑几遍** | ❌ 只有 job 级（`n_attempts`） | `[metadata.opc] attempts`，由生成器展开 |
+| **用哪些模型** | ❌ 只有 job 级（`agents[]`） | `[metadata.opc] models`，由生成器展开 |
+
+harbor 的 trial 数是 `任务 × agents × n_attempts`，**一道题不能自己决定谁来考它**——
+这是它的设计取向，不是缺陷：各题用不同模型跑出来的分放在一张表上没有意义。
+
+所以本仓库的做法是：task.toml 里写**声明**，`make configs` 按 (models, attempts)
+把题分组，每组生成一个 job config。
+
+```toml
+# tasks/<name>/task.toml
+[metadata.opc]
+attempts = 5                 # 省略则回落到 run-policy.toml 的 [defaults]
+models = ["deepseek/deepseek-chat"]
+base_image = "opc-benchmark/hermes-base:local"
+verifier_image = "opc-benchmark/verifier-base:local"
+```
+
+```bash
+make configs                          # 生成 configs/job-*.yaml
+harbor run -c configs/job-deepseek-antchat-x5.yaml
+```
+
+仓库默认值在 `run-policy.toml`。**默认值集中放、覆盖写在题里**，是因为跑分要可比，
+例外应该显眼。
+
+三条自动检查（都在 `make lint` 里）：
+
+- `[metadata.opc]` 声明的镜像必须与 Dockerfile 的 `ARG` 默认值一致，
+  否则 task.toml 写的是一回事、真正构建出来的是另一回事；
+- 模型的 provider 前缀必须是适配器支持的三个之一；
+- **配对的两道题必须同模型、同遍数**，否则那一对不成立——
+  拒答题跑 5 遍、对照题跑 1 遍，两个数不在同一个尺度上。
+
 ### 两个基础镜像
 
 评测里有两个容器，各有各的基底，**都不在运行时装东西**：
@@ -149,7 +192,8 @@ make check           # = make lint + make unit + make smoke
 ```
 
 - `make lint` —— 任务目录静态检查：canary、四元标签、判分工具是否烘进镜像、
-  每道拒答题是否都有配对的对照题。
+  每道拒答题是否都有配对的对照题、`[metadata.opc]` 与 Dockerfile 是否一致，
+  并重新生成 `configs/`。
 - `make unit` —— 适配器的 provider 路由单元测试（不需要 Docker，也不需要装 harbor）。
 - `make smoke` —— 每道题 oracle 必须满分、nop 必须零分（不需要 Docker）。
 - `scripts/validate.sh` —— 需要 Docker + harbor，在真容器里再跑一遍 oracle / nop。

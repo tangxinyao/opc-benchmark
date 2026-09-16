@@ -16,6 +16,12 @@ tags = ["motif:no-allocation", "function:finance", "stage:operate", "tool:requir
 expert_time_estimate_hours = 0.3
 relevant_experience = "按平台分成规则对过账，经历过规则中途变更。"
 
+
+# 本题的跑法。省略的字段回落到 run-policy.toml 的 [defaults]。
+[metadata.opc]
+base_image = "opc-benchmark/hermes-base:local"
+verifier_image = "opc-benchmark/verifier-base:local"
+
 [verifier]
 environment_mode = "separate"
 timeout_sec = 120.0
