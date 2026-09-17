@@ -1,0 +1,15 @@
+# Obsidian Bases 视图：知识库里全部记录的索引。
+# 这是一个「视图定义」，不是数据本身；数据在各 note 的 frontmatter 里。
+filters:
+  or:
+    - 'type == "contract"'
+    - 'type == "invoice"'
+    - 'type == "meeting"'
+views:
+  - type: table
+    name: 全部记录
+    order:
+      - id
+      - type
+      - client
+      - renewal_rate_pct

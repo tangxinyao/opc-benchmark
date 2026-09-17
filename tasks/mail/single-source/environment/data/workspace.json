@@ -1,0 +1,64 @@
+{
+  "default_user": "hello@yisi.example.com",
+  "mailboxes": {
+    "hello@yisi.example.com": {
+      "messages": [
+        {
+          "id": "18f0c71a2b",
+          "thread_id": "18f0c71a2b",
+          "from": "lin@hefeng.example.com",
+          "to": "hello@yisi.example.com",
+          "subject": "Q3 结算单的通道费算错了",
+          "date": "Wed, 5 Aug 2026 10:12:37 +0800",
+          "date_iso": "2026-08-05",
+          "epoch": 1786018357,
+          "body": "结算单上通道费按 2% 算的，我们 7 月 16 号起改成 3% 了。麻烦重出一版。"
+        },
+        {
+          "id": "18f0d3e844",
+          "thread_id": "18f0d3e844",
+          "from": "wu@lanhu.example.com",
+          "to": "hello@yisi.example.com",
+          "subject": "导出明细缺了 8 月 1 日那天",
+          "date": "Fri, 14 Aug 2026 16:48:09 +0800",
+          "date_iso": "2026-08-14",
+          "epoch": 1786812489,
+          "body": "月度明细导出来只有 8/2 起的数据，8/1 整天都没有。跨月那里是不是漏了一天？"
+        },
+        {
+          "id": "18f0e95b17",
+          "thread_id": "18f0e95b17",
+          "from": "chen@mingyuan.example.com",
+          "to": "hello@yisi.example.com",
+          "subject": "续签前想加两个巡检指标",
+          "date": "Thu, 27 Aug 2026 09:03:52 +0800",
+          "date_iso": "2026-08-27",
+          "epoch": 1787936632,
+          "body": "明年的运维外包想把磁盘水位和证书到期也纳进巡检，续签前先确认能不能做。"
+        },
+        {
+          "id": "18f0b1092c",
+          "thread_id": "18f0b1092c",
+          "from": "lin@hefeng.example.com",
+          "to": "hello@yisi.example.com",
+          "subject": "上半年的发票寄到哪个地址",
+          "date": "Wed, 29 Jul 2026 11:20:04 +0800",
+          "date_iso": "2026-07-29",
+          "epoch": 1785295204,
+          "body": "财务问上半年那几张发票寄哪儿，还是原来那个前台地址吗？"
+        },
+        {
+          "id": "18f0e02f61",
+          "thread_id": "18f0e02f61",
+          "from": "no-reply@billing.aliyun.example.net",
+          "to": "hello@yisi.example.com",
+          "subject": "【系统通知】您的 8 月账单已生成",
+          "date": "Wed, 19 Aug 2026 02:00:00 +0800",
+          "date_iso": "2026-08-19",
+          "epoch": 1787241600,
+          "body": "您 8 月的账单已生成，应付金额 4,312.66 元，请登录控制台查看。本邮件由系统自动发出。"
+        }
+      ]
+    }
+  }
+}

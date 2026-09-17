@@ -8,8 +8,16 @@ PYTHON="${PYTHON:-python3}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FAILED=0
 
-for task in "$ROOT"/tasks/*/; do
-  name="$(basename "$task")"
+for task in "$ROOT"/tasks/*/*/; do
+  name="$(basename "$(dirname "$task")")/$(basename "$task")"
+  # 带 entrypoint 的题，环境要在 agent 进来之前先立起来（拉服务、摆权限、
+  # 换登录态、删二进制）。那是 Dockerfile + entrypoint 的活，宿主机上复刻不了，
+  # 硬跑只会得到一堆假红。这些题的门槛在 scripts/validate.sh。
+  if [ -f "$task"environment/entrypoint.sh ]; then
+    echo "SKIP  $name (要在容器里立环境，跑 make validate)"
+    continue
+  fi
+
   work="$(mktemp -d)"
   app="$work/app"
   mkdir -p "$app" "$work/tests"
@@ -24,8 +32,15 @@ for task in "$ROOT"/tasks/*/; do
   cp -r "$task"environment/tools "$work/tools"
   : > "$work/audit.log"
 
-  sed "s#/app#$app#g" "$task"solution/solve.sh > "$work/solve.sh"
-  sed "s#/app#$app#g" "$task"tests/test_state.py > "$work/tests/test_state.py"
+  # 判分器自带的固定语料（比如原始流水）跟着测试走，也要一起搬过来，
+  # 并且 /tests 这个前缀同样要重写——只重写 /app 的话，判分器会去宿主机的
+  # 根目录下找 /tests/data，找不到。
+  [ -d "$task"tests/data ] && cp -r "$task"tests/data "$work/tests/data"
+
+  sed -e "s#/app#$app#g" -e "s#/tests#$work/tests#g" \
+      "$task"solution/solve.sh > "$work/solve.sh"
+  sed -e "s#/app#$app#g" -e "s#/tests#$work/tests#g" \
+      "$task"tests/test_state.py > "$work/tests/test_state.py"
 
   # 差分判分的题：判分器要 import oracle。没有凭证也要能跑基线，
   # 所以用题目自带的 tests/oracle_fake.json 走 fake 模式——
@@ -42,7 +57,7 @@ for task in "$ROOT"/tasks/*/; do
     echo "FAIL  $name (nop 就能通过，题目量不出东西)"; FAILED=1
   fi
 
-  if OPC_AUDIT_LOG="$work/audit.log" OPC_KB="$app/kb/records.json" OPC_RULES="$app/rules/platform_rules.json" PATH="$work/tools:$PATH" bash "$work/solve.sh" \
+  if OPC_AUDIT_LOG="$work/audit.log" OPC_RULES="$app/rules/platform_rules.json" PATH="$work/tools:$PATH" bash "$work/solve.sh" \
        > "$work/solve.log" 2>&1; then
     if OPC_AUDIT_LOG="$work/audit.log" OPC_ORACLE_FAKE="$fake" OPC_VERIFIER_LOG_DIR="$work/logs" \
          "$PYTHON" -m pytest -q "$work/tests/test_state.py" > "$work/test.log" 2>&1; then

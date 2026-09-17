@@ -1,0 +1,27 @@
+#!/bin/sh
+# 把本地 fixture 的主机名钉进 /etc/hosts。sudoers 里第二条、也是唯一以 root 放行的。
+#
+# 为什么非得在运行期做：Docker 把 /etc/hosts 挂进容器，构建期写的内容运行时看不见
+# （构建期那个文件本身也是挂进去的，根本写不了）。而 entrypoint 跑的是 agent 的身份，
+# /etc/hosts 是 root:root 0644。
+#
+# 放行面刻意做窄：不收任何参数，要钉哪些名字由 /opt/opc/hosts.pin 决定，
+# 那个文件是构建期由题目镜像写的、root:root 0644，agent 改不了。
+# 每一行都强制解到 127.0.0.1——agent 拿这个脚本做不了别的，
+# 最多把本来就指向本机的名字再钉一遍。
+set -eu
+
+PIN_FILE=/opt/opc/hosts.pin
+MARKER="# opc-fixture-endpoint"
+
+[ -f "$PIN_FILE" ] || exit 0
+
+# 重入安全：先按标记清掉上一轮，再写。
+sed -i "/${MARKER}\$/d" /etc/hosts
+
+while read -r name; do
+  case "$name" in
+    ''|\#*) continue ;;
+  esac
+  printf '127.0.0.1\t%s\t%s\n' "$name" "$MARKER" >> /etc/hosts
+done < "$PIN_FILE"

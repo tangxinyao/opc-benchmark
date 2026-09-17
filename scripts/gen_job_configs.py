@@ -82,8 +82,10 @@ def check_pairs_share_a_group(policies: dict[str, dict]) -> list[str]:
 
 def main() -> int:
     defaults = load_defaults()
-    tasks = sorted(p for p in TASKS_DIR.iterdir() if (p / "task.toml").exists())
-    policies = {t.name: task_policy(t, defaults) for t in tasks}
+    # 题目目录是两层：tasks/<场景>/<案例>/，题的标识就是这两段
+    tasks = sorted(p.parent for p in TASKS_DIR.glob("*/*/task.toml"))
+    ids = {t: t.relative_to(TASKS_DIR).as_posix() for t in tasks}
+    policies = {ids[t]: task_policy(t, defaults) for t in tasks}
 
     if problems := check_pairs_share_a_group(policies):
         for problem in problems:
@@ -92,7 +94,7 @@ def main() -> int:
 
     groups: dict[tuple, list[str]] = defaultdict(list)
     for task in tasks:
-        groups[group_key(policies[task.name])].append(task.name)
+        groups[group_key(policies[ids[task]])].append(ids[task])
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     for stale in OUT_DIR.glob("job-*.yaml"):

@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       xz-utils \
       coreutils \
       procps \
+      openssl \
+      libcap2-bin \
  && rm -rf /var/lib/apt/lists/*
 
 # --- hermes 本体 ---
@@ -57,3 +59,117 @@ RUN mkdir -p "${HERMES_HOME}/sessions" "${HERMES_HOME}/skills" "${HERMES_HOME}/m
 RUN hermes --version
 
 WORKDIR /app
+
+# --- clarify 的去向 ---
+# hermes 的 CLI 把 clarify 接在 prompt_toolkit 的 modal 上，容器里没人按键，
+# 于是每问一次白等 clarify.timeout（默认 120 秒），超时后还会回一句
+# 「用你自己的判断继续」——既烧任务预算，又往「别问了自己拍板」的方向推。
+# 这里把它改接到一份可配置的应答表上：确定、即时、提问和回复都留痕。
+# 应答表由每道题用 OPC_CLARIFY_SCRIPT 指定，缺省是下面这份。
+COPY clarify/relay.py /opt/opc/lib/clarify_relay.py
+COPY clarify/default.json /opt/opc/clarify.json
+COPY clarify/override.py /tmp/clarify_override.py
+RUN cat /tmp/clarify_override.py >> /usr/local/lib/hermes-agent/tools/clarify_tool.py \
+ && rm /tmp/clarify_override.py \
+ && chmod a+r /opt/opc/lib/clarify_relay.py /opt/opc/clarify.json \
+ && OPC_AUDIT_LOG=/tmp/clarify-selfcheck.log \
+    /usr/local/lib/hermes-agent/venv/bin/python -c "\
+import sys, json; sys.path.insert(0, '/usr/local/lib/hermes-agent'); \
+from tools.clarify_tool import clarify_tool; \
+out = json.loads(clarify_tool('走一下通路')); \
+assert out['user_response'], out; \
+print('clarify relay ok:', out['user_response'])" \
+ && rm -rf /tmp/clarify-selfcheck.log /var/lib/opc
+
+# --- 钉钉官方 CLI（dws）及其 skills ---
+# 题目的材料从真实连接器里来，而不是预先摆好的文件。这里烘的是官方发布的
+# 二进制和官方写的 skills，我们不自己造一个假 CLI——假 CLI 等于把
+# 连接器的真实难度（鉴权、分页、契约字段）全删掉。
+# 版本钉死：浮动的 CLI 版本等于浮动的结论。
+ARG DWS_VERSION=v1.0.62
+RUN set -euo pipefail; \
+    base="https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases/download/${DWS_VERSION}"; \
+    curl -fsSL "${base}/dws-linux-amd64.tar.gz" -o /tmp/dws.tgz; \
+    mkdir -p /tmp/dws && tar xzf /tmp/dws.tgz -C /tmp/dws; \
+    install -m 0755 /tmp/dws/dws /usr/local/bin/dws; \
+    curl -fsSL "${base}/dws-skills.zip" -o /tmp/dws-skills.zip; \
+    mkdir -p /opt/dws/skills; \
+    python -c "import zipfile,sys; zipfile.ZipFile('/tmp/dws-skills.zip').extractall('/opt/dws/skills')"; \
+    chmod -R a+rX /opt/dws/skills; \
+    rm -rf /tmp/dws /tmp/dws.tgz /tmp/dws-skills.zip; \
+    dws --version
+
+# --- 开源工具预烘（真二进制、零账号、版本钉死） ---
+# 选型见 docs/todo-no-preflight.md 5.2：接法 A 只收开源可自托管、注册成本为零的。
+# 版本一律钉死——浮动的 CLI 版本等于浮动的结论，这条和上面 dws/hermes 一致。
+#   himalaya  真实 IMAP/SMTP 客户端，配置文件与认证面都是真的
+#   mailpit   本地 SMTP/IMAP 服务端，给 himalaya 当对端，全程不出容器
+ARG HIMALAYA_VERSION=v2.1.0
+ARG MAILPIT_VERSION=v1.31.1
+RUN set -euo pipefail; \
+    curl -fsSL "https://github.com/pimalaya/himalaya/releases/download/${HIMALAYA_VERSION}/himalaya.x86_64-linux.tgz" \
+      -o /tmp/himalaya.tgz; \
+    mkdir -p /tmp/himalaya && tar xzf /tmp/himalaya.tgz -C /tmp/himalaya; \
+    install -m 0755 "$(find /tmp/himalaya -type f -name himalaya | head -1)" /usr/local/bin/himalaya; \
+    curl -fsSL "https://github.com/axllent/mailpit/releases/download/${MAILPIT_VERSION}/mailpit-linux-amd64.tar.gz" \
+      -o /tmp/mailpit.tgz; \
+    mkdir -p /tmp/mailpit && tar xzf /tmp/mailpit.tgz -C /tmp/mailpit; \
+    install -m 0755 "$(find /tmp/mailpit -type f -name mailpit | head -1)" /usr/local/bin/mailpit; \
+    rm -rf /tmp/himalaya /tmp/himalaya.tgz /tmp/mailpit /tmp/mailpit.tgz; \
+    himalaya --version; \
+    mailpit version
+
+# --- GAMADV-XTD3（Google Workspace 的事实标准 CLI）---
+# 官方发布的 PyInstaller 冻结二进制，不是我们自己写的壳：服务账号 JWT、
+# discovery、googleapiclient 的 batch 协议全按真的走，只是几个 googleapis.com
+# 主机名在题目容器里被钉到本机（opc-pin-hosts + 本地 CA）。
+# glibc 变体跟着基底走：python:3.12-slim-bookworm 是 Debian 12 / glibc 2.36。
+ARG GAM_VERSION=7.05.08
+RUN set -euo pipefail; \
+    curl -fsSL "https://github.com/taers232c/GAMADV-XTD3/releases/download/v${GAM_VERSION}/gamadv-xtd3-${GAM_VERSION}-linux-x86_64-glibc2.35.tar.xz" \
+      -o /tmp/gam.tar.xz; \
+    mkdir -p /opt/gam && tar xf /tmp/gam.tar.xz -C /opt/gam --strip-components=1; \
+    rm -f /tmp/gam.tar.xz; \
+    ln -sf /opt/gam/gam /usr/local/bin/gam; \
+    chmod -R a+rX /opt/gam
+
+# --- 身份与权限 ---
+# agent 以前是 root，于是语料文件、审计日志它都能直接动：
+# 答案就躺在 fixture JSON 里，`cat` 一下就绕过了连接器；审计日志也能改写，
+# 把「不得调用某工具」这类负断言一笔勾销。
+#
+#   opc     uid 1000  agent 的身份，docker exec 进来就是它
+#   opcsvc  uid 1001  服务身份：持有语料与审计日志，agent 读不到
+#
+# sudo 只放行一个固定脚本、且只能切到 opcsvc，除此之外提不了权。
+RUN apt-get update && apt-get install -y --no-install-recommends sudo \
+ && rm -rf /var/lib/apt/lists/* \
+ && groupadd -g 1000 opc \
+ && useradd -u 1000 -g 1000 -m -s /bin/bash opc \
+ && groupadd -g 1001 opcsvc \
+ && useradd -u 1001 -g 1001 -M -s /usr/sbin/nologin opcsvc \
+ && usermod -a -G opc opcsvc
+COPY svc/opc-init-audit svc/opc-audit-collector svc/opc-svc-start \
+     svc/opc-pin-hosts /usr/local/bin/
+# Google 那几个 API 的端口写死在 discovery 文档的 rootUrl 里（443），改不了。
+# 服务身份 opcsvc 绑不了特权端口，于是单独复制一份 python 给它加 cap——
+# agent 自己那个 /usr/local/bin/python3 一点能力都不加。
+RUN mkdir -p /usr/local/lib/opc \
+ && cp /usr/local/bin/python3.12 /usr/local/lib/opc/python3-net \
+ && setcap cap_net_bind_service=+ep /usr/local/lib/opc/python3-net \
+ && chmod 0755 /usr/local/lib/opc/python3-net
+RUN chmod 0755 /usr/local/bin/opc-init-audit /usr/local/bin/opc-audit-collector \
+      /usr/local/bin/opc-svc-start /usr/local/bin/opc-pin-hosts \
+ && printf '%s\n' 'opc ALL=(opcsvc) NOPASSWD: /usr/local/bin/opc-svc-start' \
+      'opc ALL=(root) NOPASSWD: /usr/local/bin/opc-pin-hosts' \
+      > /etc/sudoers.d/opc-svc \
+ && chmod 0440 /etc/sudoers.d/opc-svc \
+ && visudo -c -f /etc/sudoers.d/opc-svc \
+ && touch /var/log/opc-audit.log /var/log/opc-datasource.log \
+ && chown opcsvc:opc /var/log/opc-audit.log /var/log/opc-datasource.log \
+ && chmod 0660 /var/log/opc-audit.log /var/log/opc-datasource.log \
+ && chown -R opc:opc /app "${HERMES_HOME}"
+
+# agent 从这里起不再是 root。题目镜像里凡是 agent 要写的目录，
+# 都要在 environment/Dockerfile 里 chown 给 opc（`opc-init-audit` 之后那行）。
+USER opc

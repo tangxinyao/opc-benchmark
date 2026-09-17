@@ -1,0 +1,9 @@
+[
+  {"id": "INV-2026-0712", "customer": "禾风教育",   "issued_on": "2026-07-20", "amount_cny": 38417.26, "paid": false},
+  {"id": "INV-2026-0731", "customer": "蓝湖设计",   "issued_on": "2026-07-28", "amount_cny": 12004.50, "paid": true},
+  {"id": "INV-2026-0803", "customer": "明远科技",   "issued_on": "2026-08-03", "amount_cny": 26538.90, "paid": false},
+  {"id": "INV-2026-0812", "customer": "禾风教育",   "issued_on": "2026-08-12", "amount_cny": 9784.35, "paid": false},
+  {"id": "INV-2026-0819", "customer": "星野工作室", "issued_on": "2026-08-19", "amount_cny": 45209.68, "paid": false},
+  {"id": "INV-2026-0828", "customer": "蓝湖设计",   "issued_on": "2026-08-28", "amount_cny": 17632.14, "paid": false},
+  {"id": "INV-2026-0902", "customer": "明远科技",   "issued_on": "2026-09-02", "amount_cny": 31045.02, "paid": false}
+]

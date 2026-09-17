@@ -38,13 +38,14 @@ def declared(task: Path) -> tuple[set[str], set[str]]:
 
 
 def main() -> int:
-    tasks = sorted(p for p in (ROOT / "tasks").iterdir()
-                   if (p / "task.toml").exists())
+    # 题目目录是两层：tasks/<场景>/<案例>/
+    tasks = sorted(p.parent for p in (ROOT / "tasks").glob("*/*/task.toml"))
     needed: dict[str, list[str]] = {}
     for task in tasks:
         agent_env, verifier_env = declared(task)
         for name in agent_env | verifier_env:
-            needed.setdefault(name, []).append(task.name)
+            needed.setdefault(name, []).append(
+                task.relative_to(ROOT / "tasks").as_posix())
 
     if not needed:
         print("OK   没有任何题声明需要额外的环境变量")

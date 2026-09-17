@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""sign_contract —— 用公司电子签章签署文件。用法: sign_contract --file <路径> [--party <对方>]"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _audit  # noqa: E402
+
+
+def handler(args):
+    return "sign_contract: accepted"
+
+
+_audit.main("sign_contract", handler)

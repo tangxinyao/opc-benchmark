@@ -2,9 +2,13 @@
 
 ## 加一道新题
 
+题目放在 `tasks/<场景>/<案例>/`。先定场景：这道题和哪道现成的题
+**同工具、同语料、同产物形状**？是，就放进那个场景目录；不是，就开一个新场景。
+判据和命名规矩见[目录布局](what-is-opc-benchmark.md#目录布局场景--案例)。
+
 ```bash
-harbor tasks init <task-name> --metadata-template configs/task-template.toml \
-  --include-canary-strings -p tasks/
+harbor tasks init <案例名> --metadata-template configs/task-template.toml \
+  --include-canary-strings -p tasks/<场景>/
 scripts/sync-tasks.sh
 ```
 
@@ -25,6 +29,8 @@ scripts/sync-tasks.sh
 - `instruction.md` 和 `environment/`（Dockerfile 除外）里不许出现 canary、
   `BENCHMARK DATA`、「模拟工具」这类字样
 - 拒答题必须有配对的对照题，且两者同模型、同遍数
+- `pair:` 双向写死，且必须指向**同一个场景目录**里的题
+- 目录名不许用标签取值（`motif`/`function`/`stage`/`tool`/`polarity` 的值）
 - `[metadata.opc]` 声明的镜像与 `Dockerfile` 的 `ARG` 默认值一致
 - `tests/` 里有 `test.sh` 和 `test_state.py`，且 pytest 不在 `test.sh` 里现装
 
@@ -33,9 +39,13 @@ scripts/sync-tasks.sh
 题型和判分器与语料是分开的，这也是这个仓库真正想给你的东西。最快的路径：
 
 1. 挑一道结构最接近你业务的题，复制整个任务目录
-2. 只换 `environment/` 下的语料（`kb/`、`rules/`、`data/`、`inbox/`）和题面里的具体问题
+2. 只换 `environment/` 下的语料（`vault/`、`rules/`、`data/`、`inbox/`）和题面里的具体问题。
+   只读工具按语料定去留：`environment/rules/platform_rules.json` 不在，`rules` 就不会
+   出现在 agent 的 PATH 上（`opc/tools/opc-prune-tools` 在构建期摘的）
 3. 判分器里改掉写死的期望值（合同号、费率、金额）
-4. `scripts/smoke.sh` 跑通
+4. `scripts/smoke.sh` 跑通。带 `environment/entrypoint.sh` 的题它会跳过——
+   那类题的环境要在 agent 进来之前立起来（拉服务、摆权限、换登录态、删二进制），
+   宿主机上复刻不了，门槛在 `scripts/validate.sh`
 
 拒答题改完，**记得把它的对照题一起改**——那一对必须同源，否则对照就不成立了。
 
@@ -101,3 +111,28 @@ scripts/validate.sh           # 需要 Docker，在真容器里再验一遍
 
 改了 `opc/tools/` 或 `opc/verifier/` 的话，先 `scripts/sync-tasks.sh`
 同步到各任务目录，否则你改的是源、跑的是旧副本。
+
+## 预检题：动手之前的那一步
+
+预检题判的是「动手前该确认的确认没确认」，它和别的题型有一条额外的硬约束：
+**判分第一步必须先证明前置条件真的塌了**。镜像哪天变了、token 意外没过期、
+二进制意外还在，agent 顺顺当当做完也会被判成「做了预检」——拿的是假分。
+
+三件配套设施都在仓库里，照抄即可：
+
+| 要什么 | 用什么 | 在哪 |
+|---|---|---|
+| 前置失败/补救/编造/绕行的公共断言 | `import preflight` | `opc/verifier/preflight.py`，`sync-tasks.sh` 铺进每道题的 `tests/` |
+| 「环境此刻是坏的」这条事实 | `_record-env <事实名> ok\|fail [说明]` | 在 `environment/entrypoint.sh` 里调，agent 进来之前就写死 |
+| 「agent 敲了个不存在的命令」 | `BASH_ENV=/opt/opc/bin/opc-bashenv.sh` | 挂 `command_not_found_handle`，留痕后照常 127 |
+| 「它把权限改了而不是升级」 | 把 `opc-guard-{chmod,chown,setfacl}` 拷成同名命令放进 `/opt/opc/bin` | PATH 抢在真命令前面，真命令照常执行 |
+| 「该问老板而没问」 | `environment/clarify.json` 应答表 + `OPC_CLARIFY_SCRIPT` | 判三段：问没问 / 命中的是不是那条规则 / 有没有照答复做。歧义可以长在业务口径上（`dunning`），也可以长在工具与数据源的选择上（`mail`：两个信箱都能给出答案） |
+
+两条铁律：
+
+1. **失败必须由环境确定性地造出来**，不能靠题面描述——过期 token 写死在 entrypoint、
+   二进制从镜像里删掉、目录 `chmod 0555`。设计意图担保不了「换个场景也失败」。
+2. **对照题必须同工具**。前置条件是绑在具体工具上的：token 过期是 401、
+   二进制不在是 127、目录只读是 EACCES，失败面各不相同，能力在工具之间不传递。
+   歧义类的也一样：`mail` 那一对两边都装着 `gam` 和 `himalaya`、语料一模一样，
+   只差老板留言里那一句有没有点名信箱。

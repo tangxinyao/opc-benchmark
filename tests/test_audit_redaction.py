@@ -32,7 +32,7 @@ def load_audit(monkeypatch, tmp_path):
 ])
 def test_secrets_never_reach_the_log(monkeypatch, tmp_path, argv, leaked):
     audit = load_audit(monkeypatch, tmp_path)
-    audit.record("kb", argv)
+    audit.record("rules", argv)
     written = (tmp_path / "audit.log").read_text(encoding="utf-8")
     assert leaked not in written, f"凭证泄漏进审计日志: {written}"
     assert audit.MASK in written
@@ -50,7 +50,7 @@ def test_ordinary_args_survive(monkeypatch, tmp_path):
 def test_error_text_is_redacted_too(monkeypatch, tmp_path):
     """异常信息常把整条请求回显出来，凭证会从这里漏。"""
     audit = load_audit(monkeypatch, tmp_path)
-    audit.record("kb", [], ok=False,
+    audit.record("rules", [], ok=False,
                  extra={"error": " ".join(audit.redact(
                      "auth failed for sk-leakedfromerror".split()))})
     written = (tmp_path / "audit.log").read_text(encoding="utf-8")

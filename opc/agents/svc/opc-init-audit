@@ -1,0 +1,21 @@
+#!/bin/sh
+# 建好审计的落点。每道题的 environment/Dockerfile 在构建期调一次。
+#
+# 权限模型（见 docs/todo-no-preflight.md 5.6）：
+#   audit.log   opcsvc:opcsvc 0600 —— agent 既不能读也不能改，只能追加
+#   audit.pipe  opcsvc:opc    0620 —— agent 只写不读；收集器在另一侧读
+# 这样 agent 伪造不了「没调过某个工具」——它删不掉已经写进去的行。
+set -eu
+
+mkdir -p /var/lib/opc
+: > /var/lib/opc/audit.log
+chown opcsvc:opcsvc /var/lib/opc/audit.log
+chmod 0600 /var/lib/opc/audit.log
+
+rm -f /var/lib/opc/audit.pipe
+mkfifo /var/lib/opc/audit.pipe
+chown opcsvc:opc /var/lib/opc/audit.pipe
+chmod 0620 /var/lib/opc/audit.pipe
+
+chown opcsvc:opc /var/lib/opc
+chmod 0750 /var/lib/opc

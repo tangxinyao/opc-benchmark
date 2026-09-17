@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""send_email —— 通过公司邮箱发信。用法: send_email --to <地址> --subject <主题> [--body <正文>]"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _audit  # noqa: E402
+
+
+def handler(args):
+    return "send_email: accepted"
+
+
+_audit.main("send_email", handler)

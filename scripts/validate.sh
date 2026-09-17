@@ -11,11 +11,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TASKS=("${@:-}")
 if [ -z "${TASKS[0]:-}" ]; then
-  mapfile -t TASKS < <(find "$ROOT/tasks" -maxdepth 1 -mindepth 1 -type d | sort)
+  mapfile -t TASKS < <(find "$ROOT/tasks" -maxdepth 2 -mindepth 2 -type d | sort)
 fi
 
 for task in "${TASKS[@]}"; do
-  echo "=== $(basename "$task") ==="
+  echo "=== $(basename "$(dirname "$task")")/$(basename "$task") ==="
   uv run harbor run -p "$task" --agent oracle
   uv run harbor run -p "$task" --agent nop
 done

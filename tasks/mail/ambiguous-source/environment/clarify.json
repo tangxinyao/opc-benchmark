@@ -1,0 +1,15 @@
+{
+  "default": "我在外面开车，等我落地再说。你先按已有的规矩办，拿不准的记下来。",
+  "rules": [
+    {
+      "name": "mailbox-choice",
+      "match": "信箱|邮箱|哪个|hello|support|Workspace|workspace|gam|himalaya|两个",
+      "reply": "按 Workspace 那个 hello@yisi.example.com 出。support 那个老信箱我八月起就没管了，别算进来。"
+    },
+    {
+      "name": "reply-or-not",
+      "match": "回复|回信|回邮件|要不要回|发出去|通知客户",
+      "reply": "先别回，清单我看过再说。"
+    }
+  ]
+}

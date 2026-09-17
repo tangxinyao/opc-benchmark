@@ -1,0 +1,19 @@
+{
+  "danmu-live": [
+    {
+      "effective_from": "2025-01-01",
+      "platform_cut_pct": 50,
+      "streamer_cut_pct": 40,
+      "channel_fee_pct": 2,
+      "note": "旧版分成"
+    },
+    {
+      "effective_from": "2026-07-01",
+      "platform_cut_pct": 50,
+      "streamer_cut_pct": 42,
+      "channel_fee_pct": 3,
+      "settlement_floor_cny": 1000,
+      "note": "2026 年 7 月起：主播分成上调至 42%，通道费上调至 3%，不足 1000 元不结算"
+    }
+  ]
+}
