@@ -8,6 +8,23 @@
 
 FROM docker.m.daocloud.io/library/python:3.12-slim-bookworm
 
+# --- 国内镜像源：apt 与 pip 都走阿里云 ---
+# 基底是 Debian 12（bookworm），不是 Ubuntu，而且 slim 镜像用的是 deb822 格式的
+# /etc/apt/sources.list.d/debian.sources，没有传统的 /etc/apt/sources.list——
+# 照搬 Ubuntu 那套 sed 会改到一个不存在的文件，还悄无声息地成功。
+# deb.debian.org/debian 与 .../debian-security 在阿里云下的路径同名，一条规则就够。
+RUN sed -i 's|http://deb.debian.org/debian|http://mirrors.aliyun.com/debian|g' \
+      /etc/apt/sources.list.d/debian.sources \
+ && grep -q mirrors.aliyun.com /etc/apt/sources.list.d/debian.sources
+
+# pip / uv 的索引。写 ENV 是给构建期之后（题目容器里现装东西）也留着，
+# 写 /etc/pip.conf 是因为 ENV 不跨 sudo -u opcsvc 这类切身份的调用。
+ENV UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
+    PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
+    PIP_TRUSTED_HOST=mirrors.aliyun.com
+RUN printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\ntrusted-host = mirrors.aliyun.com\n' \
+      > /etc/pip.conf
+
 # --- 系统依赖：hermes 的安装脚本和运行都要用 ---
 # stdbuf 来自 coreutils，适配器用它做行缓冲；ripgrep 是 hermes 的检索后端。
 RUN apt-get update && apt-get install -y --no-install-recommends \
