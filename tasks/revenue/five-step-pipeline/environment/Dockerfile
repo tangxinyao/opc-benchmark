@@ -21,3 +21,7 @@ ENV PATH="/opt/opc/bin:${PATH}"
 
 # agent 进来就是 opc，不是 root。
 USER opc
+
+# 审计收集器必须在 agent 进来之前起来：_audit 写的是 FIFO，
+# 没有读端时 open(O_WRONLY) 会一直阻塞，被包装的命令就卡死了。
+ENTRYPOINT ["/opt/opc/bin/opc-entrypoint.sh"]

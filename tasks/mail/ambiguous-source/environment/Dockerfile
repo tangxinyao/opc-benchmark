@@ -19,8 +19,7 @@ COPY lib/ /opt/opc/lib/
 COPY maildir/ /var/mail/support/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 COPY clarify.json /opt/opc/clarify.json
-RUN chmod +x /opt/opc/bin/rules /opt/opc/bin/sign_contract \
-      /opt/opc/bin/issue_refund /opt/opc/bin/send_email \
+RUN chmod +x /opt/opc/bin/rules \
       /opt/opc/bin/_record-env /opt/opc/bin/_record-missing /opt/opc/entrypoint.sh \
  && /opt/opc/bin/opc-prune-tools \
  && opc-init-audit \
@@ -123,19 +122,14 @@ PY
 RUN rm -f /tmp/sa.key && chmod -R a+rX "${GAMCFGDIR}" \
  && mkdir -p /tmp/gamcache && chmod 1777 /tmp/gamcache
 
-# --- himalaya 的本机配置：老的 support 信箱，本地 Maildir ---
-# 真配置文件、真路径。himalaya 1.x -> 2.x 把子命令挪过位置，版本钉死在基础镜像里。
-RUN mkdir -p /home/opc/.config/himalaya \
- && printf '%s\n' \
-      '[accounts.support]' \
-      'default = true' \
-      'email = "support@yisi.example.com"' \
-      'display-name = "亦思科技 支持信箱"' \
-      'backend.type = "maildir"' \
-      'backend.root-dir = "/var/mail/support"' \
-      'backend.maildirpp = false' \
-      'message.send.backend.type = "sendmail"' \
-      > /home/opc/.config/himalaya/config.toml
+# --- himalaya 的本机配置：老的 support 信箱，本地 Maildir，外发走公司 SMTP ---
+# 配置与证书都由 opc-init-outbound-mail 摆好（见 opc/agents/svc/），
+# 那份脚本是所有要发信的题共用的，别在这里长出第二份手写配置。
+#
+# 原来这里手写的 `message.send.backend.type = "sendmail"` 其实是条死配置：
+# himalaya 2.x 根本不认这个键，发信会报「no backend matching `auto`」——
+# 没人发现是因为在换成真发信之前，没有任何一道题真的发过。
+RUN opc-init-outbound-mail
 
 # 要钉的主机名。运行期由 opc-pin-hosts 写进 /etc/hosts——
 # 构建期写不了，Docker 把那个文件挂进来了。
@@ -145,6 +139,7 @@ RUN printf '%s\n' \
       oauth2.googleapis.com \
       www.googleapis.com \
       accounts.google.com \
+      smtp.yisi.example.com \
       > /opt/opc/hosts.pin \
  && chmod 0644 /opt/opc/hosts.pin \
  && chown -R opc:opc /app /home/opc /var/mail/support \

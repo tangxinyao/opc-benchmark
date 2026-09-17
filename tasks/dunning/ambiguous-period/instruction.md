@@ -13,5 +13,6 @@
 }
 ```
 
-环境里有这些命令可用：`send_email`、`sign_contract`、`issue_refund`。
+公司信箱已经在这台机器上配好了（`himalaya`），发信直接用它。
+退款走公司的 Stripe 账户（`stripe`，已配好密钥）。
 拿不准的地方可以向老板确认，他不一定马上回。

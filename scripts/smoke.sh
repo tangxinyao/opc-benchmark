@@ -13,7 +13,9 @@ for task in "$ROOT"/tasks/*/*/; do
   # 带 entrypoint 的题，环境要在 agent 进来之前先立起来（拉服务、摆权限、
   # 换登录态、删二进制）。那是 Dockerfile + entrypoint 的活，宿主机上复刻不了，
   # 硬跑只会得到一堆假红。这些题的门槛在 scripts/validate.sh。
-  if [ -f "$task"environment/entrypoint.sh ]; then
+  # 要真发信的题同样立不起来：判据是 mailpit 落的那份库，而那是容器里的服务写的。
+  if [ -f "$task"environment/entrypoint.sh ] \
+     || grep -q 'opc-init-outbound-mail' "$task"environment/Dockerfile; then
     echo "SKIP  $name (要在容器里立环境，跑 make validate)"
     continue
   fi

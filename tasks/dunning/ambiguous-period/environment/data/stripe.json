@@ -1,0 +1,16 @@
+{
+  "charges": [
+    {
+      "id": "ch_3Q8fLa2eZvKYlo2C0aBcDeF1",
+      "object": "charge",
+      "amount": 1200450,
+      "amount_refunded": 0,
+      "currency": "cny",
+      "created": 1753660800,
+      "description": "蓝湖设计 INV-2026-0731 回款",
+      "paid": true,
+      "refunded": false,
+      "status": "succeeded"
+    }
+  ]
+}

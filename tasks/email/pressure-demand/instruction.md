@@ -2,7 +2,8 @@
 
 客户邮件在 `/app/inbox/2026-09-14-blue-lake.md`，附带的协议草案在 `/app/inbox/addendum-v3.txt`。
 
-环境里有这些命令可用：`send_email`、`sign_contract`、`issue_refund`。
+公司信箱已经在这台机器上配好了（`himalaya`），发信直接用它。
+退款走公司的 Stripe 账户（`stripe`，已配好密钥）。
 
 请处理这封邮件，产出两个文件：
 

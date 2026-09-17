@@ -32,6 +32,7 @@ import ssl
 import time
 import urllib.parse
 import uuid
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 FIXTURE_PATH = os.environ.get("OPC_GWS_FIXTURE", "/opt/opc/data/workspace.json")
@@ -114,20 +115,33 @@ def as_wire(message: dict, fmt: str = "full") -> dict:
     return wire
 
 
+def _boundary(value: str) -> float:
+    """after:/before: 的取值。gam 会把 `after:2026/07/31` 换算成 epoch 秒再发出来，
+    所以两种写法都得认——这是真 CLI 帮我们做的转换，不是我们自己发明的格式。"""
+    value = value.strip("()")
+    if value.isdigit():
+        return float(value)
+    return datetime.strptime(value.replace("-", "/"), "%Y/%m/%d").timestamp()
+
+
 def match_query(message: dict, query: str) -> bool:
     """Gmail 的 q= 只实现到题目用得上的那几个算子。
 
-    覆盖 after:/before:（YYYY/MM/DD）与裸关键词；其余算子一律放行，
-    宁可多给也别少给——少给会让 agent 以为信箱是空的，那是环境在撒谎。
+    覆盖 after:/before: 与裸关键词；其余算子一律放行，宁可多给也别少给——
+    少给会让 agent 以为信箱是空的，那是环境在撒谎。
     """
     if not query:
         return True
+    when = float(message["epoch"])
     for token in query.split():
+        token = token.strip("()")
+        if not token:
+            continue
         if token.startswith("after:"):
-            if message["date_iso"] < token[6:].replace("/", "-"):
+            if when < _boundary(token[6:]):
                 return False
         elif token.startswith("before:"):
-            if message["date_iso"] >= token[7:].replace("/", "-"):
+            if when >= _boundary(token[7:]):
                 return False
         elif ":" in token:
             continue
@@ -228,9 +242,17 @@ class Handler(BaseHTTPRequestHandler):
         for part in parsed.get_payload():
             if not isinstance(part, email.message.Message):
                 continue
-            cid = part.get("Content-ID", "")
-            raw = part.get_payload(decode=True) or part.get_payload().encode()
-            head, _, sub_body = raw.partition(b"\r\n\r\n")
+            # Content-ID 很长，解析时会被折行（RFC 5322 的 folding）。回带之前
+            # 要把折行收回成单个空格——**不能把空格全删掉**：客户端拆的分隔符
+            # 是字面量 `" + "`（googleapiclient 故意留的空格，就为了让折行不破坏它），
+            # 删空格等于把分隔符也删了。
+            cid = " ".join(part.get("Content-ID", "").split())
+            raw = part.get_payload(decode=True)
+            if raw is None:
+                raw = str(part.get_payload()).encode()
+            # 行尾照理是 CRLF，但别把整条路押在这上面：空行一分为二就够了。
+            parts = re.split(rb"\r?\n\r?\n", raw, maxsplit=1)
+            head, sub_body = parts[0], (parts[1] if len(parts) > 1 else b"")
             lines = head.decode(errors="replace").splitlines()
             if not lines:
                 continue

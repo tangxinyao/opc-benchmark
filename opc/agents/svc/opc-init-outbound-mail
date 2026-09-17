@@ -1,0 +1,78 @@
+#!/bin/sh
+# 建好「真发信」这条路。每道需要外发动作的题在 environment/Dockerfile 构建期调一次。
+#
+# 为什么不是一条自己写的 send_email 哑命令（见 docs/todo-no-preflight.md 5.7）：
+# 哑命令永远成功、什么都不做，于是判分只能问「它敲没敲过这条命令」。
+# 那是 agent 侧写的审计，属于便宜的那一档，而且量到的是「敲没敲命令」，
+# 不是「信有没有发出去」。换成真 himalaya 打真 SMTP：
+#   - 收件人、抄送、主题、正文、附件全部可判，且由 mailpit 服务端写盘，agent 改不了
+#   - 发信这件事本身有真实的失败面（连不上、证书不认、被拒收），跟 dws/gam 一致
+#
+# 权限模型照 opc-init-audit：
+#   mailpit.db   opcsvc:opcsvc 0600 —— agent 读不到也改不掉，判分从产物里取
+#   TLS 私钥     opcsvc:opcsvc 0600 —— 在 /opt/opc/data 下，agent 进不去
+#   himalaya 配置 opc 可读 —— 那本来就该是「这台机器上配好的信箱」
+set -eu
+
+MAIL_HOST="${OPC_SMTP_HOST:-smtp.yisi.example.com}"
+MAIL_PORT="${OPC_SMTP_PORT:-1025}"
+ACCOUNT_EMAIL="${OPC_SMTP_FROM:-support@yisi.example.com}"
+ACCOUNT_NAME="${OPC_SMTP_DISPLAY_NAME:-亦思科技}"
+MAILDIR="${OPC_MAILDIR:-/var/mail/support}"
+
+TLS_DIR=/opt/opc/data/tls
+mkdir -p "$TLS_DIR" /var/lib/opc
+
+# --- 本机 CA 与 SMTP 证书 ---
+# 和 mail/* 给 gam 签证书是同一套做法：真 TLS、真校验，只是 CA 是本机的。
+# 已经有 CA 就复用（同一道题里 gam 那套可能先建好了），别签出第二张。
+if [ ! -f "$TLS_DIR/ca.crt" ]; then
+  openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+    -keyout "$TLS_DIR/ca.key" -out "$TLS_DIR/ca.crt" \
+    -subj "/CN=OPC Fixture CA" -addext "basicConstraints=critical,CA:TRUE" 2>/dev/null
+fi
+
+openssl req -newkey rsa:2048 -nodes \
+  -keyout "$TLS_DIR/smtp.key" -out "$TLS_DIR/smtp.csr" \
+  -subj "/CN=${MAIL_HOST}" 2>/dev/null
+printf 'subjectAltName=DNS:%s,IP:127.0.0.1\n' "$MAIL_HOST" > "$TLS_DIR/smtp.ext"
+openssl x509 -req -in "$TLS_DIR/smtp.csr" -days 3650 \
+  -CA "$TLS_DIR/ca.crt" -CAkey "$TLS_DIR/ca.key" -CAcreateserial \
+  -extfile "$TLS_DIR/smtp.ext" -out "$TLS_DIR/smtp.crt" 2>/dev/null
+rm -f "$TLS_DIR/smtp.csr" "$TLS_DIR/smtp.ext"
+
+cp "$TLS_DIR/ca.crt" /usr/local/share/ca-certificates/opc-fixture.crt
+update-ca-certificates >/dev/null 2>&1
+
+# --- 要钉的主机名 ---
+# 运行期由 opc-pin-hosts 写进 /etc/hosts（构建期写不了，那个文件是挂进来的）。
+touch /opt/opc/hosts.pin
+grep -qx "$MAIL_HOST" /opt/opc/hosts.pin || echo "$MAIL_HOST" >> /opt/opc/hosts.pin
+chmod 0644 /opt/opc/hosts.pin
+
+# --- himalaya：这台机器上配好的信箱 ---
+# 读走本地 Maildir，发走公司 SMTP。himalaya 2.x 的 smtp 只有 TLS 一条路
+# （starttls=false 表示隐式 TLS，不是明文），对端 mailpit 用 --smtp-require-tls 对上。
+mkdir -p /home/opc/.config/himalaya
+cat > /home/opc/.config/himalaya/config.toml <<TOML
+[accounts.support]
+default = true
+email = "${ACCOUNT_EMAIL}"
+display-name = "${ACCOUNT_NAME}"
+backend.type = "maildir"
+backend.root-dir = "${MAILDIR}"
+backend.maildirpp = false
+smtp.server = "${MAIL_HOST}:${MAIL_PORT}"
+smtp.starttls = false
+TOML
+chown -R opc:opc /home/opc/.config/himalaya
+
+# --- 落点 ---
+: > /var/lib/opc/mailpit.db
+chown opcsvc:opcsvc /var/lib/opc/mailpit.db
+chmod 0600 /var/lib/opc/mailpit.db
+chown -R opcsvc:opcsvc "$TLS_DIR"
+chmod 0700 "$TLS_DIR"
+chmod 0644 "$TLS_DIR/ca.crt" "$TLS_DIR/smtp.crt" 2>/dev/null || true
+
+# /var/lib/opc 的属主与模式由 opc-init-audit 定，这里不动。

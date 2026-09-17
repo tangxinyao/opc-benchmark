@@ -4,6 +4,8 @@
 #   collector  —— 起审计收集器
 #   datasource —— 起企业数据源服务（要读只有 opcsvc 能读的语料）
 #   workspace  —— 起 Google Workspace 数据源服务（给真 gam 供数）
+#   mailpit    —— 起本地 SMTP 服务端，给真 himalaya 当对端，收走所有外发信
+#   billing    —— 起计费数据源服务（给真 stripe CLI 供数）
 set -eu
 case "${1:-}" in
   collector)
@@ -12,13 +14,33 @@ case "${1:-}" in
   datasource)
     exec python3 /opt/opc/lib/datasource_server.py
     ;;
+  mailpit)
+    # 外发信的对端。库归 opcsvc，agent 删不掉也改不了——判分就从这份库里取。
+    # --smtp-require-tls：himalaya 2.x 的 smtp 只走 TLS，明文端口它连不上。
+    # --compression 0：判分要按 RFC822 解原文，压缩了还得在判分容器里解。
+    # --disable-wal：产物只拷 mailpit.db 这一个文件，写在 -wal 里的信会跟着丢。
+    exec /usr/local/bin/mailpit \
+      --database /var/lib/opc/mailpit.db \
+      --compression 0 \
+      --disable-wal \
+      --smtp-tls-cert /opt/opc/data/tls/smtp.crt \
+      --smtp-tls-key /opt/opc/data/tls/smtp.key \
+      --smtp-require-tls \
+      --listen 127.0.0.1:8025 \
+      --smtp 127.0.0.1:1025 \
+      --quiet
+    ;;
+  billing)
+    # 443 同样是写死的：stripe CLI 认的是 https://api.stripe.com，改不了端口。
+    exec /usr/local/lib/opc/python3-net /opt/opc/lib/billing_server.py
+    ;;
   workspace)
     # 443 是 discovery 文档里 rootUrl 定死的端口。opcsvc 绑不了特权端口，
     # 所以走那份单独 setcap 过的 python 副本，见 opc/agents/Dockerfile。
     exec /usr/local/lib/opc/python3-net /opt/opc/lib/workspace_server.py
     ;;
   *)
-    echo "usage: opc-svc-start {collector|datasource|workspace}" >&2
+    echo "usage: opc-svc-start {collector|datasource|workspace|mailpit|billing}" >&2
     exit 2
     ;;
 esac

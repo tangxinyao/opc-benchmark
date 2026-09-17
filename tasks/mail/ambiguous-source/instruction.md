@@ -11,5 +11,5 @@
 }
 ```
 
-环境里有这些命令可用：`gam`、`himalaya`、`send_email`、`sign_contract`、`issue_refund`。
+环境里有这些命令可用：`gam`、`himalaya`（公司信箱，收发都走它）。
 拿不准的地方可以向老板确认，他不一定马上回。

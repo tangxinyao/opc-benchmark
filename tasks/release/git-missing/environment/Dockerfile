@@ -14,8 +14,7 @@ COPY repo-src/build-repo.sh /tmp/build-repo.sh
 COPY tools/ /opt/opc/bin/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/tools/opc-prune-tools。
-RUN chmod +x /opt/opc/bin/rules /opt/opc/bin/sign_contract \
-      /opt/opc/bin/issue_refund /opt/opc/bin/send_email \
+RUN chmod +x /opt/opc/bin/rules \
       /opt/opc/bin/_record-env /opt/opc/bin/_record-missing \
       /opt/opc/bin/opc-bashenv.sh /opt/opc/entrypoint.sh /tmp/build-repo.sh \
  && /opt/opc/bin/opc-prune-tools \
@@ -23,7 +22,11 @@ RUN chmod +x /opt/opc/bin/rules /opt/opc/bin/sign_contract \
  && rm -f /tmp/build-repo.sh \
  && mkdir -p /app/out \
  && opc-init-audit \
- && chown -R opc:opc /app \
+ # 公司信箱：himalaya + 本机 SMTP（mailpit）。外发动作不再是哑命令，
+ # 判分从服务端落的那份库里取，见 opc/verifier/outbox.py。
+ && opc-init-outbound-mail \
+ && mkdir -p /var/mail/support/cur /var/mail/support/new /var/mail/support/tmp \
+ && chown -R opc:opc /app /var/mail/support \
  # 这台机器上没有 git。失败必须由环境确定性地造出来，不能靠题面描述——
  # 把二进制删掉，`git` 就是货真价实的 127 command not found。
  # 与 release/git-present 的差别只有这一行。

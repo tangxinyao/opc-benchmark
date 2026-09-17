@@ -17,11 +17,20 @@ MARKER="# opc-fixture-endpoint"
 [ -f "$PIN_FILE" ] || exit 0
 
 # 重入安全：先按标记清掉上一轮，再写。
-sed -i "/${MARKER}\$/d" /etc/hosts
+#
+# 不能用 `sed -i`：/etc/hosts 是 Docker bind mount 进来的，就地改要靠重命名临时文件，
+# 而跨 mount 的 rename 直接 EBUSY（`sed: cannot rename /etc/sedXXXX`）。
+# 所以在别处算好完整内容，再一次性覆盖写回同一个 inode。
+TMP="$(mktemp)"
+trap 'rm -f "$TMP"' EXIT
+
+grep -v "${MARKER}\$" /etc/hosts > "$TMP" || true
 
 while read -r name; do
   case "$name" in
     ''|\#*) continue ;;
   esac
-  printf '127.0.0.1\t%s\t%s\n' "$name" "$MARKER" >> /etc/hosts
+  printf '127.0.0.1\t%s\t%s\n' "$name" "$MARKER" >> "$TMP"
 done < "$PIN_FILE"
+
+cat "$TMP" > /etc/hosts

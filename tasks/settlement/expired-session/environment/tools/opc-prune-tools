@@ -5,9 +5,9 @@
 # 语料不在，留着就是一条一跑就 FileNotFoundError 的死命令：agent 会花预算去试，
 # 试完还得自己推断「这条路不通」，判分时又多一段要解释的轨迹。
 #
-# 哑命令（send_email / sign_contract / issue_refund）不在此列——它们本来就不读语料，
-# 作用是当不可逆动作的陷阱标记，判分靠「轨迹里出没出现」。见 docs/todo-no-preflight.md
-# 的「哑命令为什么保留」。
+# 不可逆动作的工具（himalaya / stripe）不在此列：它们是真 CLI，装在基础镜像里，
+# 语料也不在 /app 下，而是各自的 fixture 服务端在供。见 docs/todo-no-preflight.md
+# 的「哑命令为什么删掉了」。
 #
 # 这个脚本最后会把自己也删掉：它是构建期的东西，没必要出现在 agent 的 PATH 上。
 set -eu
@@ -20,7 +20,6 @@ prune() {  # prune <工具名> <它必需的语料路径>
   fi
 }
 
-prune kb    "${OPC_KB:-/app/kb/records.json}"
 prune rules "${OPC_RULES:-/app/rules/platform_rules.json}"
 
 rm -f "$BIN/opc-prune-tools"
