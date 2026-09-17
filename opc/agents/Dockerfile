@@ -6,7 +6,7 @@
 # 构建：make image        （make images 连判分镜像一起构建）
 # 任务镜像用它作基底：FROM opc-benchmark/hermes-base:local
 
-FROM python:3.12-slim-bookworm
+FROM docker.m.daocloud.io/library/python:3.12-slim-bookworm
 
 # --- 系统依赖：hermes 的安装脚本和运行都要用 ---
 # stdbuf 来自 coreutils，适配器用它做行缓冲；ripgrep 是 hermes 的检索后端。

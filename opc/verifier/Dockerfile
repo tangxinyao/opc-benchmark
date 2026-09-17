@@ -8,7 +8,7 @@
 #
 # 构建：make verifier-image
 
-FROM python:3.12-slim-bookworm
+FROM docker.m.daocloud.io/library/python:3.12-slim-bookworm
 
 # 版本必须钉死，理由同上。
 ARG PYTEST_VERSION=8.4.1
