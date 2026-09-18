@@ -19,19 +19,21 @@ VERIFIER_TOOLING = ("pytest", "pytest-json-ctrf")
 INSTALL_RE = re.compile(
     r"\b(?:pip3?\s+install|uv\s+pip\s+install|uv\s+tool\s+install|uvx\b[^\n]*--with)\b"
 )
-REQUIRED_TAG_PREFIXES = ("motif:", "function:", "stage:", "tool:", "polarity:")
+REQUIRED_TAG_PREFIXES = ("motif:", "stage:", "tool:", "polarity:")
+# 职能不在标签里——它就是路径第一段，见 docs/coverage-map.md §10.1。
+FUNCTIONS = ("sales", "delivery", "support", "finance", "legal", "self")
 # 只检查前缀在不在是不够的——写 stage:deploy 也能过。取值也得校。
 # 改词表请连 docs/extending.md 一起改，那是给出题人看的同一张表。
 TAG_VOCABULARY = {
     "motif": {"incomplete", "unverified", "no-boundary", "no-allocation", "no-preflight"},
-    "function": {"sales", "ops", "finance", "legal"},
     "stage": {"plan", "build", "operate"},
     # unavailable：该调但调不通（登录态过期、二进制不在）
     # unauthorized：该调但没权限（EACCES / 403）
     "tool": {"none", "required", "trap", "unavailable", "unauthorized"},
     "polarity": {"answer", "abstain"},
 }
-# 路径只说「这是哪件活」，分类维度一律在 tags 里。两边都写，迟早对不上。
+# 职能是路径第一段的唯一事实来源；其余分类维度一律在 tags 里，路径不许重复写。
+# 「两边都写，迟早对不上」这条没变，只是职能那一维删掉的是标签那一份。
 RESERVED_PATH_WORDS = {v for values in TAG_VOCABULARY.values() for v in values}
 # 适配器只路由这三个 provider，见 opc/agents/providers.py
 SUPPORTED_PROVIDERS = ("deepseek", "antchat", "local")
@@ -55,13 +57,18 @@ def declared_image(dockerfile: Path) -> str | None:
 
 
 def find_tasks() -> list[Path]:
-    """题目目录是两层：tasks/<场景>/<案例>/。"""
-    return sorted(p.parent for p in (ROOT / "tasks").glob("*/*/task.toml"))
+    """题目目录是三层：tasks/<职能>/<做什么事>/<案例>/。"""
+    return sorted(p.parent for p in (ROOT / "tasks").glob("*/*/*/task.toml"))
 
 
 def task_id(task: Path) -> str:
-    """题目的唯一标识，就是相对 tasks/ 的两段路径：<场景>/<案例>。"""
+    """题目的唯一标识，就是相对 tasks/ 的三段路径：<职能>/<活>/<案例>。"""
     return task.relative_to(ROOT / "tasks").as_posix()
+
+
+def job_id(task_identifier: str) -> str:
+    """一件活的标识：去掉案例那一段。对照题必须同属一件活。"""
+    return task_identifier.rsplit("/", 1)[0]
 
 
 def task_tags(task: Path) -> list[str]:
@@ -72,11 +79,17 @@ def task_tags(task: Path) -> list[str]:
 def check_task(task: Path) -> list[str]:
     problems: list[str] = []
     rel = task.relative_to(ROOT)
-    for segment in task_id(task).split("/"):
+    function, *rest = task_id(task).split("/")
+    if function not in FUNCTIONS:
+        problems.append(
+            f"{rel}: 一级目录 {function!r} 不是职能。职能由路径唯一决定，"
+            f"只认 {sorted(FUNCTIONS)}——见 docs/coverage-map.md §10.1"
+        )
+    for segment in rest:
         if segment in RESERVED_PATH_WORDS:
             problems.append(
-                f"{rel}: 目录名 {segment!r} 是标签取值。路径只说「这是哪件活」"
-                "（场景/案例），母题、职能、阶段一律写在 tags 里——两边都写会对不上"
+                f"{rel}: 目录名 {segment!r} 是标签取值。二三级路径只说「这是哪件活」"
+                "（活/案例），母题、阶段、工具一律写在 tags 里——两边都写会对不上"
             )
     config = tomllib.loads((task / "task.toml").read_bytes().decode())
 
@@ -165,6 +178,11 @@ def check_task(task: Path) -> list[str]:
             problems.append(f"{rel}: tags 缺少 {prefix}* 标签，跑完出不了归因表")
     for tag in map(str, tags):
         key, _, value = tag.partition(":")
+        if key == "function":
+            problems.append(
+                f"{rel}: 标签 {tag!r} 已废弃——职能由路径第一段唯一决定，"
+                "再写一遍就是两个事实来源，见 docs/coverage-map.md §10.1"
+            )
         if key in TAG_VOCABULARY and value not in TAG_VOCABULARY[key]:
             problems.append(
                 f"{rel}: 标签 {tag!r} 的取值不在词表里，"
@@ -210,9 +228,9 @@ def check_pair(task: Path, rel: Path, tags: list) -> list[str]:
 
     两件事：
     1. 每道拒答题都必须有一比一的对照题，否则一律拒答也能拿满分。
-    2. pair: 必须指向**同一个场景目录**里的题。一比一对照的定义是
+    2. pair: 必须指向**同一件活的目录**里的题。一比一对照的定义是
        「只变前置条件，其余全不动」——工具、语料、产物形状都不变。
-       指到别的场景去，要么这对配不成立，要么场景切错了，两种都得改。
+       指到别的活去，要么这对配不成立，要么活切错了，两种都得改。
 
     只检查 abstain 一侧是不够的：预检题里「该做预检」的那道 polarity 仍是
     answer（该问的问了、该补的补了都是在作答），漏判它就等于没配对。
@@ -239,10 +257,10 @@ def check_pair(task: Path, rel: Path, tags: list) -> list[str]:
             f"{rel}: pair 指向 {pair}，但对方没有指回来——"
             "配对要双向写死，单向的那条改题时会被悄悄改掉"
         )
-    if pair.split("/")[0] != task_id(task).split("/")[0]:
+    if job_id(pair) != job_id(task_id(task)):
         problems.append(
-            f"{rel}: pair 指向另一个场景的 {pair}。一比一对照必须同工具、同语料、"
-            "同产物形状，那就应该在同一个场景目录下——要么这对不成立，要么场景切错了"
+            f"{rel}: pair 指向另一件活的 {pair}。一比一对照必须同工具、同语料、"
+            "同产物形状，那就应该在同一件活的目录下——要么这对不成立，要么活切错了"
         )
     return problems
 

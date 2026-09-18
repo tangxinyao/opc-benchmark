@@ -1,15 +1,15 @@
 #!/bin/bash
 # 把 opc/ 里的工具与判分脚手架同步到每个任务目录。
 #
-#   opc/tools/     -> tasks/*/*/environment/tools/   （进 agent 容器）
-#   数据源服务     -> tasks/*/*/environment/lib/     （只有声明了 lib/ 的题）
-#   opc/verifier/  -> tasks/*/*/tests/               （进判分容器）
+#   opc/tools/     -> tasks/*/*/*/environment/tools/   （进 agent 容器）
+#   数据源服务     -> tasks/*/*/*/environment/lib/     （只有声明了 lib/ 的题）
+#   opc/verifier/  -> tasks/*/*/*/tests/               （进判分容器）
 #
 # opc/ 是唯一事实来源；改完跑这个脚本，然后两边一起提交。
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-for task in "$ROOT"/tasks/*/*/; do
+for task in "$ROOT"/tasks/*/*/*/; do
   [ -f "$task/task.toml" ] || continue
   mkdir -p "$task/environment/tools" "$task/tests"
   rm -f "$task"/environment/tools/*   # 先清，避免 opc/tools/ 改名后留下孤儿脚本
@@ -55,5 +55,6 @@ for task in "$ROOT"/tasks/*/*/; do
     cp -r "$ROOT"/opc/fixtures/contract-vault/. "$task/environment/vault/"
   fi
   chmod +x "$task/tests/test.sh"
-  echo "synced $(basename "$(dirname "$task")")/$(basename "$task")"
+  name="${task#"$ROOT/tasks/"}"
+  echo "synced ${name%/}"
 done

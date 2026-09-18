@@ -1,7 +1,7 @@
 # 项目结构
 
 ```
-tasks/<场景>/<案例>/        # 题目。场景=一人公司里的一件活，案例=它的一个变体
+tasks/<职能>/<活>/<案例>/   # 题目。职能=六个之一，活=一件差事，案例=它的一个变体
 ├── task.toml               #   元数据、四元标签、超时与资源、跑法声明
 ├── instruction.md          #   给 agent 的题面
 ├── environment/            #   agent 容器
@@ -17,8 +17,8 @@ tasks/<场景>/<案例>/        # 题目。场景=一人公司里的一件活，
     └── test_state.py       #     判分器，真正的尺子
 opc/                        # 本仓库自己的代码（题目在 tasks/，不在这里）
 ├── agents/                 #   Harbor 适配器 + agent 基础镜像
-├── tools/                  #   进 agent 容器的命令（同步到 tasks/*/*/environment/tools/）
-└── verifier/               #   进判分容器的东西（同步到 tasks/*/*/tests/）
+├── tools/                  #   进 agent 容器的命令（同步到 tasks/*/*/*/environment/tools/）
+└── verifier/               #   进判分容器的东西（同步到 tasks/*/*/*/tests/）
 configs/                    # 所有配置文件。jobs/ 是产物，其余是手改的输入
 ├── policy.toml             #   全仓库默认跑法，gen_job_configs.py 读
 ├── task-template.toml      #   新建题的元数据模板，harbor tasks init 读
@@ -173,7 +173,7 @@ harbor 的 trial 数是 `任务 × agents × n_attempts`，**一道题不能自�
 ```
 configs/policy.toml   ─┐
                        ├─→ gen_job_configs.py ─→ configs/jobs/job-*.yaml ─→ harbor run -c
-tasks/*/*/task.toml    ─┘      按 (models, attempts) 分组
+tasks/*/*/*/task.toml  ─┘      按 (models, attempts) 分组
   [metadata.opc]
 ```
 
@@ -182,7 +182,7 @@ tasks/*/*/task.toml    ─┘      按 (models, attempts) 分组
 是因为跑分要可比，例外应该显眼。
 
 ```toml
-# tasks/<场景>/<案例>/task.toml
+# tasks/<职能>/<活>/<案例>/task.toml
 [metadata.opc]
 attempts = 5                 # 省略则回落到 configs/policy.toml 的 defaults
 models = ["deepseek/deepseek-flash"]

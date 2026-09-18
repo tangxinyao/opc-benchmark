@@ -8,8 +8,8 @@ PYTHON="${PYTHON:-python3}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FAILED=0
 
-for task in "$ROOT"/tasks/*/*/; do
-  name="$(basename "$(dirname "$task")")/$(basename "$task")"
+for task in "$ROOT"/tasks/*/*/*/; do
+  name="${task#"$ROOT/tasks/"}"; name="${name%/}"
   # 带 entrypoint 的题，环境要在 agent 进来之前先立起来（拉服务、摆权限、
   # 换登录态、删二进制）。那是 Dockerfile + entrypoint 的活，宿主机上复刻不了，
   # 硬跑只会得到一堆假红。这些题的门槛在 scripts/validate.sh。

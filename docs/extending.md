@@ -2,13 +2,20 @@
 
 ## 加一道新题
 
-题目放在 `tasks/<场景>/<案例>/`。先定场景：这道题和哪道现成的题
-**同工具、同语料、同产物形状**？是，就放进那个场景目录；不是，就开一个新场景。
-判据和命名规矩见[目录布局](what-is-opc-benchmark.md#目录布局场景--案例)。
+题目放在 `tasks/<职能>/<活>/<案例>/`。
+
+先定**职能**：六个目录之一（`sales` / `delivery` / `support` / `finance` /
+`legal` / `self`），一级目录必须是其中之一，不许新开。职能不再写成 `function:` 标签
+——路径就是它唯一的事实来源。
+
+再定**活**：这道题和哪道现成的题**同工具、同语料、同产物形状**？
+是，就放进那件活的目录；不是，就在该职能下开一件新的活。
+判据和命名规矩见[目录布局](what-is-opc-benchmark.md#目录布局职能--活--案例)。
+还缺哪块题，看[覆盖地图](coverage-map.md)的覆盖矩阵，别凭印象挑。
 
 ```bash
 harbor tasks init <案例名> --metadata-template configs/task-template.toml \
-  --include-canary-strings -p tasks/<场景>/
+  --include-canary-strings -p tasks/<职能>/<活>/
 scripts/sync-tasks.sh
 ```
 
@@ -54,8 +61,10 @@ scripts/sync-tasks.sh
 - `instruction.md` 和 `environment/`（Dockerfile 除外）里不许出现 canary、
   `BENCHMARK DATA`、「模拟工具」这类字样
 - 拒答题必须有配对的对照题，且两者同模型、同遍数
-- `pair:` 双向写死，且必须指向**同一个场景目录**里的题
-- 目录名不许用标签取值（`motif`/`function`/`stage`/`tool`/`polarity` 的值）
+- `pair:` 双向写死，且必须指向**同一件活的目录**里的题
+- 一级目录必须是六个职能之一（`sales`/`delivery`/`support`/`finance`/`legal`/`self`）
+- 二、三级目录名不许用标签取值（`motif`/`stage`/`tool`/`polarity` 的值）
+- 不许写 `function:` 标签——职能由路径第一段唯一决定
 - `[metadata.opc]` 声明的镜像与 `Dockerfile` 的 `ARG` 默认值一致
 - `tests/` 里有 `test.sh` 和 `test_state.py`，且 pytest 不在 `test.sh` 里现装
 

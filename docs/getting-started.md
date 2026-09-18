@@ -49,7 +49,7 @@ make check        # = make lint + make unit + make smoke
 
 ```bash
 . scripts/load-env.sh
-scripts/validate.sh tasks/settlement/platform-fee-change   # 先单跑一道探路
+scripts/validate.sh tasks/finance/settlement/platform-fee-change   # 先单跑一道探路
 scripts/validate.sh                                        # 7 道全跑
 ```
 
@@ -71,7 +71,7 @@ scripts/validate.sh                                        # 7 道全跑
 
 ```bash
 . scripts/load-env.sh
-harbor run -p tasks/settlement/platform-fee-change \
+harbor run -p tasks/finance/settlement/platform-fee-change \
   --agent opc.agents.hermes:Hermes -m deepseek/deepseek-flash
 ```
 

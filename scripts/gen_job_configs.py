@@ -82,8 +82,8 @@ def check_pairs_share_a_group(policies: dict[str, dict]) -> list[str]:
 
 def main() -> int:
     defaults = load_defaults()
-    # 题目目录是两层：tasks/<场景>/<案例>/，题的标识就是这两段
-    tasks = sorted(p.parent for p in TASKS_DIR.glob("*/*/task.toml"))
+    # 题目目录是三层：tasks/<职能>/<活>/<案例>/，题的标识就是这三段
+    tasks = sorted(p.parent for p in TASKS_DIR.glob("*/*/*/task.toml"))
     ids = {t: t.relative_to(TASKS_DIR).as_posix() for t in tasks}
     policies = {ids[t]: task_policy(t, defaults) for t in tasks}
 

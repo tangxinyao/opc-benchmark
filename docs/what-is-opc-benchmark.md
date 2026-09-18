@@ -44,7 +44,7 @@
 | `mail/single-source` | 没预检（**对照**） | 留言点名了信箱时，它直接做还是凡事都问 |
 
 判分方式逐题写在各自的 `task.toml` 的 `verification_explanation` 里，
-判分器本体在 `tasks/<场景>/<案例>/tests/test_state.py`。
+判分器本体在 `tasks/<职能>/<活>/<案例>/tests/test_state.py`。
 
 ## 三条设计立场
 
@@ -88,15 +88,20 @@
 
 ## 四元标签
 
-每道题在 `task.toml` 的 `tags` 里挂四元标签，跑完拿到的不是一个总分，是一张归因表：
+每道题在 `task.toml` 的 `tags` 里挂四元标签，加上路径第一段的**职能**，
+跑完拿到的不是一个总分，是一张归因表：
 
 ```
+<路径第一段>:{sales|delivery|support|finance|legal|self}   # 职能，不是标签
 motif:{incomplete|unverified|no-boundary|no-allocation|no-preflight}
-function:{sales|finance|legal|ops}
 stage:{plan|build|operate}
 tool:{none|required|trap|unavailable|unauthorized}
-polarity:{answer|abstain}     # 外加 pair:<场景>/<案例> 标出配对关系
+polarity:{answer|abstain}     # 外加 pair:<职能>/<活>/<案例> 标出配对关系
 ```
+
+**职能没有 `function:` 标签**，它就是路径第一段。目录和标签都写一遍就是两个事实来源，
+早晚对不上——所以删掉的是标签那一份，`make lint` 会拦下重新写回 `function:` 的题。
+理由见[覆盖地图 §10.1](coverage-map.md#101-function-标签删掉由路径推导)。
 
 `make lint` 连**取值**一起校，写 `stage:deploy` 过不去（词表在
 `scripts/check_tasks.py` 的 `TAG_VOCABULARY`，改词表连这里一起改）。
@@ -105,21 +110,30 @@ polarity:{answer|abstain}     # 外加 pair:<场景>/<案例> 标出配对关系
 （登录态过期、二进制不在），`unauthorized` 是该调但没权限（EACCES / 403）。
 它们描述的仍是「这道题和工具的关系」，所以是加值不是加维度——加维度归因表会更难读。
 
-## 目录布局：场景 / 案例
+## 目录布局：职能 / 活 / 案例
 
 ```
-tasks/<场景>/<案例>/
+tasks/<职能>/<做什么事>/<案例>/
 ```
 
-**场景**是一人公司里的一件活，判据有三条硬的：同一套工具、同一份语料、
+**职能**是六个之一：`sales`（获客与分发）、`delivery`（交付与产品）、
+`support`（客服与运营）、`finance`（财务与对账）、`legal`（法务与合规）、
+`self`（自我管理与调度）。一级目录**必须**是其中之一，`make lint` 校。
+这一层的全部作用是让缺口从 `ls` 就看得出来——`tasks/legal/` 现在是空的，
+不用查表也知道那块没题。
+
+**活**是一人公司里的一件具体差事，判据有三条硬的：同一套工具、同一份语料、
 同一种产物形状。可操作的检验是——**两道题能不能互为对照题**：
-能，就是同场景；不能，就是两个场景。
+能，就是同一件活；不能，就是两件。`pair:` 的 lint 依赖这一点，
+配对的两道题必须住在同一个「活」目录下。
 
-**案例**写的是这道题相对同场景兄弟改变了那个自变量
+**案例**写的是这道题相对同一件活的兄弟改变了那个自变量
 （`absent-record` ↔ `present-record`、`git-missing` ↔ `git-present`）。
 
-母题、职能、阶段一律不进路径，它们在标签里。`make lint` 会拦下用标签取值
-当目录名的写法——两份事实早晚会漂。
+母题、阶段、工具一律不进路径，它们在标签里；反过来职能只在路径里，不写成标签。
+`make lint` 两头都拦——两份事实早晚会漂。
+
+覆盖矩阵（职能 × 母题、工具链五段）在[覆盖地图](coverage-map.md)，出新题前先看它。
 
 ## 下一步
 
