@@ -27,11 +27,14 @@ RUN printf '[global]\nindex-url = https://mirrors.aliyun.com/pypi/simple/\ntrust
 
 # --- 系统依赖：hermes 的安装脚本和运行都要用 ---
 # stdbuf 来自 coreutils，适配器用它做行缓冲；ripgrep 是 hermes 的检索后端。
+# unzip 是 dws install.sh 解 skills zip 的硬依赖——缺了它脚本会中途报
+# 「Install unzip」然后失败，而不是回退到别的解法。
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
       curl \
       git \
       ripgrep \
+      unzip \
       xz-utils \
       coreutils \
       procps \
