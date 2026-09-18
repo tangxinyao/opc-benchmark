@@ -103,17 +103,18 @@ print('clarify relay ok:', out['user_response'])" \
 # 二进制和官方写的 skills，我们不自己造一个假 CLI——假 CLI 等于把
 # 连接器的真实难度（鉴权、分页、契约字段）全删掉。
 # 版本钉死：浮动的 CLI 版本等于浮动的结论。
+# 下载走 gitee：github 的 release 端点在国内网络下不稳，构建会随机挂。
 ARG DWS_VERSION=v1.0.62
+ARG DWS_GITEE_REPO=DingTalk-Real-AI/dingtalk-workspace-cli
 RUN set -euo pipefail; \
-    base="https://github.com/DingTalk-Real-AI/dingtalk-workspace-cli/releases/download/${DWS_VERSION}"; \
-    curl -fsSL "${base}/dws-linux-amd64.tar.gz" -o /tmp/dws.tgz; \
-    mkdir -p /tmp/dws && tar xzf /tmp/dws.tgz -C /tmp/dws; \
-    install -m 0755 /tmp/dws/dws /usr/local/bin/dws; \
-    curl -fsSL "${base}/dws-skills.zip" -o /tmp/dws-skills.zip; \
+    DWS_GITEE_REPO="${DWS_GITEE_REPO}" DWS_VERSION="${DWS_VERSION}" \
+      curl -fsSL "https://gitee.com/${DWS_GITEE_REPO}/raw/main/scripts/install.sh" | sh; \
+    curl -fsSL "https://gitee.com/${DWS_GITEE_REPO}/releases/download/${DWS_VERSION}/dws-skills.zip" \
+      -o /tmp/dws-skills.zip; \
     mkdir -p /opt/dws/skills; \
     python -c "import zipfile,sys; zipfile.ZipFile('/tmp/dws-skills.zip').extractall('/opt/dws/skills')"; \
     chmod -R a+rX /opt/dws/skills; \
-    rm -rf /tmp/dws /tmp/dws.tgz /tmp/dws-skills.zip; \
+    rm -f /tmp/dws-skills.zip; \
     dws --version
 
 # --- 开源工具预烘（真二进制、零账号、版本钉死） ---
@@ -121,14 +122,17 @@ RUN set -euo pipefail; \
 # 版本一律钉死——浮动的 CLI 版本等于浮动的结论，这条和上面 dws/hermes 一致。
 #   himalaya  真实 IMAP/SMTP 客户端，配置文件与认证面都是真的
 #   mailpit   本地 SMTP/IMAP 服务端，给 himalaya 当对端，全程不出容器
+# 其余几个还是 github 的 release，没有 gitee 镜像；统一套一层可覆盖的加速前缀，
+# 内网构建时传 --build-arg GH_MIRROR= 即可回到直连 github。
+ARG GH_MIRROR=https://ghproxy.net/
 ARG HIMALAYA_VERSION=v2.1.0
 ARG MAILPIT_VERSION=v1.31.1
 RUN set -euo pipefail; \
-    curl -fsSL "https://github.com/pimalaya/himalaya/releases/download/${HIMALAYA_VERSION}/himalaya.x86_64-linux.tgz" \
+    curl -fsSL "${GH_MIRROR}https://github.com/pimalaya/himalaya/releases/download/${HIMALAYA_VERSION}/himalaya.x86_64-linux.tgz" \
       -o /tmp/himalaya.tgz; \
     mkdir -p /tmp/himalaya && tar xzf /tmp/himalaya.tgz -C /tmp/himalaya; \
     install -m 0755 "$(find /tmp/himalaya -type f -name himalaya | head -1)" /usr/local/bin/himalaya; \
-    curl -fsSL "https://github.com/axllent/mailpit/releases/download/${MAILPIT_VERSION}/mailpit-linux-amd64.tar.gz" \
+    curl -fsSL "${GH_MIRROR}https://github.com/axllent/mailpit/releases/download/${MAILPIT_VERSION}/mailpit-linux-amd64.tar.gz" \
       -o /tmp/mailpit.tgz; \
     mkdir -p /tmp/mailpit && tar xzf /tmp/mailpit.tgz -C /tmp/mailpit; \
     install -m 0755 "$(find /tmp/mailpit -type f -name mailpit | head -1)" /usr/local/bin/mailpit; \
@@ -143,7 +147,7 @@ RUN set -euo pipefail; \
 # glibc 变体跟着基底走：python:3.12-slim-bookworm 是 Debian 12 / glibc 2.36。
 ARG GAM_VERSION=7.05.08
 RUN set -euo pipefail; \
-    curl -fsSL "https://github.com/taers232c/GAMADV-XTD3/releases/download/v${GAM_VERSION}/gamadv-xtd3-${GAM_VERSION}-linux-x86_64-glibc2.35.tar.xz" \
+    curl -fsSL "${GH_MIRROR}https://github.com/taers232c/GAMADV-XTD3/releases/download/v${GAM_VERSION}/gamadv-xtd3-${GAM_VERSION}-linux-x86_64-glibc2.35.tar.xz" \
       -o /tmp/gam.tar.xz; \
     mkdir -p /opt/gam && tar xf /tmp/gam.tar.xz -C /opt/gam --strip-components=1; \
     rm -f /tmp/gam.tar.xz; \
@@ -158,7 +162,7 @@ RUN set -euo pipefail; \
 # 对端是 stripe_fixture_server.py，api.stripe.com 由 opc-pin-hosts 钉到本机。
 ARG STRIPE_VERSION=1.21.8
 RUN set -euo pipefail; \
-    curl -fsSL "https://github.com/stripe/stripe-cli/releases/download/v${STRIPE_VERSION}/stripe_${STRIPE_VERSION}_linux_x86_64.tar.gz" \
+    curl -fsSL "${GH_MIRROR}https://github.com/stripe/stripe-cli/releases/download/v${STRIPE_VERSION}/stripe_${STRIPE_VERSION}_linux_x86_64.tar.gz" \
       -o /tmp/stripe.tgz; \
     mkdir -p /tmp/stripe && tar xzf /tmp/stripe.tgz -C /tmp/stripe; \
     install -m 0755 /tmp/stripe/stripe /usr/local/bin/stripe; \
