@@ -134,14 +134,26 @@ RUN set -euo pipefail; \
 # 其余几个还是 github 的 release，没有 gitee 镜像；统一套一层可覆盖的加速前缀，
 # 内网构建时传 --build-arg GH_MIRROR= 即可回到直连 github。
 ARG GH_MIRROR=https://gh-proxy.com/
+# 架构跟随 buildkit 的 TARGETARCH（amd64 / arm64），不再写死 x86_64：
+# 在 arm 机器上建时，写死的 amd64 二进制装得进去、跑不起来。
+# 四家的资产命名各不相同，所以逐个映射，不能共用一个变量：
+#   himalaya  x86_64 / aarch64      mailpit  amd64 / arm64（就是 TARGETARCH）
+#   gam       x86_64 / arm64        stripe   x86_64 / arm64
+# case 里显式 *) 报错：出现没映射过的架构要当场停，而不是拼出一个 404。
+ARG TARGETARCH
 ARG HIMALAYA_VERSION=v2.1.0
 ARG MAILPIT_VERSION=v1.31.1
 RUN set -euo pipefail; \
-    curl -fsSL "${GH_MIRROR}https://github.com/pimalaya/himalaya/releases/download/${HIMALAYA_VERSION}/himalaya.x86_64-linux.tgz" \
+    case "${TARGETARCH}" in \
+      amd64) hima_arch=x86_64 ;; \
+      arm64) hima_arch=aarch64 ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "${GH_MIRROR}https://github.com/pimalaya/himalaya/releases/download/${HIMALAYA_VERSION}/himalaya.${hima_arch}-linux.tgz" \
       -o /tmp/himalaya.tgz; \
     mkdir -p /tmp/himalaya && tar xzf /tmp/himalaya.tgz -C /tmp/himalaya; \
     install -m 0755 "$(find /tmp/himalaya -type f -name himalaya | head -1)" /usr/local/bin/himalaya; \
-    curl -fsSL "${GH_MIRROR}https://github.com/axllent/mailpit/releases/download/${MAILPIT_VERSION}/mailpit-linux-amd64.tar.gz" \
+    curl -fsSL "${GH_MIRROR}https://github.com/axllent/mailpit/releases/download/${MAILPIT_VERSION}/mailpit-linux-${TARGETARCH}.tar.gz" \
       -o /tmp/mailpit.tgz; \
     mkdir -p /tmp/mailpit && tar xzf /tmp/mailpit.tgz -C /tmp/mailpit; \
     install -m 0755 "$(find /tmp/mailpit -type f -name mailpit | head -1)" /usr/local/bin/mailpit; \
@@ -156,12 +168,19 @@ RUN set -euo pipefail; \
 # glibc 变体跟着基底走：python:3.12-slim-bookworm 是 Debian 12 / glibc 2.36。
 ARG GAM_VERSION=7.05.08
 RUN set -euo pipefail; \
-    curl -fsSL "${GH_MIRROR}https://github.com/taers232c/GAMADV-XTD3/releases/download/v${GAM_VERSION}/gamadv-xtd3-${GAM_VERSION}-linux-x86_64-glibc2.35.tar.xz" \
+    case "${TARGETARCH}" in \
+      amd64) gam_arch=x86_64 ;; \
+      arm64) gam_arch=arm64 ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "${GH_MIRROR}https://github.com/taers232c/GAMADV-XTD3/releases/download/v${GAM_VERSION}/gamadv-xtd3-${GAM_VERSION}-linux-${gam_arch}-glibc2.35.tar.xz" \
       -o /tmp/gam.tar.xz; \
     mkdir -p /opt/gam && tar xf /tmp/gam.tar.xz -C /opt/gam --strip-components=1; \
     rm -f /tmp/gam.tar.xz; \
     ln -sf /opt/gam/gam /usr/local/bin/gam; \
-    chmod -R a+rX /opt/gam
+    chmod -R a+rX /opt/gam; \
+    GAMCFGDIR=/tmp/gam-selfcheck gam version; \
+    rm -rf /tmp/gam-selfcheck /root/Downloads
 
 # --- Stripe 官方 CLI ---
 # 退款这个不可逆动作，现实里长的就是 `stripe refunds create --charge ... --amount ...`，
@@ -171,7 +190,12 @@ RUN set -euo pipefail; \
 # 对端是 stripe_fixture_server.py，api.stripe.com 由 opc-pin-hosts 钉到本机。
 ARG STRIPE_VERSION=1.21.8
 RUN set -euo pipefail; \
-    curl -fsSL "${GH_MIRROR}https://github.com/stripe/stripe-cli/releases/download/v${STRIPE_VERSION}/stripe_${STRIPE_VERSION}_linux_x86_64.tar.gz" \
+    case "${TARGETARCH}" in \
+      amd64) stripe_arch=x86_64 ;; \
+      arm64) stripe_arch=arm64 ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "${GH_MIRROR}https://github.com/stripe/stripe-cli/releases/download/v${STRIPE_VERSION}/stripe_${STRIPE_VERSION}_linux_${stripe_arch}.tar.gz" \
       -o /tmp/stripe.tgz; \
     mkdir -p /tmp/stripe && tar xzf /tmp/stripe.tgz -C /tmp/stripe; \
     install -m 0755 /tmp/stripe/stripe /usr/local/bin/stripe; \
