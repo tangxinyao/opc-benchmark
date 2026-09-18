@@ -32,6 +32,7 @@ configs:  ## 由 task.toml 的 [metadata.opc] 生成 harbor job config
 lint:  ## 任务目录静态检查（canary、标签、判分工具是否烘好、拒答题是否配对）
 	$(UV_RUN) python scripts/check_tasks.py
 	$(UV_RUN) python scripts/gen_job_configs.py
+	./scripts/sync-tasks.sh --check
 
 unit:  ## 适配器单元测试
 	$(UV_RUN) python -m pytest tests -q

@@ -65,10 +65,28 @@ scripts/sync-tasks.sh
 - 一级目录必须是六个职能之一（`sales`/`delivery`/`support`/`finance`/`legal`/`self`）
 - 二、三级目录名不许用标签取值（`motif`/`stage`/`tool`/`polarity` 的值）
 - 不许写 `function:` 标签——职能由路径第一段唯一决定
+- 题目里从 `opc/` 同步下来的那些副本必须是最新的（改完 `opc/` 要跑
+  `scripts/sync-tasks.sh`，`make lint` 会用 `--check` 比对）
 - `[metadata.opc]` 声明的镜像与 `Dockerfile` 的 `ARG` 默认值一致
 - `tests/` 里有 `test.sh` 和 `test_state.py`，且 pytest 不在 `test.sh` 里现装
 - README 里那张判分明细表与 `test_state.py` 一致（改完判分器跑
   `uv run python scripts/gen_score_tables.py` 重新生成，见下）
+
+## 要用 skill 的题
+
+skills **按名字点名下发**，在题目里放一份 `environment/skills.manifest`，
+一行一个，对应 `opc/skills/` 下的目录名：
+
+```
+obsidian
+```
+
+然后 `scripts/sync-tasks.sh` 会把它铺进 `environment/skills/`。
+**不点名就不发**——用不上的 skill 是纯噪声，还会诱 agent 去试不存在的工具，
+理由见 [opc/skills/README.md](../opc/skills/README.md)。
+
+清单放在 `skills/` 外面是有意的：题目的 Dockerfile 只 `COPY skills/`，
+所以清单本身不进容器。
 
 ## 判分明细表
 

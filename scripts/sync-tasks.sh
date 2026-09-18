@@ -3,58 +3,140 @@
 #
 #   opc/tools/     -> tasks/*/*/*/environment/tools/   （进 agent 容器）
 #   数据源服务     -> tasks/*/*/*/environment/lib/     （只有声明了 lib/ 的题）
+#   opc/skills/    -> tasks/*/*/*/environment/skills/  （按 skills.manifest 点名）
 #   opc/verifier/  -> tasks/*/*/*/tests/               （进判分容器）
 #
 # opc/ 是唯一事实来源；改完跑这个脚本，然后两边一起提交。
+#
+#   scripts/sync-tasks.sh            扇出去
+#   scripts/sync-tasks.sh --check    只比对，不写；有差异就非零退出（make lint 用）
+#
+# --check 存在的理由：改了 opc/ 忘了跑同步，18 个题目录会留着旧拷贝，而
+# 判分脚手架就在这里面——尺子悄悄变旧了，分数照常产出，没人会发现。
+# 它不另写一份比对逻辑，而是复用下面同一个 sync_task，所以映射关系只有一份。
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-for task in "$ROOT"/tasks/*/*/*/; do
-  [ -f "$task/task.toml" ] || continue
-  mkdir -p "$task/environment/tools" "$task/tests"
-  rm -f "$task"/environment/tools/*   # 先清，避免 opc/tools/ 改名后留下孤儿脚本
+CHECK=0
+[ "${1:-}" = "--check" ] && CHECK=1
+
+# 把一道题该有的东西铺到 $2。$1 是题目录（读它来判断 opt-in），
+# $2 是落点——正常模式就是题目录自己，--check 模式是个临时镜像。
+sync_task() {
+  local task="$1" dest="$2"
+  mkdir -p "$dest/environment/tools" "$dest/tests"
+
   # fixture server 不进 tools/：那个目录会被 COPY 进 /opt/opc/bin，agent 读得到。
-  # 它们只该以 environment/lib/ 的身份下发（见下面两个 opt-in 分支），
+  # 它们只该以 environment/lib/ 的身份下发（见下面几个 opt-in 分支），
   # 否则等于把数据源的认证逻辑、fixture 路径和错误形状白送给 agent。
   find "$ROOT/opc/tools" -maxdepth 1 -type f \
     -not -name '*_fixture_server.py' \
-    -exec cp {} "$task/environment/tools/" \;
-  cp "$ROOT"/opc/verifier/test.sh "$task/tests/test.sh"
-  cp "$ROOT"/opc/verifier/oracle.py "$task/tests/oracle.py"   # 差分判分骨架
-  cp "$ROOT"/opc/verifier/preflight.py "$task/tests/preflight.py"  # 预检题的公共断言
-  cp "$ROOT"/opc/verifier/outbox.py "$task/tests/outbox.py"        # 外发邮件的公共断言
-  cp "$ROOT"/opc/verifier/billing.py "$task/tests/billing.py"      # 退款动作的公共断言
-  cp "$ROOT"/opc/verifier/task-tests.Dockerfile "$task/tests/Dockerfile"
+    -exec cp {} "$dest/environment/tools/" \;
+
+  cp "$ROOT"/opc/verifier/test.sh "$dest/tests/test.sh"
+  cp "$ROOT"/opc/verifier/oracle.py "$dest/tests/oracle.py"        # 差分判分骨架
+  cp "$ROOT"/opc/verifier/preflight.py "$dest/tests/preflight.py"  # 预检题的公共断言
+  cp "$ROOT"/opc/verifier/outbox.py "$dest/tests/outbox.py"        # 外发邮件的公共断言
+  cp "$ROOT"/opc/verifier/billing.py "$dest/tests/billing.py"      # 退款动作的公共断言
+  cp "$ROOT"/opc/verifier/task-tests.Dockerfile "$dest/tests/Dockerfile"
+  chmod +x "$dest/tests/test.sh"
+
   # 数据源服务：题目里那份是 opc/tools/ 的拷贝，别让它自己长出第二份实现。
   # 它不进 tools/（那个目录 agent 看得见），而是进 environment/lib/，
   # 由 entrypoint 经 sudo 以 opcsvc 拉起。
   if [ -f "$task/environment/data/dingtalk.json" ]; then
-    cp "$ROOT"/opc/tools/dws_fixture_server.py "$task/environment/lib/datasource_server.py"
+    mkdir -p "$dest/environment/lib"
+    cp "$ROOT"/opc/tools/dws_fixture_server.py "$dest/environment/lib/datasource_server.py"
   fi
   # Google Workspace 数据源：同上，题目声明了 data/workspace.json 才发。
   # 真 gam 冷启动要拉 discovery，容器里没有外网，所以本地留一份官方文档的副本。
   if [ -f "$task/environment/data/workspace.json" ]; then
-    cp "$ROOT"/opc/tools/gws_fixture_server.py "$task/environment/lib/workspace_server.py"
-    mkdir -p "$task/environment/data/discovery"
-    cp "$ROOT"/opc/fixtures/google-discovery/*.json "$task/environment/data/discovery/"
+    mkdir -p "$dest/environment/lib" "$dest/environment/data/discovery"
+    cp "$ROOT"/opc/tools/gws_fixture_server.py "$dest/environment/lib/workspace_server.py"
+    cp "$ROOT"/opc/fixtures/google-discovery/*.json "$dest/environment/data/discovery/"
   fi
   # 计费数据源：题目声明了 data/stripe.json 才发。真 stripe CLI 的对端。
   if [ -f "$task/environment/data/stripe.json" ]; then
-    cp "$ROOT"/opc/tools/stripe_fixture_server.py "$task/environment/lib/billing_server.py"
+    mkdir -p "$dest/environment/lib"
+    cp "$ROOT"/opc/tools/stripe_fixture_server.py "$dest/environment/lib/billing_server.py"
   fi
-  # agent skills：同样是 opt-in，只发给声明了 environment/skills/ 的题。
-  # 不进基础镜像——那样每道题的 agent 都会在技能清单里看到 obsidian，
-  # 对用不上 vault 的题就是纯噪声，还会诱它去试不存在的工具。
-  if [ -d "$task/environment/skills" ]; then
-    rm -rf "$task"/environment/skills/*
-    cp -r "$ROOT"/opc/skills/obsidian/. "$task/environment/skills/"
+  # 阿里云数据源：题目声明了 data/aliyun.json 才发。真 aliyun CLI 的对端。
+  if [ -f "$task/environment/data/aliyun.json" ]; then
+    mkdir -p "$dest/environment/lib"
+    cp "$ROOT"/opc/tools/aliyun_fixture_server.py "$dest/environment/lib/cloud_server.py"
   fi
+
+  # agent skills：**按名字点名下发**，清单在 environment/skills.manifest，
+  # 一行一个，对应 opc/skills/ 下的目录名。
+  #
+  # 以前这里写死发 obsidian，任何声明了 skills/ 的题都会收到一堆 wikilink 知识。
+  # 用不上的 skill 是纯噪声，还会诱 agent 去试不存在的工具——这条和
+  # opc/skills/README.md 里排除 defuddle/knap 是同一个理由。
+  #
+  # 清单放在 skills/ 外面：题目的 Dockerfile 只 COPY skills/，所以它不进容器。
+  local manifest="$task/environment/skills.manifest"
+  if [ -f "$manifest" ]; then
+    mkdir -p "$dest/environment/skills"
+    while read -r skill; do
+      skill="${skill%%#*}"; skill="$(echo "$skill" | tr -d '[:space:]')"
+      [ -z "$skill" ] && continue
+      if [ ! -d "$ROOT/opc/skills/$skill" ]; then
+        echo "FAIL ${task#"$ROOT/tasks/"}: skills.manifest 点名了 '$skill'，" \
+             "但 opc/skills/$skill 不存在" >&2
+        return 1
+      fi
+      # opc/skills/<name>/ 有两种形状，落点必须都是 HERMES_HOME/skills/<skill>/：
+      #   根下有 SKILL.md  -> 它本身就是一个 skill（aliyun-cli）
+      #   根下没有        -> 它是个合集，里面每个子目录才是 skill（obsidian 三件套）
+      # 分不清的话 obsidian 会被多套一层，hermes 就扫不到 SKILL.md 了。
+      if [ -f "$ROOT/opc/skills/$skill/SKILL.md" ]; then
+        mkdir -p "$dest/environment/skills/$skill"
+        cp -r "$ROOT/opc/skills/$skill/." "$dest/environment/skills/$skill/"
+      else
+        cp -r "$ROOT/opc/skills/$skill/." "$dest/environment/skills/"
+      fi
+    done < "$manifest"
+  fi
+
   # Obsidian vault 语料：两道 contract 题共用一份，别让它长出第二份拷贝。
   if [ -d "$task/environment/vault" ]; then
-    rm -rf "$task"/environment/vault/*
-    cp -r "$ROOT"/opc/fixtures/contract-vault/. "$task/environment/vault/"
+    mkdir -p "$dest/environment/vault"
+    cp -r "$ROOT"/opc/fixtures/contract-vault/. "$dest/environment/vault/"
   fi
-  chmod +x "$task/tests/test.sh"
+}
+
+failed=0
+for task in "$ROOT"/tasks/*/*/*/; do
+  task="${task%/}"
+  [ -f "$task/task.toml" ] || continue
   name="${task#"$ROOT/tasks/"}"
-  echo "synced ${name%/}"
+
+  if [ "$CHECK" = 1 ]; then
+    tmp="$(mktemp -d)"
+    if ! sync_task "$task" "$tmp"; then failed=1; rm -rf "$tmp"; continue; fi
+    # 只比对同步器管的那些文件——题目自己的 test_state.py、instruction.md 不在其列。
+    while IFS= read -r -d '' produced; do
+      rel="${produced#"$tmp/"}"
+      if ! cmp -s "$produced" "$task/$rel"; then
+        if [ -e "$task/$rel" ]; then
+          echo "FAIL $name/$rel: 与 opc/ 里的源文件不一致"
+        else
+          echo "FAIL $name/$rel: 缺这个文件"
+        fi
+        failed=1
+      fi
+    done < <(find "$tmp" -type f -print0)
+    rm -rf "$tmp"
+  else
+    rm -f "$task"/environment/tools/*   # 先清，避免 opc/tools/ 改名后留下孤儿脚本
+    [ -f "$task/environment/skills.manifest" ] && rm -rf "$task"/environment/skills/*
+    [ -d "$task/environment/vault" ] && rm -rf "$task"/environment/vault/*
+    sync_task "$task" "$task" || failed=1
+    echo "synced $name"
+  fi
 done
+
+if [ "$CHECK" = 1 ] && [ "$failed" = 0 ]; then
+  echo "OK   18 道题的同步内容与 opc/ 一致"
+fi
+exit "$failed"

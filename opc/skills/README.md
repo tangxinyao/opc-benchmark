@@ -26,6 +26,22 @@
 
 ---
 
+# 怎么发给某道题
+
+在题目里放一份 `environment/skills.manifest`，一行一个目录名：
+
+```
+obsidian
+aliyun-cli
+```
+
+`scripts/sync-tasks.sh` 照着它铺进 `environment/skills/`，**没点名的一律不发**。
+`opc/skills/<name>/` 有两种形状，落点都会是 `HERMES_HOME/skills/<skill>/`：
+根下有 `SKILL.md` 的（`aliyun-cli`）本身就是一个 skill；根下没有的
+（`obsidian`）是个合集，里面每个子目录才是 skill。
+
+---
+
 # aliyun-cli（发布类题目用）
 
 来源：https://github.com/hambaobao/hambaobao-skills （MIT）
