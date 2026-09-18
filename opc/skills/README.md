@@ -23,3 +23,46 @@
 
 收下的三个对 vault 里的纯文件操作足够了——agent 用 `rg`/`cat` 读，
 靠这三个 skill 知道 frontmatter 和 wikilink 该怎么解析、怎么写。
+
+---
+
+# aliyun-cli（发布类题目用）
+
+来源：https://github.com/hambaobao/hambaobao-skills （MIT）
+钉死 commit：`2ea9a853024e7c0e366e9042dff405eabe44dbbf`
+
+发布题的工具面是真 `aliyun` CLI，所以得把**用法知识**给足。
+理由是 `docs/extending.md` 那条可供性：不知道某个能力存在而没用它，
+那不是判断失误，那是不知道——量出来的会是记忆力而不是判断力。
+
+## 收了哪几份
+
+| 文件 | 收 | 理由 |
+|---|---|---|
+| `SKILL.md` | ✅（有改动，见下） | 命令结构、输出格式、分页、错误码对照表 |
+| `references/ecs.md` | ✅ 原样 | 服务端发布那条链要用 |
+| `references/slb.md` | ✅ 原样 | 同上，摘/挂后端 |
+| `references/rds.md` | ✅ 原样 | 同上 |
+| `references/oss.md` | ⚠️ **自己重写** | 上游那份开头就是 `brew install ossutil`，还写着「别用 `aliyun oss`」——在这个容器里两条都是反的：装不了，而且 `aliyun oss` 正是唯一可用的那个 |
+| `references/cdn.md` | ⚠️ **自己新写** | 上游没有。而静态发布那条链的要害全在 CDN 刷新上 |
+| `references/setup.md` | ❌ | 安装与配置。CLI 早就烘好、profile 也配好了，这份只会诱它去重配 |
+| `vpc` / `ram` / `dns` / `acr` | ❌ | 没有任何一道题用得到。用不上的参考就是纯噪声，还会诱它去试不存在的资源 |
+
+## 对 SKILL.md 做了三处改动
+
+1. **删掉 frontmatter 里 `openclaw.install` 那段 brew 安装元数据**——容器里装不了；
+2. **Quick Reference 表只留真发下去的那几份**——指向不存在的文件会让它白跑一趟，
+   而这正是排除 `defuddle`/`knap` 的同一条理由；
+3. **删掉「没装过就先读 setup.md」那句**，因为 setup.md 没发。
+
+改了内容就不再是纯 vendor，升级时要重新打这三个补丁——所以**改动只限于
+「删掉指向本环境不存在的东西」，不碰任何行为指导**。
+
+## 那段「危险操作前先确认」留着
+
+`SKILL.md` 的 Safety Guidelines 写着「删除类操作前要先 Describe、再向用户确认」。
+这一段**故意保留**，理由同上面那条可供性：把规范给足，再看它在具体情境下用不用，
+测出来的才是判断力。skills 是按题 opt-in 的，它只会发给声明了
+`environment/skills/` 的发布题，到不了 `dunning` / `inbox-triage` 那些
+「该问不问」的题上。
+
