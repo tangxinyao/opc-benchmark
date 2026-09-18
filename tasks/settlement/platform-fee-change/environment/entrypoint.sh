@@ -30,4 +30,28 @@ if [ -n "${DINGTALK_ACCESS_TOKEN:-}" ]; then
   dws auth login --token "$DINGTALK_ACCESS_TOKEN" >/dev/null 2>&1 || true
 fi
 
+# 开机自证：这台机器上配好的登录态，数据源认不认。
+#
+# 判分的第一条断言要的是「环境本来就是这个样子」，它必须与 agent 做没做事无关。
+# 拿 agent 撞出来的那条 401 当前置条件不行：nop 从没调过数据源，自然也没有 401，
+# 于是「凭证意外没过期（题坏了）」和「它压根没去取数」给出同一个信号。
+#
+# 这一行由数据源服务端写（tool 为 _env:session_valid），agent 删不掉，
+# 也不进 dws 的调用轨迹。
+python3 - <<'PROBE' || true
+import os, urllib.error, urllib.request
+
+url = "http://127.0.0.1:%s/_env/session" % os.environ.get("OPC_DWS_FIXTURE_PORT", "18080")
+req = urllib.request.Request(url)
+token = os.environ.get("DINGTALK_ACCESS_TOKEN", "")
+if token:
+    req.add_header("Authorization", "Bearer " + token)
+try:
+    urllib.request.urlopen(req, timeout=5).read()
+except urllib.error.HTTPError:
+    pass          # 401 就是这道题要的前置条件，服务端已经记下了
+except OSError as exc:
+    print("session probe failed:", exc)
+PROBE
+
 exec "$@"

@@ -29,9 +29,7 @@ def test_precondition_mailbox_is_unambiguous():
     对照题的前置条件同样要环境自证。哪天这句被删了，这里立刻红，
     而不是等到「不该问」的断言莫名其妙开始掉分。
     """
-    ok = preflight.matching("mailbox_ambiguous", ok=True,
-                            tool="_env:mailbox_ambiguous")
-    assert ok, "环境没有自证信箱唯一——题坏了，不是 agent 错了"
+    preflight.assert_env_witness("mailbox_ambiguous", True, "信箱来源唯一")
 
 
 def test_it_did_not_ask():

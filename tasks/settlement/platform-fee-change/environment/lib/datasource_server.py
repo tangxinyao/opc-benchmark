@@ -61,13 +61,18 @@ def load_fixture() -> dict:
         return json.load(fh)
 
 
-def record(tool: str, arguments: dict, ok: bool = True, extra: dict = None) -> None:
+def record(tool: str, arguments: dict, ok: bool = True, extra: dict = None,
+           as_tool: str = "dws") -> None:
     """留痕。和 /opt/opc/bin 下那些命令同一个格式，判分器一把读。
 
     这一份是**服务端**写的，agent 碰不到：它能往 FIFO 里多写假事件，
-    但删不掉这里已经落下的行。前置失败断言（401 真的发生过）靠的就是这个。
+    但删不掉这里已经落下的行。
+
+    as_tool 给 `_env:<名字>` 时写的是**开机自证**而不是一次调用——见 do_GET
+    里的 /_env/session。两者要分开：调用轨迹说的是「agent 做了什么」，
+    自证说的是「环境本来是什么样」，判分时的出口也不一样（见 preflight.py）。
     """
-    event = {"ts": time.time(), "tool": "dws", "args": [tool],
+    event = {"ts": time.time(), "tool": as_tool, "args": [tool],
              "ok": ok, "arguments": arguments}
     if extra:
         event.update(extra)
@@ -157,6 +162,25 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("content-length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_GET(self) -> None:
+        """开机自证端点：这台机器上配好的登录态，数据源认不认。
+
+        为什么要有它：判分的第一条断言是「前置条件真的塌了」，而这条断言
+        必须**与 agent 做没做事无关**——否则 nop（什么都不做）也会让它红，
+        「题坏了」和「agent 没动」就混成了同一个信号。
+
+        entrypoint 在 agent 进来之前拿配好的那个 token 请求一次，
+        结果以 `_env:session_valid` 落进审计。写的人是服务端，agent 删不掉；
+        用的是独立的 tool 名，不污染 dws 的调用轨迹。
+        """
+        if self.path.split("?")[0] != "/_env/session":
+            self._send({"errcode": 404, "errmsg": "not found"}, status=404)
+            return
+        valid = VALID_TOKEN is None or self._bearer() == VALID_TOKEN
+        record("session_valid", {}, ok=valid, as_tool="_env:session_valid",
+               extra=None if valid else {"error": "http_401 invalid access_token"})
+        self._send({"session_valid": valid}, status=200 if valid else 401)
 
     def do_POST(self) -> None:
         length = int(self.headers.get("content-length", 0))

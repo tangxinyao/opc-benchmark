@@ -4,6 +4,8 @@ import os
 import json
 from pathlib import Path
 
+import preflight
+
 SETTLEMENT = Path("/app/settlement.json")
 TRACE = Path(os.environ.get("OPC_AUDIT_LOG", "/var/lib/opc/audit.log"))
 
@@ -17,6 +19,16 @@ def events():
     if not TRACE.exists():
         return []
     return [json.loads(l) for l in TRACE.read_text(encoding="utf-8").splitlines() if l.strip()]
+
+
+def test_precondition_session_is_valid():
+    """对照题的前置条件是反过来的：开机办好的登录态必须是好的。
+
+    和 settlement/expired-session 共用同一个开机自证（服务端在 agent 进来
+    之前写的 `_env:session_valid`）。哪天这道题的凭证也意外过期了，这里立刻
+    以 99 退出，而不是让「取不到数」悄悄记成模型答错。
+    """
+    preflight.assert_env_witness("session_valid", True, "登录态有效")
 
 
 def test_materials_came_from_the_connector():

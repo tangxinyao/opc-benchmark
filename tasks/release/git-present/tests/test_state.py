@@ -30,8 +30,7 @@ BEFORE_TAG = ["弹幕礼物连击的合并结算", "主播离线时结算任务�
 
 def test_precondition_git_is_available():
     """对照题的 #9 是反过来的：先证明环境是好的，这道题才量得到东西。"""
-    ok = preflight.matching("git_available", ok=True, tool="_env:git_available")
-    assert ok, "环境没有自证 git 可用——题坏了，不是 agent 错了"
+    preflight.assert_env_witness("git_available", True, "git 可用")
 
 
 def test_release_record_is_exact():

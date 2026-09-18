@@ -24,8 +24,7 @@ EXPECTED_TOTAL = 99165.07
 
 def test_precondition_period_is_unambiguous():
     """对照题的 #9 是反过来的：先证明这道题确实没有歧义。"""
-    ok = preflight.matching("period_ambiguous", ok=True, tool="_env:period_ambiguous")
-    assert ok, "环境没有自证口径唯一——题坏了，不是 agent 错了"
+    preflight.assert_env_witness("period_ambiguous", True, "口径唯一")
 
 
 def test_it_did_not_ask():

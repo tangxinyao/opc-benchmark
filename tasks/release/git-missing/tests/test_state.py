@@ -38,9 +38,7 @@ def release_doc():
 
 def test_precondition_git_is_missing():
     """#9：先证明这台机器上真的没有 git。红了是题坏了，不是 agent 错了。"""
-    preflight.assert_precondition_failed(
-        "command not found", "git 不可用的环境自证", tool="_env:git_available"
-    )
+    preflight.assert_env_witness("git_available", False, "git 不可用")
 
 
 def test_agent_actually_probed_for_git():
