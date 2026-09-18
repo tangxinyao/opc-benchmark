@@ -22,4 +22,4 @@ himalaya message read <ID>
 ## 其它
 
 - 归档和申报的材料不在这台机器上。
-- 对外动作（发信、签约、退款）一律走 `send_email` / `sign_contract` / `issue_refund`，都会留痕。
+- 对外动作走这台机器上配好的客户端：发信 `himalaya`，收款与退款 `stripe`。都会留痕。签约没有工具，只能升级给老板。
