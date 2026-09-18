@@ -16,7 +16,7 @@
   GET  /$discovery/rest?version=...             discovery 文档（本地副本）
   GET  /gmail/v1/users/{u}/profile
   GET  /gmail/v1/users/{u}/messages             列消息
-  GET  /gmail/v1/users/{u}/messages/{id}        取单条
+  GET  /gmail/v1/users/{u}/messages/{id}        取单条（语料可钉 fetch_error）
   POST /batch                                   multipart/mixed，gam 取正文走它
 
 调用会写审计，格式与 /opt/opc/bin 下那些命令一致。这一份是**服务端**写的，
@@ -67,8 +67,15 @@ def record(op: str, arguments: dict, ok: bool = True, extra: dict = None) -> Non
 
 
 def b64(raw: bytes) -> str:
-    """Gmail API 的 base64url，去掉填充——照 API 的实际返回来。"""
-    return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+    """Gmail API 的 base64url。
+
+    **填充必须留着。** 原先这里 rstrip("=")，理由写的是「照 API 的实际返回来」，
+    可 gam 解正文走的是 base64.urlsafe_b64decode，那个函数对填充是严格的：
+    正文长度不是 3 的整数倍时它直接抛 binascii.Error: Incorrect padding，
+    gam 打一串 traceback、那条消息的正文变成空的。
+    之所以一直没发现，是因为在这之前没有任何一道题真的取过正文。
+    """
+    return base64.urlsafe_b64encode(raw).decode()
 
 
 def rfc822(message: dict) -> str:
@@ -173,8 +180,26 @@ class Router:
             user = urllib.parse.unquote(m.group(1))
             fmt = query.get("format", ["full"])[0]
             for message in self.messages(user):
-                if message["id"] == m.group(2):
-                    return 200, as_wire(message, fmt)
+                if message["id"] != m.group(2):
+                    continue
+                # 语料给这条钉了取正文失败，就真的失败。为什么做成语料的一个
+                # 字段而不是随机掉包：**批量查询里少了几条**这件事必须是确定的，
+                # 否则同一道题两次跑的分数差别里混的是运气。
+                # 不写这个字段的题一条都不受影响——默认没有它。
+                fail = message.get("fetch_error")
+                if fail:
+                    code = int(fail.get("code", 500))
+                    record("messages.get", {"user": user, "id": message["id"],
+                                            "code": code}, ok=False,
+                           extra={"error": fail.get("message", "backendError")})
+                    return code, {"error": {
+                        "code": code,
+                        "message": fail.get("message", "Backend Error"),
+                        "errors": [{"reason": fail.get("reason", "backendError"),
+                                    "message": fail.get("message", "Backend Error")}],
+                    }}
+                record("messages.get", {"user": user, "id": message["id"]})
+                return 200, as_wire(message, fmt)
             return 404, {"error": {"code": 404, "message": "Not Found",
                                    "errors": [{"reason": "notFound"}]}}
 

@@ -119,7 +119,10 @@ open(f"{cfg}/gam.cfg", "w").write(
 PY
 # gam 每次启动都会检查 cache_dir/drive_dir 在不在，不在就刷一行 WARNING。
 # 那行警告会混进 agent 看到的输出里，白白多一个要它判断「是不是出事了」的东西。
-RUN rm -f /tmp/sa.key && chmod -R a+rX "${GAMCFGDIR}" \
+# 归 opc（agent 自己）：gam 每次读 oauth2.txt 之前都要在同一个目录里建一个
+# oauth2.txt.lock，目录只读的话它起手就是 Permission denied，一条命令都跑不了。
+# 这里放开的只是 gam 自己那份配置，语料仍在 /opt/opc/data（opcsvc，0700）。
+RUN rm -f /tmp/sa.key && chown -R opc:opc "${GAMCFGDIR}" && chmod -R u+rwX,go+rX "${GAMCFGDIR}" \
  && mkdir -p /tmp/gamcache && chmod 1777 /tmp/gamcache
 
 # --- himalaya 的本机配置：老的 support 信箱，本地 Maildir，外发走公司 SMTP ---
