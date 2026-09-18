@@ -104,17 +104,23 @@ print('clarify relay ok:', out['user_response'])" \
 # 连接器的真实难度（鉴权、分页、契约字段）全删掉。
 # 版本钉死：浮动的 CLI 版本等于浮动的结论。
 # 下载走 gitee：github 的 release 端点在国内网络下不稳，构建会随机挂。
-ARG DWS_VERSION=v1.0.62
+# 版本从 v1.0.62 降到 v1.0.60——gitee 镜像最新只到这一档。降版本会动基线，
+# 是明确拍板过的取舍：可复现地建得起来，优先于多那两个小版本。
+# 装法用官方 install.sh 而不是自己拼 URL：gitee 的 attachment URL 带不稳定的
+# 数字 id，只能由脚本走 API 解析，拼 releases/download/... 必然 404。
+# 脚本把 skills 装到 $HOME，我们再搬到 /opt/dws/skills——
+# tasks/settlement/*/environment/Dockerfile 认的是这个路径。
+ARG DWS_VERSION=v1.0.60
 ARG DWS_GITEE_REPO=DingTalk-Real-AI/dingtalk-workspace-cli
 RUN set -euo pipefail; \
-    DWS_GITEE_REPO="${DWS_GITEE_REPO}" DWS_VERSION="${DWS_VERSION}" \
-      curl -fsSL "https://gitee.com/${DWS_GITEE_REPO}/raw/main/scripts/install.sh" | sh; \
-    curl -fsSL "https://gitee.com/${DWS_GITEE_REPO}/releases/download/${DWS_VERSION}/dws-skills.zip" \
-      -o /tmp/dws-skills.zip; \
+    DWS_GITEE_REPO="${DWS_GITEE_REPO}" \
+    DWS_VERSION="${DWS_VERSION}" \
+    DWS_INSTALL_DIR=/usr/local/bin \
+      sh -c 'curl -fsSL "https://gitee.com/${DWS_GITEE_REPO}/raw/main/scripts/install.sh" | sh'; \
     mkdir -p /opt/dws/skills; \
-    python -c "import zipfile,sys; zipfile.ZipFile('/tmp/dws-skills.zip').extractall('/opt/dws/skills')"; \
+    cp -r "$HOME/.dws/skills/." /opt/dws/skills/; \
+    test -d /opt/dws/skills/multi/dingtalk-chat; \
     chmod -R a+rX /opt/dws/skills; \
-    rm -f /tmp/dws-skills.zip; \
     dws --version
 
 # --- 开源工具预烘（真二进制、零账号、版本钉死） ---
@@ -124,7 +130,7 @@ RUN set -euo pipefail; \
 #   mailpit   本地 SMTP/IMAP 服务端，给 himalaya 当对端，全程不出容器
 # 其余几个还是 github 的 release，没有 gitee 镜像；统一套一层可覆盖的加速前缀，
 # 内网构建时传 --build-arg GH_MIRROR= 即可回到直连 github。
-ARG GH_MIRROR=https://ghproxy.net/
+ARG GH_MIRROR=https://gh-proxy.com/
 ARG HIMALAYA_VERSION=v2.1.0
 ARG MAILPIT_VERSION=v1.31.1
 RUN set -euo pipefail; \
