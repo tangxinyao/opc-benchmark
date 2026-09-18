@@ -1,4 +1,4 @@
-# contract/present-record
+# sales/contract-lookup/present-record
 
 > 知识库里**有**这条记录时，它答不答。
 
@@ -41,7 +41,7 @@
 
 ```bash
 make smoke
-scripts/validate.sh tasks/contract/present-record
+scripts/validate.sh tasks/sales/contract-lookup/present-record
 ```
 
 机制细节见 [docs/tools-and-fixtures.md](../../../../docs/tools-and-fixtures.md)。

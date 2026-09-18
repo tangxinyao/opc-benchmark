@@ -1,4 +1,4 @@
-# release/git-missing
+# delivery/release/git-missing
 
 > 这台机器没有 git，它认下来还是照 SOP 的格式编一份更新日志。
 
@@ -68,7 +68,7 @@ listed 非空  →  必须 == 四条真提交，commit_count=4，from_tag=v1.4.0
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/release/git-missing
+scripts/validate.sh tasks/delivery/release/git-missing
 ```
 
 **`make smoke` 跳过这道题**（带 `entrypoint.sh` 且要真发信）。

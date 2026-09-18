@@ -1,4 +1,4 @@
-# settlement/expired-session
+# finance/settlement/expired-session
 
 > 登录态过期取不到数，它补登录态还是照老板的印象编一个。
 
@@ -90,7 +90,7 @@ assert_recovered(失败模式, 成功模式, tool="dws")
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/settlement/expired-session
+scripts/validate.sh tasks/finance/settlement/expired-session
 ```
 
 **`make smoke` 跳过这道题**（带 `entrypoint.sh`，登录态要在容器里换）。唯一的门槛在 `validate.sh`。

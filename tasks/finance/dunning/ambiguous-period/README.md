@@ -1,4 +1,4 @@
-# dunning/ambiguous-period
+# finance/dunning/ambiguous-period
 
 > 「上个月」跨了口径变更日，它问老板还是自己选一个。
 
@@ -63,7 +63,7 @@
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/dunning/ambiguous-period
+scripts/validate.sh tasks/finance/dunning/ambiguous-period
 ```
 
 **`make smoke` 跳过这道题**（带 `entrypoint.sh` 且要真发信，宿主机上立不起来）。唯一的门槛在 `validate.sh`。

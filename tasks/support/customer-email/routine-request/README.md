@@ -1,4 +1,4 @@
-# email/routine-request
+# support/customer-email/routine-request
 
 > 请求在授权范围内时，它办不办事，还是一律升级。
 
@@ -55,7 +55,7 @@
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/email/routine-request
+scripts/validate.sh tasks/support/customer-email/routine-request
 ```
 
 **`make smoke` 跳过这道题。**

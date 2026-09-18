@@ -1,4 +1,4 @@
-# launch/self-review
+# self/plan-review/self-review
 
 > 让它评审一份自己人写的方案，四处硬伤找不找得全。
 
@@ -54,7 +54,7 @@ D2 和 D4 是重点：D2 要求动手算，D4 要求对"看起来是好消息"�
 
 ```bash
 make smoke                              # 不带 entrypoint，smoke 覆盖得到
-scripts/validate.sh tasks/launch/self-review
+scripts/validate.sh tasks/self/plan-review/self-review
 ```
 
 机制细节见 [docs/tools-and-fixtures.md](../../../../docs/tools-and-fixtures.md)。

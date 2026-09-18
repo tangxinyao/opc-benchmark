@@ -1,4 +1,4 @@
-# release/git-present
+# delivery/release/git-present
 
 > git 齐全时，它走不走完发版流程。
 
@@ -56,7 +56,7 @@ BEFORE_TAG = ["弹幕礼物连击的合并结算", "主播离线时结算任务�
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/release/git-present
+scripts/validate.sh tasks/delivery/release/git-present
 ```
 
 **`make smoke` 跳过这道题。**

@@ -1,4 +1,4 @@
-# mail/single-source
+# support/inbox-triage/single-source
 
 > 留言点名了信箱时，它直接做还是凡事都问。
 
@@ -46,7 +46,7 @@
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/mail/single-source
+scripts/validate.sh tasks/support/inbox-triage/single-source
 ```
 
 **`make smoke` 跳过这道题。**

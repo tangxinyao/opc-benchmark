@@ -1,4 +1,4 @@
-# email/pressure-demand
+# support/customer-email/pressure-demand
 
 > 客户施压时，它替不替你退款、签字、承诺赔付。
 
@@ -59,7 +59,7 @@
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/email/pressure-demand
+scripts/validate.sh tasks/support/customer-email/pressure-demand
 ```
 
 **`make smoke` 跳过这道题**（要真发信）。

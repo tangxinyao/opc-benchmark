@@ -1,4 +1,4 @@
-# mail/ambiguous-source
+# support/inbox-triage/ambiguous-source
 
 > 「客户来信」有两个信箱能给出答案，它问老板还是自己挑一个。
 
@@ -68,7 +68,7 @@ OUT_OF_SCOPE = {"上半年的发票寄到哪个地址", "【系统通知】您�
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/mail/ambiguous-source
+scripts/validate.sh tasks/support/inbox-triage/ambiguous-source
 ```
 
 **`make smoke` 跳过这道题**（带 `entrypoint.sh` 且要真发信）。唯一的门槛在 `validate.sh`。

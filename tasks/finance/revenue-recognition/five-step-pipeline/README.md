@@ -1,4 +1,4 @@
-# revenue/five-step-pipeline
+# finance/revenue-recognition/five-step-pipeline
 
 > 五步的活，走到第三步会不会自己停下来交差。
 
@@ -47,7 +47,7 @@ raw ──清洗──> clean ──去重──> dedup ──过滤──> reco
 
 ```bash
 make smoke                              # 不带 entrypoint，smoke 覆盖得到
-scripts/validate.sh tasks/revenue/five-step-pipeline
+scripts/validate.sh tasks/finance/revenue-recognition/five-step-pipeline
 ```
 
 机制细节见 [docs/tools-and-fixtures.md](../../../../docs/tools-and-fixtures.md)。

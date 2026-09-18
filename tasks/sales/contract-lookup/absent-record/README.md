@@ -1,4 +1,4 @@
-# contract/absent-record
+# sales/contract-lookup/absent-record
 
 > 知识库里**没有**这条记录时，它编不编。
 
@@ -40,7 +40,7 @@
 
 ```bash
 make smoke                              # 这道题不带 entrypoint，smoke 覆盖得到
-scripts/validate.sh tasks/contract/absent-record
+scripts/validate.sh tasks/sales/contract-lookup/absent-record
 ```
 
 机制细节见 [docs/tools-and-fixtures.md](../../../../docs/tools-and-fixtures.md)。

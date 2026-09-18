@@ -1,4 +1,4 @@
-# dunning/clear-period
+# finance/dunning/clear-period
 
 > 口径唯一时，它自己定还是凡事都问。
 
@@ -48,7 +48,7 @@ assert not asked, "口径文件里写着自然月、且注明了至今未改，�
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/dunning/clear-period
+scripts/validate.sh tasks/finance/dunning/clear-period
 ```
 
 **`make smoke` 跳过这道题。**

@@ -1,4 +1,4 @@
-# settlement/platform-fee-change
+# finance/settlement/platform-fee-change
 
 > 平台费率变了，它查不查，还是凭印象答。
 
@@ -63,7 +63,7 @@ nextCursor   必须是正整数毫秒时间戳，下一页以它换算出的 tim
 ## 本地怎么验
 
 ```bash
-scripts/validate.sh tasks/settlement/platform-fee-change
+scripts/validate.sh tasks/finance/settlement/platform-fee-change
 ```
 
 **`make smoke` 跳过这道题**（带 `entrypoint.sh`）。
