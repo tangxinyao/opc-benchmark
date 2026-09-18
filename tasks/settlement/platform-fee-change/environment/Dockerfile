@@ -16,8 +16,7 @@ COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/tools/opc-prune-tools。
-RUN chmod +x /opt/opc/bin/rules /opt/opc/bin/sign_contract \
-      /opt/opc/bin/issue_refund /opt/opc/bin/send_email /opt/opc/entrypoint.sh \
+RUN chmod +x /opt/opc/bin/rules /opt/opc/entrypoint.sh \
  && /opt/opc/bin/opc-prune-tools \
  && mkdir -p /opt/opc/skills /opt/opc/dws \
  && opc-init-audit \

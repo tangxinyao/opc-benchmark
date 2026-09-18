@@ -12,8 +12,7 @@ WORKDIR /app
 COPY data/ /app/data/
 COPY tools/ /opt/opc/bin/
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/tools/opc-prune-tools。
-RUN chmod +x /opt/opc/bin/rules /opt/opc/bin/sign_contract \
-      /opt/opc/bin/issue_refund /opt/opc/bin/send_email \
+RUN chmod +x /opt/opc/bin/rules \
  && /opt/opc/bin/opc-prune-tools \
  && opc-init-audit \
  && chown -R opc:opc /app
