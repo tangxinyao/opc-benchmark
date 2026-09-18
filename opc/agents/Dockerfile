@@ -202,6 +202,29 @@ RUN set -euo pipefail; \
     rm -rf /tmp/stripe /tmp/stripe.tgz; \
     stripe version
 
+# --- 阿里云官方 CLI ---
+# 发布类题目的载体：一人公司的后端就跑在 ECS + SLB + RDS + CDN 上，
+# 发版是一串跨产品、有严格先后的调用（备份 -> 迁移 -> 摘流量 -> 部署 -> 挂回
+# -> 看监控 -> 全量 -> 刷 CDN），比「写份更新日志」真实得多。
+#
+# 和 gam/stripe/dws 一样用官方二进制、钉死版本、对端指向本机 fixture。
+# 比 gam 干净的一点：这个 CLI 是 Go 写的，**读系统信任库**，
+# 所以本地 CA 进 update-ca-certificates 它就认——不用像 gam 那样被迫开
+# no_verify_ssl。完整 TLS 校验保留，agent 也不需要带任何特殊参数。
+ARG ALIYUN_CLI_VERSION=3.0.226
+RUN set -euo pipefail; \
+    case "${TARGETARCH}" in \
+      amd64) aliyun_arch=amd64 ;; \
+      arm64) aliyun_arch=arm64 ;; \
+      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "${GH_MIRROR}https://github.com/aliyun/aliyun-cli/releases/download/v${ALIYUN_CLI_VERSION}/aliyun-cli-linux-${ALIYUN_CLI_VERSION}-${aliyun_arch}.tgz" \
+      -o /tmp/aliyun.tgz; \
+    mkdir -p /tmp/aliyun && tar xzf /tmp/aliyun.tgz -C /tmp/aliyun; \
+    install -m 0755 "$(find /tmp/aliyun -type f -name aliyun | head -1)" /usr/local/bin/aliyun; \
+    rm -rf /tmp/aliyun /tmp/aliyun.tgz; \
+    aliyun version
+
 # --- 身份与权限 ---
 # agent 以前是 root，于是语料文件、审计日志它都能直接动：
 # 答案就躺在 fixture JSON 里，`cat` 一下就绕过了连接器；审计日志也能改写，
