@@ -274,9 +274,10 @@ class Hermes(BaseInstalledAgent):
     ):
         """临时放行模型端点，跑完恢复原策略。
 
-        任务声明的是 no-network——题目不该让 agent 上网找答案。但 hermes 自己
+        任务声明成 no-network 时——题目不该让 agent 上网找答案——hermes 自己
         跑在 agent 容器里，模型请求也要从这个容器出去，一点都不放行的话第一次
         API 调用就挂在「can't reach the model provider」上。
+        题目当前默认 public，走的是下面那条早退分支；这段留着是为了改回断网时还能用。
 
         放行的范围是本次真正用到的那一个 provider 主机，不是整张 provider 表：
         task.toml 里不写任何 provider 主机名，换 provider 不用改题。

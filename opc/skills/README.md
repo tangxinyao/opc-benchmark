@@ -14,7 +14,7 @@
 | `obsidian-bases` | ✅ | 纯格式知识：`.base` 的 YAML 结构 |
 | `json-canvas` | ✅ | 纯格式知识：`.canvas` 的 JSON spec |
 | `obsidian-cli` | ❌ | 要求 Obsidian 桌面进程活着（且是 Catalyst 权益），容器里起不来 |
-| `defuddle` | ❌ | SKILL.md 写着 `npm install -g defuddle`，no-network 下必然卡死 |
+| `defuddle` | ❌ | SKILL.md 写着 `npm install -g defuddle`。题目改成 public 之后它未必再卡死，但让 agent 在跑题时现装 npm 包，本身就是不该有的变量 |
 | `knap` | ❌ | 同上，`npm install -g knap`，且要 Node 20+ |
 
 被排除的三个共同的问题不是"跑不起来"，而是**模型会照着 SKILL.md 去试**：

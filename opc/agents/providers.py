@@ -130,8 +130,9 @@ def resolve_credentials(
 def provider_host(env: dict[str, str], provider: NativeProvider) -> str:
     """从已解析的注入环境里取出 provider 的主机名。
 
-    用于给 agent 容器开一个「只放行模型端点」的出网白名单：任务本身是
-    no-network 的，但 hermes 跑在容器里，不放行就连不上模型。
+    用于给 agent 容器开一个「只放行模型端点」的出网白名单：任务声明成
+    no-network 时，hermes 跑在容器里，不放行就连不上模型。
+    题目当前默认 public，这条路径走不到，但改回断网就还要靠它。
     取的是改写过 localhost 之后的值，所以 local provider 拿到的是
     host.docker.internal 而不是 127.0.0.1。
     """

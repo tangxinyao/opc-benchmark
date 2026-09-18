@@ -112,7 +112,8 @@ make run CONFIG=configs/jobs/job-deepseek-x5.yaml    # 4 道题 × 5 遍 = 20 �
 | 想知道哪条断言挂了 | `/logs/verifier/ctrf.json`，pytest 每条断言分开报告 |
 | 想知道 agent 到底调没调工具 | 容器里的 `/var/lib/opc/audit.log` |
 | 差分判分假阴性 | `/logs/verifier/oracle.json`，判分器当时取到的真值 |
-| hermes 报 `can't reach the model provider` | 环境策略没放行模型端点。题目默认 `network_mode = "no-network"`，适配器会在 agent 阶段临时放行本次 provider 的主机——这条报错说明放行失败（环境不支持运行时改策略，或 base_url 指到了别处） |
+| hermes 报 `can't reach the model provider` | `base_url` 指到了别处。题目现在是 `network_mode = "public"`，适配器不再需要临时放行模型端点；改回 `no-network` 的话，放行失败也会报这个 |
+| harbor 抛 `network_mode='no-network' is not supported by EnvironmentType.DOCKER` | 宿主内核没有 `nftables fib inet`，harbor 的出网管控起不来，于是拒绝任何非 public 的策略。它靠跑一个写死的 alpine 容器读 `/proc/config.gz` 来探测，**拉不到那个镜像也会报同样的错**。题目默认已经是 `public`，只有你手动改回 `no-network` 才会撞上 |
 
 ## 几个会绊人的点
 

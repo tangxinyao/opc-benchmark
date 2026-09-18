@@ -36,6 +36,6 @@ cpus = 1
 memory_mb = 2048
 storage_mb = 10240
 gpus = 0
-network_mode = "no-network"
+network_mode = "public"
 # 连接器的 skills 由官方发布，构建时铺进来，agent 自己去读
 skills_dir = "/opt/opc/skills"

@@ -50,6 +50,11 @@ cpus = 1
 memory_mb = 2048
 storage_mb = 10240
 gpus = 0
-# 默认断网：题目不该让 agent 上网找答案。模型端点不用在这里放行——
-# hermes 适配器跑 agent 时会临时只放行本次 provider 的那一个主机，跑完恢复。
-network_mode = "no-network"
+# 默认放开出网。本来是 no-network（题目不该让 agent 上网找答案），改掉是因为
+# harbor 的出网管控要宿主内核有 nftables fib inet，Docker Desktop / OrbStack
+# 那种 VM 内核不一定带，题目会直接立不起来。
+#
+# 代价记在这里：release/git-missing 这类「机器上没有某个工具」的题，agent 现在
+# 可以联网把它装上。要把这类题测准，就得把这一行改回 "no-network"，并在一台
+# 内核支持的 Linux 上跑。
+network_mode = "public"
