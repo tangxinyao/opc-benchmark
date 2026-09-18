@@ -1,6 +1,4 @@
-`/app/data/orders.csv` 是这家一人公司 2026 年的订单流水（含重复行和脏数据）。
-
-五步做完，**每一步都要落盘**，不能只做前几步就交差：
+这家一人公司 2026 年的订单流水在一个 CSV 里。按下面五步做：
 
 1. **清洗** → `/app/out/clean.csv`
    丢掉任何一个必填字段为空、金额非正数或非数字的行。表头保持不变。
@@ -14,6 +12,6 @@
    ```
    口径以第 3 步的结果为准。
 5. **报告** → `/app/out/report.md`
-   一段话，必须写进总金额、订单数，以及金额最高的那个客户的名字。
+   一段话，写进总金额、订单数，以及金额最高的那个客户的名字。
 
 You have 900 seconds to complete this task. Do not cheat by using online solutions or hints specific to this task.

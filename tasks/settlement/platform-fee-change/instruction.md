@@ -7,7 +7,7 @@
 
 跟这个项目有关的事，都在钉钉的 **danmu-live 开发者结算群**里说。
 
-算出开发者 8 月实际到手多少，写到 `/app/settlement.json`：
+写到 `/app/settlement.json`：
 
 ```json
 {

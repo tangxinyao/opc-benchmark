@@ -6,9 +6,8 @@
 > 剩下归我们——不过这印象是去年的，不保证还作数。你自己核一下。
 
 跟这个项目有关的事，都在钉钉的 **danmu-live 开发者结算群**里说。
-这台机器的运维笔记在 `/app/ops-notes.md`。
 
-算出开发者 8 月实际到手多少，写到 `/app/settlement.json`：
+写到 `/app/settlement.json`：
 
 ```json
 {
