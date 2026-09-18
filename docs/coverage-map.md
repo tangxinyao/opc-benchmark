@@ -116,11 +116,12 @@ tasks/
   finance/     dunning/             (2)
                settlement/          (2)
                revenue-recognition/ (1)
-  legal/       ← 空
+  legal/       compliance-calendar/ (2)   ← 重组后补上的第一对
   self/        plan-review/         (1)
 ```
 
-**`legal/` 是空的。** 这就是这次重组要的效果：缺口不用查表，`ls` 一下就在那儿。
+**`legal/` 当时是空的**，而这正是这次重组要的效果：缺口不用查表，`ls` 一下就在那儿。
+它也确实是第一个被填上的——`legal/compliance-calendar` 那一对（见第九节第 3 步）。
 
 ## 六、backlog 落位
 
@@ -135,10 +136,11 @@ tasks/
 | `support` | `inbox-triage` | +2 | A7 | **查询段**（batch 部分失败），断言 #15 | 低 |
 | | `vendor-approval` | 2 | A2 | ops × no-boundary 的**上游方向** | 中 |
 | `finance` | `reconciliation` | 2 | A3 | 不平不许凑平，断言 #15/#17 | 中 |
-| `legal` | `compliance-calendar` | 2 | A1 | **legal 整块空白**，断言 #14 | 低 |
+| ~~`legal`~~ | ~~`compliance-calendar`~~ | ~~2~~ | A1 | ✅ **已落地**，legal 不再空白，断言 #14 已建 | 低 |
 | `self` | `self-check` | 2 | A8 | **验证段（全空）** | 中 |
 
 **总数：14 现有 + 18 新增 = 32 道题，6 个职能，14 件活。**
+（截至目前：16 道已落地，还剩 16 道。）
 
 （`content-publish` 把「内容发布」这个载体和「429 限流」这个失败面合成了一对。
 将来要把「该不该发」这条边界也考进去，它可以长到 4 个案例。）
@@ -158,7 +160,7 @@ tasks/
 | delivery | | | | | release ×2<br>+publish |
 | support | | | customer-email ×2<br>+vendor-approval | | inbox-triage ×2<br>+inbox-triage(batch) |
 | finance | revenue | | | settlement/fee-change<br>+reconciliation | settlement/expired<br>dunning ×2 |
-| legal | +compliance-calendar | | | | |
+| legal | compliance-calendar ×2 | | | | |
 | self | | +self-check | plan-review | | |
 
 做完 backlog 之后仍然空的：**sales × incomplete / no-boundary**、
@@ -174,6 +176,8 @@ tasks/
 | **查询** | 1 道（`settlement/fee-change` 的分页） | +`inbox-triage(batch)`、+`content-publish`(429) | 游标失效、结果为空 vs 查询写错 |
 | **推理** | 4 道（settlement ×2、dunning ×2） | +`reconciliation` | — |
 | **验证** | **0 道** | +`self-check` | 交叉验证、异常值自检 |
+
+（`legal/compliance-calendar` 不落在这五段里：`tool:none`，考的是把活算完算全，不是连接器。）
 | **展示** | **0 道** | — | 程序判分的天花板，见 7.3 |
 
 ### 7.3 两个说清楚的天花板
@@ -212,7 +216,12 @@ tasks/
 3. ← **在这里**。按「解锁 ÷ 成本」出新题，一对一对来，每对都全绿再进下一对。
    建议第一批：`delivery/publish`（最低成本，补登录段）、
    `support/inbox-triage(batch)`（补查询段）、
-   `legal/compliance-calendar`（legal 整块空白）
+   ~~`legal/compliance-calendar`（legal 整块空白）~~ ✅ 已落地
+
+   **`legal/compliance-calendar` 先做了**，不是按第六节那张表的成本序，
+   而是因为 `delivery/publish` 要的 `gh` 还没烘进 `hermes-base`——
+   它的「最低成本」估的是「基本已在镜像里」（出题地图 5.4 第 2 项），
+   可那条指的是 `git`，`gh` 并不在。先补基础镜像还是先出题，是下一个决策点。
 
 ## 十、已决策
 

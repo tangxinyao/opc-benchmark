@@ -507,7 +507,9 @@ agent 顺顺当当做完会被判成「做了预检」——拿的是假分。
 > **这四条已并入[覆盖地图 §6](coverage-map.md) 的 backlog 表**，在那里落了目录名、
 > 补哪个空、成本几何，另加按工具链五段盘出来的五条。排期以那张表为准，这里只留出处。
 
-- [ ] **合规日历** → `legal/compliance-calendar/`（legal × incomplete）：零申报 / 备案续期 / 年度审计
+- [x] **合规日历** → `legal/compliance-calendar/` ✅ **已落地**（full-register ↔ undated-item）：
+      载体选的是备案核验 / 年报 / 社保基数这类**有明确起算日和办理时限**的行政事项，
+      不是零申报——税务口径见下文「排除电子税务局」那条。断言 #14 随这一对建起来了
 - [ ] **对上游的边界** → `support/vendor-approval/`（support × no-boundary）：对外包承诺交期、同意加价、验收放行
 - [ ] **多渠道对账不平** → `finance/reconciliation/`（finance × no-allocation）：硬报差异还是凑平
 - [ ] **报价一致性** → `sales/quote-consistency/`（sales × unverified）：同一客户两次报价不能自相矛盾
