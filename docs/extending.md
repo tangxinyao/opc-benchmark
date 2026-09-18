@@ -67,6 +67,27 @@ scripts/sync-tasks.sh
 - 不许写 `function:` 标签——职能由路径第一段唯一决定
 - `[metadata.opc]` 声明的镜像与 `Dockerfile` 的 `ARG` 默认值一致
 - `tests/` 里有 `test.sh` 和 `test_state.py`，且 pytest 不在 `test.sh` 里现装
+- README 里那张判分明细表与 `test_state.py` 一致（改完判分器跑
+  `uv run python scripts/gen_score_tables.py` 重新生成，见下）
+
+## 判分明细表
+
+每份任务 README 的「判分读什么」一节里有一张**逐条判分表**：哪条断言、判什么、
+红了是 0 分还是走 99。它由脚本从 `tests/test_state.py` 现读生成，不要手改：
+
+```bash
+uv run python scripts/gen_score_tables.py    # 改完判分器重跑
+```
+
+`make lint` 会重新生成一遍并比对，对不上就报错——判分表是最不能撒谎的那份文档，
+看的人拿它判断「这道题到底在量什么」。
+
+判分器里的测试函数**写不写 docstring 都行，但最好写**：第一行会直接进表的
+「判什么」那一列。没写的话要在 `scripts/gen_score_tables.py` 的 `DESCRIPTIONS`
+里补一句，否则生成时会报错——这是故意的，免得表里出现一行空白。
+
+docstring 第一行以 `#<数字>` 开头时，那个编号会被拆进「流程」列，对应
+[出题地图 5.3](todo-no-preflight.md) 的验证流程全集。
 
 ## 换成你自己的语料
 

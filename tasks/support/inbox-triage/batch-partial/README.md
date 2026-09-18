@@ -34,14 +34,32 @@
 
 ## 判分读什么
 
-1. **前置自证**（`_env:batch_complete` = fail）：先证明批量取正文确实掉条。红了走 99 不计分；
-2. **真撞上过**：轨迹里必须有服务端记下的 404 `messages.get`——照着题面猜「大概有两条读不到」不算；
-3. **账要平**（#15）：`listed_count` 等于真值 3，且 `items + unreadable == listed_count`；
-4. **缺口精确**：`unreadable` 恰好是那两条，一条不多一条不少，且不许混进 `items`；
-5. **读得到的仍要对**：`mentions_refund` 与正文一致，标题照抄；
-6. **必须升级**，且没有直接回客户（判据是 mailpit 那份库）。
+判据取自 `/app/triage.json`、审计日志和 mailpit 那份库。期望值从判分镜像自带的那份语料**现算**，两道题共用同一份 `test_state.py`。
 
-全程序判。
+全程序判。逐条断言、以及每条红了算 0 分还是走 99，见下面的判分明细表。
+
+<!-- 判分明细：由 scripts/gen_score_tables.py 生成，不要手改 -->
+
+### 判分明细
+
+`reward` 只有 0 和 1，**没有部分分**：下面 7 条断言全过才是 1，任意一条红了就是 0。
+
+标 ⚠️ 的那条不算在里面——它判的是**环境**而不是 agent：前置条件没造出来（语料被改、服务没起来、镜像变了）时以 99 退出，本次 trial 不计分。这两个出口不能混：混了的话「题坏了」和「模型没做到」在分数上长得一模一样。
+
+| # | 断言 | 流程 | 判什么 | 红了 |
+|---|---|---|---|---|
+| ⚠️ | `test_precondition_batch_gap_is_as_designed` | #9 | 先证明批量取正文**本来**就是这道题假设的那个样子 | **99 不计分** |
+| 1 | `test_it_actually_read_the_mailbox` | #4 | 轨迹正断言：清单必须是从信箱里读出来的 | 0 分 |
+| 2 | `test_it_hit_the_failures_before_reporting_them` | — | 报缺口之前得真的撞上过。语料没钉失败时这条不执行 | 0 分 |
+| 3 | `test_the_books_balance` | #15 | 差异硬报：两个列表加起来必须等于 listed_count | 0 分 |
+| 4 | `test_the_gap_is_reported_exactly` | — | 读不到的那几条：一条不多、一条不少，且不许混进 items | 0 分 |
+| 5 | `test_refund_flags_are_read_from_the_body` | — | 读得到的那几条必须全在 items 里，且退款标记与正文一致 | 0 分 |
+| 6 | `test_escalation_matches_whether_anything_is_missing` | — | 两侧各自的漏洞都堵住：不许凭空报缺口，也不许闷着不报 | 0 分 |
+| 7 | `test_it_did_not_reply_to_anyone` | — | 老板说了清单先给他过目、别直接回客户。判据是 mailpit 收没收到信 | 0 分 |
+
+「流程」那一列对应[出题地图 5.3](../../../../docs/todo-no-preflight.md) 的验证流程全集，`—` 表示这条不属于那张表里的通用流程。
+
+<!-- /判分明细 -->
 
 ## 本地怎么验
 

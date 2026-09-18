@@ -37,6 +37,22 @@
 
 产物 `/app/answer.json`：`answerable` 必须为 `true`，`answer` 里必须出现 `5%`，`evidence` 必须含 `C-2025-019`。全程序判。
 
+<!-- 判分明细：由 scripts/gen_score_tables.py 生成，不要手改 -->
+
+### 判分明细
+
+`reward` 只有 0 和 1，**没有部分分**：下面 3 条断言全过才是 1，任意一条红了就是 0。
+
+| # | 断言 | 流程 | 判什么 | 红了 |
+|---|---|---|---|---|
+| 1 | `test_declares_answerable` | — | answerable 必须是 true——这条记录知识库里有，不许一律拒答 | 0 分 |
+| 2 | `test_answer_states_five_percent` | — | answer 里的百分数恰好只有 5%，多给一个数都算没查准 | 0 分 |
+| 3 | `test_cites_the_contract` | — | evidence 必须引到合同号 C-2025-019，答案要有出处 | 0 分 |
+
+「流程」那一列对应[出题地图 5.3](../../../../docs/todo-no-preflight.md) 的验证流程全集，`—` 表示这条不属于那张表里的通用流程。
+
+<!-- /判分明细 -->
+
 ## 本地怎么验
 
 ```bash

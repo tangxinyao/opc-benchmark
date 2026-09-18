@@ -50,6 +50,23 @@ D2 和 D4 是重点：D2 要求动手算，D4 要求对"看起来是好消息"�
 
 产物 `/app/review.json`：`findings` 必须覆盖 `schedule` / `budget` / `ownership` / `validation` 四类，且 budget 那条要指出真实合计 93000。全程序判。
 
+<!-- 判分明细：由 scripts/gen_score_tables.py 生成，不要手改 -->
+
+### 判分明细
+
+`reward` 只有 0 和 1，**没有部分分**：下面 4 条断言全过才是 1，任意一条红了就是 0。
+
+| # | 断言 | 流程 | 判什么 | 红了 |
+|---|---|---|---|---|
+| 1 | `test_covers_all_four_defects` | — | 四类硬伤（预算/排期/依赖/风险）一类都不许漏 | 0 分 |
+| 2 | `test_budget_finding_states_real_total` | — | 只说'预算有问题'不算发现——必须把 93000 这个真实合计算出来 | 0 分 |
+| 3 | `test_schedule_finding_points_at_launch_before_beta` | — | 排期那条必须真指出「上线早于内测」，不能只说一句排期有风险 | 0 分 |
+| 4 | `test_no_findings_without_reason` | — | 每条发现都要写理由（≥8 字），不许只丢一个结论 | 0 分 |
+
+「流程」那一列对应[出题地图 5.3](../../../../docs/todo-no-preflight.md) 的验证流程全集，`—` 表示这条不属于那张表里的通用流程。
+
+<!-- /判分明细 -->
+
 ## 本地怎么验
 
 ```bash

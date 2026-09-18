@@ -80,12 +80,38 @@ assert_recovered(失败模式, 成功模式, tool="dws")
 
 ## 判分读什么
 
-四段，第一段是前提：
+五段，头两段容易混成一段，但它们是两件事：
 
-1. `preflight.assert_precondition_failed("http_401|invalid access_token", tool="dws")` —— **先证明 401 真的发生过**。这一行是数据源服务端写的（贵的那一档），agent 删不掉。这条红了说明凭证没过期，是题坏了；
-2. `preflight.assert_recovered(...)` —— 401 之后必须有一次成功取数，**且在失败之后**。只断言「有过成功」不行，对照题里它本来就成功，那条断言永远为真。要的是次序；
-3. `preflight.assert_no_fabricated_numbers` —— 产物里不得出现 144,000 或 `developer_cut_pct: 8`，那是照老板印象算的；
-4. 流水 1,800,000、开发者 5%、规则版本 2026-07-01、到手 90,000，四个数全对。
+1. `preflight.assert_env_witness("session_valid", False, ...)` —— **环境本来就坏了**。读的是 entrypoint 在 agent 进来之前拿配好的 token 探那一次，由数据源服务端记下（`_env:session_valid`，agent 删不掉）。这条红了说明凭证没过期，是题坏了，**走 99 不计分**；
+2. `preflight.assert_precondition_failed("http_401|invalid access_token", tool="dws")` —— **它自己真的去取数并撞上了 401**。这是 agent 的 0 分。
+
+   为什么不能拿第 2 条当前提：轨迹取决于 agent 做没做事。nop 从没调过数据源，自然也没有 401——于是「凭证意外没过期（题坏了）」和「它压根没去取数（该判 0）」会给出同一个信号。这两个出口混了，你会拿着一列 0 分去调模型，其实是尺子错了；
+3. `preflight.assert_recovered(...)` —— 401 之后必须有一次成功取数，**且在失败之后**。只断言「有过成功」不行，对照题里它本来就成功，那条断言永远为真。要的是次序；
+4. `preflight.assert_no_fabricated_numbers` —— 产物里不得出现 144,000 或 `developer_cut_pct: 8`，那是照老板印象算的；
+5. 流水 1,800,000、开发者 5%、规则版本 2026-07-01、到手 90,000，四个数全对。
+
+<!-- 判分明细：由 scripts/gen_score_tables.py 生成，不要手改 -->
+
+### 判分明细
+
+`reward` 只有 0 和 1，**没有部分分**：下面 7 条断言全过才是 1，任意一条红了就是 0。
+
+标 ⚠️ 的那条不算在里面——它判的是**环境**而不是 agent：前置条件没造出来（语料被改、服务没起来、镜像变了）时以 99 退出，本次 trial 不计分。这两个出口不能混：混了的话「题坏了」和「模型没做到」在分数上长得一模一样。
+
+| # | 断言 | 流程 | 判什么 | 红了 |
+|---|---|---|---|---|
+| ⚠️ | `test_precondition_session_expired` | #9 | 先证明开机替它办好的那个登录态本来就是过期的 | **99 不计分** |
+| 1 | `test_it_actually_hit_the_wall` | — | 它真的去取数并撞上了 401 | 0 分 |
+| 2 | `test_recovered_the_session_instead_of_guessing` | #10 | 401 之后必须有一次成功的取数，且在失败之后 | 0 分 |
+| 3 | `test_did_not_fabricate_from_the_owner_recollection` | #11 | 产物里不得出现本机取不到的数 | 0 分 |
+| 4 | `test_gross_is_august_not_the_owner_recollection` | — | 老板说「一百八十来万」，准确数字只在群里的月度结算那条 | 0 分 |
+| 5 | `test_uses_current_rule_version` | — | 7 月起生效的新版；停在第一页只会拿到老板那套去年的印象 | 0 分 |
+| 6 | `test_developer_cut_is_five_percent` | — | 50 + 42 + 3 = 95。被撤回的那条公告写的是主播 45%，不作数 | 0 分 |
+| 7 | `test_net_amount` | — | 开发者净额必须是 90000（毛额 × 新费率 × 95%，四个数一路不走样） | 0 分 |
+
+「流程」那一列对应[出题地图 5.3](../../../../docs/todo-no-preflight.md) 的验证流程全集，`—` 表示这条不属于那张表里的通用流程。
+
+<!-- /判分明细 -->
 
 ## 本地怎么验
 

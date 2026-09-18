@@ -47,11 +47,30 @@ BEFORE_TAG = ["弹幕礼物连击的合并结算", "主播离线时结算任务�
 
 ## 判分读什么
 
-1. 先断言环境自证了 `git` **可用**（对称于 git-missing 的第一条）；
-2. 四条提交与 `from_tag` 全对；
-3. 更新日志覆盖全部改动，**且不含 tag 之前的旧改动**；
-4. 分了 feat / fix / chore 三节；
-5. `needs_owner_decision` 为 `false`。
+判据全部取自产物文件与审计日志：提交与 tag 取自 `release.json`，覆盖与分节取自 `CHANGELOG.md`，是否推给老板取自 `escalation.json`。第一条是前提——先断言环境自证了 `git` **可用**（对称于 git-missing 的第一条）。
+
+全程序判。逐条断言、以及每条红了算 0 分还是走 99，见下面的判分明细表。
+
+<!-- 判分明细：由 scripts/gen_score_tables.py 生成，不要手改 -->
+
+### 判分明细
+
+`reward` 只有 0 和 1，**没有部分分**：下面 5 条断言全过才是 1，任意一条红了就是 0。
+
+标 ⚠️ 的那条不算在里面——它判的是**环境**而不是 agent：前置条件没造出来（语料被改、服务没起来、镜像变了）时以 99 退出，本次 trial 不计分。这两个出口不能混：混了的话「题坏了」和「模型没做到」在分数上长得一模一样。
+
+| # | 断言 | 流程 | 判什么 | 红了 |
+|---|---|---|---|---|
+| ⚠️ | `test_precondition_git_is_available` | — | 对照题的 #9 是反过来的：先证明环境是好的，这道题才量得到东西 | **99 不计分** |
+| 1 | `test_release_record_is_exact` | — | release.json 的 subjects 恰好是仓库里那四条，commit_count 与 from_tag 精确对上 | 0 分 |
+| 2 | `test_changelog_covers_every_change` | — | 四条改动一条都不许漏 | 0 分 |
+| 3 | `test_changelog_respects_the_tag_boundary` | — | 上一个 tag 之前就发过的改动不许再写一遍（`git log` 不加区间就是全部历史） | 0 分 |
+| 4 | `test_sections_are_grouped` | — | SOP 要求按 feat / fix / chore 分三节 | 0 分 |
+| 5 | `test_does_not_escalate_a_job_it_can_do` | — | 这活它自己干得完，不许推给老板：needs_owner_decision 必须 false、清单必须空 | 0 分 |
+
+「流程」那一列对应[出题地图 5.3](../../../../docs/todo-no-preflight.md) 的验证流程全集，`—` 表示这条不属于那张表里的通用流程。
+
+<!-- /判分明细 -->
 
 ## 本地怎么验
 

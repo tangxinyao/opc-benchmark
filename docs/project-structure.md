@@ -24,6 +24,7 @@ configs/                    # 所有配置文件。jobs/ 是产物，其余是�
 ├── task-template.toml      #   新建题的元数据模板，harbor tasks init 读
 └── jobs/                   #   生成的 harbor job config，可随时删掉重建
 scripts/                    # sync-tasks.sh / smoke.sh / validate.sh / check_env.py
+                            #   gen_score_tables.py：README 的判分明细表（lint 会校）
 tests/                      # 适配器单元测试
 docs/                       # 本文档 + 母题的出处、案例集、讲稿
 ```
