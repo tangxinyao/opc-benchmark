@@ -133,14 +133,14 @@ tasks/
 | | `content-publish` | 2 | A9+A6 | **真获客**（twurl），429 退避 | 高 |
 | | `funnel-review` | 2 | A10 | sales·operate 漏斗 | 高 |
 | `delivery` | `publish` | 2 | A5 | **登录段**（`gh` 未登录），build 加厚 | **最低** |
-| `support` | `inbox-triage` | +2 | A7 | **查询段**（batch 部分失败），断言 #15 | 低 |
+| ~~`support`~~ | ~~`inbox-triage`~~ | ~~+2~~ | A7 | ✅ **已落地**，查询段加厚，断言 #15 已建 | 低 |
 | | `vendor-approval` | 2 | A2 | ops × no-boundary 的**上游方向** | 中 |
 | `finance` | `reconciliation` | 2 | A3 | 不平不许凑平，断言 #15/#17 | 中 |
 | ~~`legal`~~ | ~~`compliance-calendar`~~ | ~~2~~ | A1 | ✅ **已落地**，legal 不再空白，断言 #14 已建 | 低 |
 | `self` | `self-check` | 2 | A8 | **验证段（全空）** | 中 |
 
 **总数：14 现有 + 18 新增 = 32 道题，6 个职能，14 件活。**
-（截至目前：16 道已落地，还剩 16 道。）
+（截至目前：18 道已落地，还剩 14 道。）
 
 （`content-publish` 把「内容发布」这个载体和「429 限流」这个失败面合成了一对。
 将来要把「该不该发」这条边界也考进去，它可以长到 4 个案例。）
@@ -158,7 +158,7 @@ tasks/
 |---|---|---|---|---|---|
 | sales | | contract ×2<br>+quote-consistency | | +funnel-review | +content-publish |
 | delivery | | | | | release ×2<br>+publish |
-| support | | | customer-email ×2<br>+vendor-approval | | inbox-triage ×2<br>+inbox-triage(batch) |
+| support | | | customer-email ×2<br>+vendor-approval | | inbox-triage ×2<br>inbox-triage(batch) ×2 |
 | finance | revenue | | | settlement/fee-change<br>+reconciliation | settlement/expired<br>dunning ×2 |
 | legal | compliance-calendar ×2 | | | | |
 | self | | +self-check | plan-review | | |
@@ -173,7 +173,7 @@ tasks/
 | 段 | 现有覆盖 | backlog 补上 | 仍缺 |
 |---|---|---|---|
 | **登录** | 1 道（`settlement/expired` 的 401→补登录态） | +`delivery/publish`（`gh` 未登录） | scope 不足、OAuth 授权过期、多账号选错 |
-| **查询** | 1 道（`settlement/fee-change` 的分页） | +`inbox-triage(batch)`、+`content-publish`(429) | 游标失效、结果为空 vs 查询写错 |
+| **查询** | 2 道（`settlement/fee-change` 的分页、`inbox-triage/batch-partial` 的部分失败） | +`content-publish`(429) | 游标失效、结果为空 vs 查询写错 |
 | **推理** | 4 道（settlement ×2、dunning ×2） | +`reconciliation` | — |
 | **验证** | **0 道** | +`self-check` | 交叉验证、异常值自检 |
 
@@ -217,6 +217,8 @@ tasks/
    建议第一批：`delivery/publish`（最低成本，补登录段）、
    `support/inbox-triage(batch)`（补查询段）、
    ~~`legal/compliance-calendar`（legal 整块空白）~~ ✅ 已落地
+
+   已落地：`legal/compliance-calendar`（第一对）、`support/inbox-triage(batch)`（第二对）。
 
    **`legal/compliance-calendar` 先做了**，不是按第六节那张表的成本序，
    而是因为 `delivery/publish` 要的 `gh` 还没烘进 `hermes-base`——
