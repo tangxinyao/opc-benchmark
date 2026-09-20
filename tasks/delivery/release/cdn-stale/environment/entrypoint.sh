@@ -1,0 +1,45 @@
+#!/bin/sh
+# 容器启动：钉 DNS、拉起审计收集器、外发信对端、阿里云数据源。
+# harbor 用 ["sh","-c","sleep infinity"] 覆盖 CMD，但不覆盖 ENTRYPOINT，
+# 所以这里是唯一能在 agent 进来之前跑一次的地方。
+#
+# 这里已经是 agent 的身份（opc）。要别的身份才能做的事都经 sudo 走固定脚本：
+# 写 /etc/hosts 走 opc-pin-hosts（root），读语料、写审计走 opc-svc-start（opcsvc）。
+set -eu
+
+# Docker 运行期会把自己那份 /etc/hosts 挂进来，构建期写的看不见，只能现在写。
+sudo -n /usr/local/bin/opc-pin-hosts
+
+sudo -n -u opcsvc /usr/local/bin/opc-svc-start collector >/var/log/opc-audit.log 2>&1 &
+
+# 外发信的对端。库在就起——判分要的那份产物由它写。
+if [ -f /var/lib/opc/mailpit.db ]; then
+  sudo -n -u opcsvc /usr/local/bin/opc-svc-start mailpit >/var/log/opc-mailpit.log 2>&1 &
+
+  i=0
+  while [ "$i" -lt 30 ]; do
+    if python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.2); sys.exit(s.connect_ex(('127.0.0.1', 1025)))" 2>/dev/null; then
+      break
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+fi
+
+sudo -n -u opcsvc /usr/local/bin/opc-svc-start cloud >/var/log/opc-datasource.log 2>&1 &
+
+# 等 443 起来再放行，否则 agent 第一条 aliyun 命令可能撞上 connection refused。
+i=0
+while [ "$i" -lt 30 ]; do
+  if python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.2); sys.exit(s.connect_ex(('127.0.0.1', 443)))" 2>/dev/null; then
+    break
+  fi
+  sleep 1
+  i=$((i + 1))
+done
+
+# 环境自证由数据源服务端在启动时自己写（aliyun_ak / oss_writable /
+# cdn_edge_cached 三条）。这里不再拿 CLI 去探一遍——探测本身也是流量，
+# 会在 agent 进来之前就往审计里塞一条失败，把「它到底试过没有」那条断言喂饱。
+
+exec "$@"

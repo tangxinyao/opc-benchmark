@@ -328,7 +328,10 @@ def check_verifier_inputs(task: Path, rel: Path, config: dict) -> list[str]:
         path = tests / name
         if not path.exists():
             continue
-        for ref in set(re.findall(r"/app[\w./-]*", path.read_text(encoding="utf-8"))):
+        # 左边界不能少：没有它，`/static/app.js` 里的 `/app.js` 会被当成
+        # 一条独立的 /app 路径，判分器引用任何 app 开头的文件名都要假红。
+        for ref in set(re.findall(r"(?<![\w./-])/app[\w./-]*",
+                                  path.read_text(encoding="utf-8"))):
             if not any(ref == a or ref.startswith(a.rstrip("/") + "/") or a.startswith(ref.rstrip("/") + "/")
                        for a in artifacts):
                 problems.append(

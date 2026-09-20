@@ -44,6 +44,11 @@ aliyun-cli
 
 # aliyun-cli（发布类题目用）
 
+发给 `tasks/delivery/release/` 那六道（cdn / oss / ak 三对）。
+自己重写的 `oss.md` 和新写的 `cdn.md` 不是补充材料——那两份里的
+「上传新对象本身不改变用户收到的内容」和「`ObjectType File` 只刷你列的
+路径」，正是 `cdn-stale` 那道题的判断依据。规范给足，再看它用不用。
+
 来源：https://github.com/hambaobao/hambaobao-skills （MIT）
 钉死 commit：`2ea9a853024e7c0e366e9042dff405eabe44dbbf`
 

@@ -91,7 +91,7 @@ tasks/<职能>/<做什么事>/<案例>/
 | `dunning/ambiguous-period`、`dunning/clear-period` | `finance/dunning/` |
 | `settlement/expired-session`、`settlement/platform-fee-change` | `finance/settlement/` |
 | `revenue/five-step-pipeline` | `finance/revenue-recognition/` |
-| `release/git-missing`、`release/git-present` | `delivery/release/` |
+| `release/*`（六道：cdn/oss/ak 三对） | `delivery/release/` |
 | `launch/self-review` | `self/plan-review/` |
 
 `contract` 那一对归 `sales` 而不是 `legal`，依据是地图 §1：

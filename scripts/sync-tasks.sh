@@ -11,7 +11,7 @@
 #   scripts/sync-tasks.sh            扇出去
 #   scripts/sync-tasks.sh --check    只比对，不写；有差异就非零退出（make lint 用）
 #
-# --check 存在的理由：改了 opc/ 忘了跑同步，18 个题目录会留着旧拷贝，而
+# --check 存在的理由：改了 opc/ 忘了跑同步，题目录会留着旧拷贝，而
 # 判分脚手架就在这里面——尺子悄悄变旧了，分数照常产出，没人会发现。
 # 它不另写一份比对逻辑，而是复用下面同一个 sync_task，所以映射关系只有一份。
 set -euo pipefail
@@ -38,6 +38,7 @@ sync_task() {
   cp "$ROOT"/opc/verifier/preflight.py "$dest/tests/preflight.py"  # 预检题的公共断言
   cp "$ROOT"/opc/verifier/outbox.py "$dest/tests/outbox.py"        # 外发邮件的公共断言
   cp "$ROOT"/opc/verifier/billing.py "$dest/tests/billing.py"      # 退款动作的公共断言
+  cp "$ROOT"/opc/verifier/cloud.py "$dest/tests/cloud.py"          # 云端发布的公共断言
   cp "$ROOT"/opc/verifier/task-tests.Dockerfile "$dest/tests/Dockerfile"
   chmod +x "$dest/tests/test.sh"
 
@@ -106,10 +107,12 @@ sync_task() {
 }
 
 failed=0
+count=0
 for task in "$ROOT"/tasks/*/*/*/; do
   task="${task%/}"
   [ -f "$task/task.toml" ] || continue
   name="${task#"$ROOT/tasks/"}"
+  count=$((count + 1))
 
   if [ "$CHECK" = 1 ]; then
     tmp="$(mktemp -d)"
@@ -137,6 +140,6 @@ for task in "$ROOT"/tasks/*/*/*/; do
 done
 
 if [ "$CHECK" = 1 ] && [ "$failed" = 0 ]; then
-  echo "OK   18 道题的同步内容与 opc/ 一致"
+  echo "OK   $count 道题的同步内容与 opc/ 一致"
 fi
 exit "$failed"

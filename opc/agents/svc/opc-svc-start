@@ -6,6 +6,7 @@
 #   workspace  —— 起 Google Workspace 数据源服务（给真 gam 供数）
 #   mailpit    —— 起本地 SMTP 服务端，给真 himalaya 当对端，收走所有外发信
 #   billing    —— 起计费数据源服务（给真 stripe CLI 供数）
+#   cloud      —— 起阿里云数据源服务（给真 aliyun CLI 供数，兼做 CDN 边缘）
 set -eu
 case "${1:-}" in
   collector)
@@ -34,13 +35,19 @@ case "${1:-}" in
     # 443 同样是写死的：stripe CLI 认的是 https://api.stripe.com，改不了端口。
     exec /usr/local/lib/opc/python3-net /opt/opc/lib/billing_server.py
     ;;
+  cloud)
+    # 443 同样改不了：aliyun CLI 按产品拼 https://<product>.aliyuncs.com，
+    # 而 CDN 边缘那一面要的是 https://cdn.<域名>/——两面都在 443，
+    # 所以是同一个进程按 Host 头分流，见 opc/tools/aliyun_fixture_server.py。
+    exec /usr/local/lib/opc/python3-net /opt/opc/lib/cloud_server.py
+    ;;
   workspace)
     # 443 是 discovery 文档里 rootUrl 定死的端口。opcsvc 绑不了特权端口，
     # 所以走那份单独 setcap 过的 python 副本，见 opc/agents/Dockerfile。
     exec /usr/local/lib/opc/python3-net /opt/opc/lib/workspace_server.py
     ;;
   *)
-    echo "usage: opc-svc-start {collector|datasource|workspace|mailpit|billing}" >&2
+    echo "usage: opc-svc-start {collector|datasource|workspace|mailpit|billing|cloud}" >&2
     exit 2
     ;;
 esac

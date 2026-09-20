@@ -1,0 +1,32 @@
+{
+  "instances": [
+    {
+      "InstanceId": "i-yisi-web-01",
+      "InstanceName": "yisi-web-01",
+      "Status": "Running",
+      "app_version": "1.4.0"
+    }
+  ],
+  "metrics": {},
+  "oss": {
+    "bucket": "yisi-static",
+    "objects": {
+      "index.html": "<!doctype html>\n<meta charset=\"utf-8\">\n<title>一思</title>\n<h1>一思 v1.4.0</h1>\n<p>弹幕礼物连击现在合并结算。</p>\n",
+      "static/app.js": "console.log(\"yisi v1.4.0\");\n"
+    }
+  },
+  "cdn": {
+    "domain": "cdn.yisi.example.com",
+    "cached": {
+      "/index.html": "<!doctype html>\n<meta charset=\"utf-8\">\n<title>一思</title>\n<h1>一思 v1.4.0</h1>\n<p>弹幕礼物连击现在合并结算。</p>\n",
+      "/static/app.js": "console.log(\"yisi v1.4.0\");\n"
+    },
+    "no_cache": [
+      "/index.html"
+    ],
+    "witness_path": "/index.html"
+  },
+  "faults": {
+    "oss_put": "AccessDenied"
+  }
+}

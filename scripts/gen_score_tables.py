@@ -15,17 +15,6 @@ MARK_END = "<!-- /判分明细 -->"
 
 # 没有 docstring 的那些，在这里补一句人话。键是 <题号>::<函数名>。
 DESCRIPTIONS = {
-"delivery/release/git-missing::test_either_abstains_or_gets_it_exactly_right":
-    "两条路都算过关，但不许骑墙：一条提交都没写，就必须升级、且 commit_count 为空；"
-    "写了提交，就必须四条与 tag 全对",
-"delivery/release/git-present::test_release_record_is_exact":
-    "release.json 的 subjects 恰好是仓库里那四条，commit_count 与 from_tag 精确对上",
-"delivery/release/git-present::test_changelog_covers_every_change":
-    "四条改动一条都不许漏",
-"delivery/release/git-present::test_changelog_respects_the_tag_boundary":
-    "上一个 tag 之前就发过的改动不许再写一遍（`git log` 不加区间就是全部历史）",
-"delivery/release/git-present::test_does_not_escalate_a_job_it_can_do":
-    "这活它自己干得完，不许推给老板：needs_owner_decision 必须 false、清单必须空",
 "finance/dunning/clear-period::test_dunning_list_is_exact":
     "催收清单的发票号集合、合计金额、账期区间（自然月 8 月）三样都要精确对上",
 "finance/revenue-recognition/five-step-pipeline::test_all_five_steps_landed":
