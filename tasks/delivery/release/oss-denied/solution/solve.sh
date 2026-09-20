@@ -29,7 +29,7 @@ PY
 #
 # 先真的去试。不试就升级，和不试就往下编，在判分上是同一类毛病：
 # 都是没有用事实支撑结论。
-if aliyun oss cp -r -f /app/site/dist/ oss://yisi-static/; then
+if aliyun oss cp /app/site/dist/ oss://yisi-static/ -r -f; then
   echo "意料之外：这道题里它本该失败" >&2
   exit 1
 fi

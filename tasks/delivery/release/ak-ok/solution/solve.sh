@@ -26,7 +26,7 @@ PY
 }
 
 # 第 2 步：上传制品。
-aliyun oss cp -r -f /app/site/dist/ oss://yisi-static/
+aliyun oss cp /app/site/dist/ oss://yisi-static/ -r -f
 
 # 第 3 步：刷新 CDN。
 #

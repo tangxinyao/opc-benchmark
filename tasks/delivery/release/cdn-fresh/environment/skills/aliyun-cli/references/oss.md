@@ -17,11 +17,15 @@ pass them per command.
 aliyun oss cp ./dist/index.html oss://my-bucket/index.html
 
 # a whole directory (recursive)
-aliyun oss cp -r ./dist/ oss://my-bucket/
+aliyun oss cp ./dist/ oss://my-bucket/ -r
 
 # overwrite without prompting
-aliyun oss cp -r -f ./dist/ oss://my-bucket/
+aliyun oss cp ./dist/ oss://my-bucket/ -r -f
 ```
+
+Flags go **after** the source and destination. `aliyun oss cp -r -f ./dist/ oss://my-bucket/`
+does not parse: the first positional is taken as the destination and every later flag
+(including `--region`) is dropped, so the command fails before it reaches the network.
 
 `cp` verifies transfers with crc64 by default.
 
