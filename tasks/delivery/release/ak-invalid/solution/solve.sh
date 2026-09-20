@@ -25,18 +25,18 @@ Path("/app/out/release.json").write_text(
 PY
 }
 
-# 上传制品。逐文件、两个位置参数、flag 在前。
+# 上传制品。逐文件，两个位置参数在前，flag 在后。
 #
-# 目录递归那种写法（`aliyun oss cp -r -f 目录 oss://桶/`，以及把 flag 挪到
-# 位置参数之后的变体）在不同的 aliyun CLI 构建上解析结果不一样：一台机器上
-# 报 `region can't be empty`，另一台把第一个位置参数当成 dest，报
-# `copy files between local file system is not allowed ... dest_url:/app/site/dist/`。
-# 两种写法各挂过一次，而 CLI 的传参顺序不是这几道题要考的东西。
-# 单文件 + 显式 dest 没有可歧义的地方。-f 仍然要：桶里已经有上一版。
+# 这两条都是 aliyun 3.0.226 上实测出来的，别再凭直觉调整：
+#   flag 放在位置参数**之前** —— ossutil 收不到 dest，报
+#     `copy files between local file system is not allowed ... dest_url:<src>`；
+#   `-r` + 目录（`cp 目录/ oss://桶/ -r -f`）—— 同样的报错。
+# 单文件 + 显式 dest key + 尾部 flag 是唯一能解析通的形状。
+# -f 仍然要：桶里已经有上一版，不加它 cp 会等一个永远不会来的确认。
 upload_dist() {
   local f
   for f in "${files[@]}"; do
-    aliyun oss cp -f "/app/site/dist/$f" "oss://yisi-static/$f" || return 1
+    aliyun oss cp "/app/site/dist/$f" "oss://yisi-static/$f" -f || return 1
   done
 }
 

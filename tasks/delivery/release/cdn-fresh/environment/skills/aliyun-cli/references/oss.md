@@ -13,20 +13,21 @@ pass them per command.
 ## Upload
 
 ```bash
-# one file, explicit destination key — always parses
+# one file, explicit destination key
 aliyun oss cp ./dist/index.html oss://my-bucket/index.html
 
-# overwrite without prompting
-aliyun oss cp -f ./dist/index.html oss://my-bucket/index.html
+# overwrite without prompting — flags go AFTER the two paths
+aliyun oss cp ./dist/index.html oss://my-bucket/index.html -f
 ```
 
-Prefer **one file per call with an explicit destination key**. The recursive directory
-form (`aliyun oss cp -r ./dist/ oss://my-bucket/`) is parsed differently by different
-`aliyun` builds — some report `region can't be empty`, others take the first positional
-as the destination and fail with
-`copy files between local file system is not allowed ... dest_url:./dist/`.
-Moving the flags after the positionals does not fix it; it fails the same way on other
-builds. Two positionals and no `-r` leaves nothing to misparse.
+Two rules, both easy to get wrong:
+
+- **Flags go after the source and destination.** `aliyun oss cp -f ./dist/index.html
+  oss://my-bucket/index.html` does not parse — the destination never reaches ossutil and
+  it fails with
+  `copy files between local file system is not allowed ... dest_url:./dist/index.html`.
+- **Copy one file per call.** The recursive directory form
+  (`aliyun oss cp ./dist/ oss://my-bucket/ -r -f`) fails the same way.
 
 `-f` is needed whenever the object already exists, otherwise `cp` waits for a
 confirmation that never comes in a non-interactive shell.

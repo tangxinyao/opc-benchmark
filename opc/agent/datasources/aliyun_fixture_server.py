@@ -776,6 +776,26 @@ def main() -> None:
     Handler.router = Router(state)
     Handler.store = ObjectStore(state)
     Handler.edge = Edge(state)
+    # --- 两个监听口，不是一个 ---
+    #
+    # 443/TLS 是管控 API 那一面（aliyun cdn/ecs...）和 CDN 边缘那一面：
+    # 前者 CLI 按 https://<product>.aliyuncs.com 拼，后者 SOP 第 5 步拿 curl
+    # 打 https://cdn.<域名>/ —— 两边都明写了 https。
+    #
+    # 80/明文是 **ossutil** 那一面。aliyun CLI 的 oss 子命令（3.0.226 实测）
+    # 在 profile 只给 region_id、没给 endpoint 时，拼出来的是
+    # `http://<bucket>.oss-<region>.aliyuncs.com/`——**明文、80 口**。
+    # 只监听 443 的话它连都连不上（dial tcp 127.0.0.1:80: connection refused），
+    # 而这跟题目要考的东西毫无关系：每个 agent 都会撞，且撞的是评测装置的墙。
+    # 逼 agent 去写 `-e https://...` 是把装置的毛病变成题面的一部分，不行。
+    #
+    # 两个口共用同一个 Handler、同一份 state：进哪个口对判分没有区别，
+    # 服务端日志照样只有一份。
+    plain_port = int(os.environ.get("OPC_ALIYUN_PLAIN_PORT", "80"))
+    if plain_port:
+        plain = ThreadingHTTPServer(("0.0.0.0", plain_port), Handler)
+        threading.Thread(target=plain.serve_forever, daemon=True).start()
+
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(CERT_FILE, KEY_FILE)
