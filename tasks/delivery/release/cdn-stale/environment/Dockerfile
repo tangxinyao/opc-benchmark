@@ -9,7 +9,6 @@ FROM ${BASE_IMAGE}
 USER root
 
 WORKDIR /app
-COPY release-sop.md /app/release-sop.md
 COPY site/ /app/site/
 COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/

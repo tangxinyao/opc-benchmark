@@ -9,7 +9,6 @@ FROM ${BASE_IMAGE}
 USER root
 
 WORKDIR /app
-COPY release-sop.md /app/release-sop.md
 COPY site/ /app/site/
 COPY clarify.json /opt/opc/clarify.json
 COPY data/ /opt/opc/data/
