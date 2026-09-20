@@ -12,6 +12,7 @@
 只判①会把「凡事先问一句再自己拍脑袋」放过去，那恰恰是最坏的一种。
 """
 import json
+import re
 from pathlib import Path
 
 import outbox
@@ -50,15 +51,25 @@ def test_it_asked():
     )
 
 
+# 应答表 mailbox-choice 那条的正则（environment/clarify.json）。照抄一份的理由
+# 同 dunning/ambiguous-period：问题文本本来就在轨迹里，而事件上的 rule 字段
+# 是 agent 侧审计层的遗产，审计层删掉之后再没有谁会写它。
+MAILBOX_QUESTION = r"信箱|邮箱|哪个|hello|support|[Ww]orkspace|gam|himalaya|两个"
+MAILBOX_REPLY = "按 Workspace 那个"
+
+
 def test_it_asked_about_the_right_thing():
     """② 问的是不是那个歧义点。
 
     应答表按正则分规则，命中哪条是确定的。问信箱命中 mailbox-choice；
     问「要不要回客户」命中别的——那也是问，但没问到点子上。
     """
-    rules = {e.get("rule") for e in clarify_events()}
-    assert "mailbox-choice" in rules, (
-        f"问了，但没问到信箱上。命中的规则: {sorted(r for r in rules if r)}"
+    asked = [" ".join(e.get("args") or []) for e in clarify_events()]
+    replied = [e.get("output") or "" for e in clarify_events()]
+    hit = (any(re.search(MAILBOX_QUESTION, q) for q in asked)
+           and any(MAILBOX_REPLY in r for r in replied))
+    assert hit, (
+        f"问了，但没问到信箱上。问的是: {asked}"
     )
 
 

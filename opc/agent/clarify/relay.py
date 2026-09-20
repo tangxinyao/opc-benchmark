@@ -17,10 +17,16 @@ _clarify_callback），没人按键就一直等到 clarify.timeout（默认 120 
       ]
     }
 
-这里**不写任何日志**。clarify 是 hermes 的原生工具，每次提问本来就是 trajectory
-里的一个 tool_call（tool="clarify"，问题在 args[0]），判分器直接从那儿读
-「它问没问、问了什么」——见 opc/verifier/preflight.py 的 clarify_calls()。
-再记一份只会多出一个能对不上的事实来源。
+被 hermes 的工具层调用时，这里**不写任何日志**。clarify 是 hermes 的原生工具，
+每次提问本来就是 trajectory 里的一个 tool_call（tool="clarify"，问题在 args[0]），
+判分器直接从那儿读「它问没问、问了什么」——见 opc/verifier/preflight.py 的
+clarify_calls()。再记一份只会多出一个能对不上的事实来源。
+
+命令行入口（`python3 clarify_relay.py "问题"`）是唯一的例外，它只给 oracle 用。
+oracle 是一段 shell，跑不进 hermes 的工具层，也就没有 trajectory——于是「必须问」
+那几道题在 oracle 上永远是红的，尺子自己先站不住。所以走命令行时，这里把这次提问
+按 hermes 导出的会话格式**追加进同一个 trajectory 文件**：不是第三处证据，是把
+oracle 的提问补进本来就该记着它的那一处。agent 侧一个字节都不受影响。
 """
 
 from __future__ import annotations
@@ -28,6 +34,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 
 SCRIPT_PATH = os.environ.get("OPC_CLARIFY_SCRIPT", "/opt/opc/clarify.json")
 
@@ -104,10 +111,64 @@ def clarify(question, choices=None, callback=None) -> str:
     )
 
 
+# trajectory 的落点。必须与 opc/agent/hermes.py 的 SESSION_LOG、以及各题
+# task.toml 的 artifacts 里那一行逐字一致——判分容器按绝对路径原样取。
+TRAJECTORY_PATH = os.environ.get(
+    "OPC_TRAJECTORY_SINK", "/logs/agent/hermes-session.jsonl"
+)
+
+
+def _record_in_trajectory(question: str, choices, reply: str) -> None:
+    """把一次提问按 hermes 导出的会话格式追加进 trajectory。
+
+    形状要能被 preflight._messages() / _trajectory_events() 原样吃下：
+    一条带 tool_calls 的 assistant 消息，加一条配对的 tool 消息。
+    tool_call 的 id 用问题文本的哈希，同一次跑里不会和别的调用撞上。
+
+    写不进去不算错——agent 侧根本不走这条路径，oracle 侧写不了就退回到
+    「没有证据」，和修之前一样，不该因此让解法脚本挂掉。
+    """
+    import hashlib
+
+    call_id = "clarify-" + hashlib.sha1(question.encode("utf-8")).hexdigest()[:12]
+    arguments = {"question": question}
+    if choices:
+        arguments["choices"] = choices
+    payload = {
+        "messages": [
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [{
+                    "id": call_id,
+                    "type": "function",
+                    "function": {
+                        "name": "clarify",
+                        "arguments": json.dumps(arguments, ensure_ascii=False),
+                    },
+                }],
+            },
+            {"role": "tool", "tool_call_id": call_id, "content": reply},
+        ]
+    }
+    try:
+        path = os.path.abspath(TRAJECTORY_PATH)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except OSError as exc:
+        print("clarify: trajectory not recorded: %s" % exc, file=sys.stderr)
+
+
 if __name__ == "__main__":
     # 命令行入口。给 oracle 解法用——它是一段 shell，进不了 hermes 的工具层，
     # 但它必须能走出和 agent 一模一样的提问动作，否则这道题的判分器
     # 在 oracle 上就是红的，尺子自己先不成立。
-    import sys
-
-    print(clarify(" ".join(sys.argv[1:])))
+    question_text = " ".join(sys.argv[1:]).strip()
+    result = clarify(question_text)
+    parsed = json.loads(result)
+    if "error" not in parsed:
+        _record_in_trajectory(
+            parsed["question"], parsed.get("choices_offered"), parsed["user_response"]
+        )
+    print(result)
