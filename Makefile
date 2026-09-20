@@ -10,7 +10,7 @@ UV_RUN := uv run
 # 用 bash -c 是因为 make 每行起一个新 shell，source 的效果不跨行。
 WITH_ENV := bash -c '. scripts/load-env.sh;
 
-.PHONY: images image verifier-image configs lint unit smoke check env-check run sync
+.PHONY: images image verifier-image configs lint unit smoke check env-check run sync status
 
 sync:  ## 按 uv.lock 装依赖到 .venv
 	uv sync
@@ -44,6 +44,9 @@ check: lint unit smoke  ## 以上全部，都不需要 Docker
 
 env-check:  ## 检查每道题声明要的环境变量是否都已就位（不打印值）
 	$(WITH_ENV) $(UV_RUN) python scripts/check_env.py'
+
+status:  ## 最近一次跑分按题一行：make status [JOB=jobs/2026-...]
+	$(UV_RUN) python scripts/status.py $(JOB)
 
 run:  ## 跑一个 job config：make run CONFIG=configs/jobs/job-xxx.yaml
 	@test -n "$(CONFIG)" || (echo "用法: make run CONFIG=configs/jobs/job-xxx.yaml"; exit 1)
