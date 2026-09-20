@@ -269,10 +269,13 @@ RUN chmod 0755 /usr/local/bin/opc-svc-start /usr/local/bin/opc-pin-hosts \
  && chmod 0750 /var/lib/opc \
  && touch /var/log/opc-datasource.log \
       /var/log/opc-mailpit.log /var/log/opc-billing.log \
+      /var/log/opc-dws-login.log \
  && chown opcsvc:opc /var/log/opc-datasource.log \
       /var/log/opc-mailpit.log /var/log/opc-billing.log \
+      /var/log/opc-dws-login.log \
  && chmod 0660 /var/log/opc-datasource.log \
       /var/log/opc-mailpit.log /var/log/opc-billing.log \
+      /var/log/opc-dws-login.log \
  && chown -R opc:opc /app "${HERMES_HOME}"
 
 # --- 环境里的内部命令 ---

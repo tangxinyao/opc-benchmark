@@ -60,8 +60,33 @@ for svc in ${OPC_SERVICES:-}; do
 done
 
 # 企业应用的长期凭证已配置，换成本地登录态。
+# 这一步以前是 `|| true`：登录办不成也一声不吭。代价是判分器那头看到的是
+# 「一条 dws 事件都没有」，和「agent 压根没去取数」长得一模一样——在另一台
+# 机器上就是这么丢了半天：真实原因是 CLI 解不出 token（open .../.data: no such
+# file），报出来却是几条断言无缘无故全红。
+#
+# 登录态是**环境的前置条件**，不是 agent 的活。它没办成就是题坏了，
+# 那就当场停在这儿：容器起不来比起来了但少半个前提要便宜得多。
+#
+# 注意门禁看的是 `authenticated` 字段，不是退出码——`dws auth status`
+# 未登录时同样退 0，拿 rc 当判据等于没判。
 if [ -n "${DINGTALK_ACCESS_TOKEN:-}" ]; then
-  dws auth login --token "$DINGTALK_ACCESS_TOKEN" >/dev/null 2>&1 || true
+  # 落点在基底里已经 touch 好（opcsvc:opc 0660）。万一是旧基底就退到 /tmp——
+  # 这一步是为了让失败看得见，它自己不该成为新的失败点。
+  dws_log=/var/log/opc-dws-login.log
+  : >"$dws_log" 2>/dev/null || dws_log=/tmp/opc-dws-login.log
+  if ! dws auth login --token "$DINGTALK_ACCESS_TOKEN" >"$dws_log" 2>&1; then
+    echo "opc-entrypoint: dws auth login 失败，登录态没办成：" >&2
+    cat "$dws_log" >&2
+    exit 3
+  fi
+  if ! dws auth status --format json 2>>"$dws_log" \
+       | grep -q '"authenticated": *true'; then
+    echo "opc-entrypoint: dws auth login 退了 0，但登录态没落地（DWS_CONFIG_DIR=${DWS_CONFIG_DIR:-未设置}）：" >&2
+    dws auth status --format json >&2 2>&1 || true
+    cat "$dws_log" >&2
+    exit 3
+  fi
 fi
 
 exec "$@"
