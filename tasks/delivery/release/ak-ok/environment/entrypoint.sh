@@ -41,4 +41,10 @@ done
 # cdn_edge_cached 三条）。这里不再拿 CLI 去探一遍——探测本身也是流量，
 # 会在 agent 进来之前就往审计里塞一条失败，把「它到底试过没有」那条断言喂饱。
 
+# 就绪标记。基底镜像的 HEALTHCHECK 守着这个文件，harbor 的 `up --wait` 等它变
+# 健康之后才把 agent 放进来。不写这一行容器永远不健康；写早了 agent 就会抢在
+# 上面这些步骤之前进来（expired-session 就是这么红的）。它必须是 exec 前的
+# 最后一件事。
+: > /tmp/opc-ready
+
 exec "$@"

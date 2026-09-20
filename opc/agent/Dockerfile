@@ -333,3 +333,20 @@ RUN command -v rules >/dev/null
 # agent 从这里起不再是 root。题目镜像里凡是 agent 要写的目录，
 # 都要在 environment/Dockerfile 里 chown 给 opc。
 USER opc
+
+# --- 就绪门禁 ---
+# harbor 起容器只等「容器 running / exec true 能通」，**不等 ENTRYPOINT 跑到
+# `exec "$@"`**（见 harbor 的 _wait_until_compose_exec_ready）。也就是说 agent
+# 可能在 entrypoint 还在拉服务、还没办好登录态的时候就被放进来。
+#
+# 这不是理论问题：settlement/expired-session 就是这么红的——oracle 的第一条
+# dws 调用跑在 entrypoint 的 `dws auth login` 之前，那时机器上没有任何登录态，
+# CLI 在本地就挂了，**一个 HTTP 请求都没发出去**。于是服务端日志里没有那条
+# 401，判分器读成「它压根没去取数」，记 0 分。真实原因和判出来的结论毫无关系。
+#
+# docker compose 的 `up --wait`（harbor 用的就是它）在镜像**定义了
+# HEALTHCHECK 时**会等到 healthy 再返回。所以约定一条：每个 entrypoint 在
+# `exec "$@"` 之前写下 /tmp/opc-ready，这里守着它。健康检查继承给所有题目镜像，
+# 题目 Dockerfile 不必各自声明——但**每个 entrypoint 都必须写这个标记**，
+# 不写就永远不健康，容器起不来（那也比悄悄抢跑强）。
+HEALTHCHECK --interval=1s --timeout=3s --start-period=2s --retries=120 CMD test -f /tmp/opc-ready
