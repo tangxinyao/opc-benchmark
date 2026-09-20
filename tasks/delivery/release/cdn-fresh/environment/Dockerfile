@@ -14,9 +14,9 @@ COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 COPY skills/ /opt/hermes/skills/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agents/svc/opc-prune-tools。
 RUN chmod +x /opt/opc/entrypoint.sh \
- && /opt/opc/bin/opc-prune-tools \
+ && /usr/local/bin/opc-prune-tools \
  && mkdir -p /app/out \
  && opc-init-audit \
  # 公司信箱：himalaya + 本机 SMTP（mailpit）。通知是真发出去的，

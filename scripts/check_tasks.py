@@ -45,11 +45,11 @@ ARG_DEFAULT_RE = re.compile(r"^ARG\s+\w*BASE_IMAGE=(\S+)", re.MULTILINE)
 # task.toml 会提交进 git，所以 env 的值只能是占位符，不能是字面凭证
 ENV_PLACEHOLDER_RE = re.compile(r"^\$\{\w+\}$")
 # 只读工具 -> 它必需的语料（题目 environment/ 下的相对路径）。
-# 这张表是 opc/bin/opc-prune-tools 那份的镜像：那边在构建期按同样的规则
+# 这张表是 opc/agents/svc/opc-prune-tools 那份的镜像：那边在构建期按同样的规则
 # 把语料缺失的工具从 PATH 上摘掉，这边保证每道题都真的调了它，
 # 并且 solve.sh 不会去用一条注定被摘掉的命令。
 FIXTURE_BACKED_TOOLS = {"rules": "rules/platform_rules.json"}
-PRUNE_CALL = "/opt/opc/bin/opc-prune-tools"
+PRUNE_CALL = "/usr/local/bin/opc-prune-tools"
 
 
 def declared_image(dockerfile: Path) -> str | None:
@@ -448,7 +448,7 @@ def check_repo() -> list[str]:
 
     # 两张表必须同步：lint 这边的 FIXTURE_BACKED_TOOLS 和构建期真正干活的
     # opc-prune-tools。只改一边，lint 会给出「都过了」的假绿灯。
-    prune = (ROOT / "opc/bin/opc-prune-tools").read_text(encoding="utf-8")
+    prune = (ROOT / "opc/agents/svc/opc-prune-tools").read_text(encoding="utf-8")
     pruned = set(re.findall(r"^prune (\w+)", prune, re.MULTILINE))
     if pruned != set(FIXTURE_BACKED_TOOLS):
         problems.append(

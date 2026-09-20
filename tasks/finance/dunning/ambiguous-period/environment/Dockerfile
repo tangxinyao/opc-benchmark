@@ -17,9 +17,9 @@ COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 老板的应答表。clarify 的回复由它决定，不由前端决定——
 # 同一个问题两次跑必须拿到同一句话，否则这道题的方差里混的是运气。
 COPY clarify.json /opt/opc/clarify.json
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agents/svc/opc-prune-tools。
 RUN chmod +x /opt/opc/entrypoint.sh \
- && /opt/opc/bin/opc-prune-tools \
+ && /usr/local/bin/opc-prune-tools \
  && chmod a+r /opt/opc/clarify.json \
  && opc-init-audit \
  # 公司信箱：himalaya + 本机 SMTP（mailpit）。外发动作不再是哑命令，

@@ -100,7 +100,7 @@ make run CONFIG=configs/jobs/job-deepseek-x5.yaml    # 4 道题 × 5 遍 = 20 �
 - **最小权限。** 差分判分意味着一个任意模型拿着你的凭证联网（那些题的
   `network_mode` 必须是 `"public"`）。只读、只给必要的那一个服务。
 - **审计日志会脱敏。** `/var/lib/opc/audit.log` 记录完整 argv 且会被当 artifact 收走，
-  `opc/lib/_audit.py` 把 argv 和异常文本里的 key/secret/token 打码。
+  `opc/pylib/opc_internal/audit.py` 把 argv 和异常文本里的 key/secret/token 打码。
 
 凭证怎么从 shell 进到容器里，见[项目结构](project-structure.md#凭证怎么进到容器里)。
 

@@ -15,9 +15,9 @@ COPY ops-notes.md /app/ops-notes.md
 COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agents/svc/opc-prune-tools。
 RUN chmod +x /opt/opc/entrypoint.sh \
- && /opt/opc/bin/opc-prune-tools \
+ && /usr/local/bin/opc-prune-tools \
  && mkdir -p /opt/opc/skills /opt/opc/dws \
  && opc-init-audit \
  && cp -r /opt/dws/skills/multi/dingtalk-chat /opt/dws/skills/multi/dingtalk-shared \

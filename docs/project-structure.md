@@ -16,16 +16,18 @@ tasks/<职能>/<活>/<案例>/   # 题目。职能=六个之一，活=一件差�
     └── test_state.py       #     判分器，真正的尺子
 opc/                        # 本仓库自己的代码（题目在 tasks/，不在这里）
 ├── agents/                 #   Harbor 适配器 + agent 基础镜像
-├── bin/                    #   环境里的命令（烘进基础镜像 -> /opt/opc/bin，在 PATH 上）
-├── lib/                    #   被 import 的模块（烘进基底 -> /opt/opc/pylib，PYTHONPATH）
+├── bin/                    #   agent 会敲的命令（烘进基础镜像 -> /opt/opc/bin，在 PATH 上）
+├── pylib/                  #   被 import 的包 opc_internal（烘进基底 -> /opt/opc/pylib，PYTHONPATH）
 ├── etc/                    #   被 source 的（烘进基底 -> /opt/opc/bashenv.sh，BASH_ENV）
 ├── datasources/            #   真 CLI 的对端 fixture（按 opt-in 同步到 environment/lib/）
 ├── skills/                 #   vendor 来的 agent skills（按 skills.manifest 点名下发）
 └── verifier/               #   进判分容器的东西（同步到 tasks/*/*/*/tests/）
 
-bin/lib/etc 三分的依据是「它是不是一条命令」，不是用什么语言写的——
-rules 是 Python 写的命令，所以它没有 .py 后缀，和 shell 写的 opc-prune-tools
-同在 bin/；_audit.py 是被 import 的库，所以不在 bin/。
+bin/pylib/etc 三分的依据是「它是不是一条命令」，不是用什么语言写的——
+rules 是 Python 写的命令，所以它没有 .py 后缀。实现收在 pylib/opc_internal/ 包里
+而不是摊在 bin/，因为 /opt/opc/bin 在 agent 的 PATH 上、ls 就看得见。
+流程脚本（opc-entrypoint.sh / opc-prune-tools）不在这三个里：agent 永远不该调，
+所以跟其余 svc 脚本一起在 agents/svc/，落 /usr/local/bin。
 configs/                    # 所有配置文件。jobs/ 是产物，其余是手改的输入
 ├── policy.toml             #   全仓库默认跑法，gen_job_configs.py 读
 ├── task-template.toml      #   新建题的元数据模板，harbor tasks init 读
@@ -58,7 +60,7 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 | `himalaya` | 开源 IMAP/SMTP 客户端（版本钉死） | 本机 Maildir，配置在 `~/.config/himalaya/config.toml` |
 | `git` | 就是 git | 题目构建期用真 git 造的仓库 |
 
-源在 `opc/bin/`（命令）、`opc/lib/`（被 import 的）、`opc/etc/`（被 source 的），
+源在 `opc/bin/`（命令）、`opc/pylib/`（被 import 的）、`opc/etc/`（被 source 的），
 **烘进 agent 基础镜像**，改完要 `make image` 重建基底——题目录里没有它们的拷贝。
 `opc/datasources/` 和 `opc/verifier/` 才是 `scripts/sync-tasks.sh` 扇出的。
 为什么它们要装得像公司的内部命令而不是评测夹具，见

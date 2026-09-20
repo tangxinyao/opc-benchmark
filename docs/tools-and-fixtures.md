@@ -56,12 +56,12 @@ agent 是 `opc`，服务是 `opcsvc`。sudoers 只放行两个目标：
 
 ## agent 侧的小工具
 
-源在 `opc/bin/` / `opc/lib/` / `opc/etc/`，烘进基础镜像（题目录里没有拷贝），但**只有 `rules` 是 agent 会敲的命令**，其余是留痕脚手架：
+源在 `opc/bin/` / `opc/pylib/` / `opc/etc/`，烘进基础镜像（题目录里没有拷贝），但**只有 `rules` 是 agent 会敲的命令**，其余是留痕脚手架：
 
 - `rules` —— 平台规则/费率查询。语料不在就由 `opc-prune-tools` 在构建期从 PATH 上摘掉。
-- `_audit.py` —— 写审计的公共模块，带脱敏。它是被 `import` 的库不是命令，所以在 `opc/lib/`、落 `/opt/opc/pylib`（`PYTHONPATH`），不在 `bin/`。
+- `opc_internal/audit.py` —— 写审计的公共模块，带脱敏。它是被 `import` 的库不是命令，所以在 `opc/pylib/`、落 `/opt/opc/pylib`（`PYTHONPATH`），不在 `bin/`。
 - `_record-env` / `_record-missing` —— 由 `bashenv.sh` 的 `command_not_found_handle` 调，把「敲了个不存在的命令」记进审计。没有它，「探测过」和「压根没试就开始编」在日志上长得一模一样。
-- `opc-entrypoint.sh` / `opc-prune-tools` —— 启动与构建期脚手架（在 `opc/bin/`）。
+- `opc-entrypoint.sh` / `opc-prune-tools` —— 启动与构建期脚手架。agent 永远不该调，所以在 `opc/agents/svc/`、落 `/usr/local/bin`，不在它的 PATH 上。
 - `bashenv.sh` —— 被 `BASH_ENV` source 的，不是命令，所以在 `opc/etc/`、落 `/opt/opc/bashenv.sh`。
 
 另有 `clarify`：hermes 的提问通道，由 `opc/agents/clarify/relay.py` 接到一份按正则应答的留言表（`OPC_CLARIFY_SCRIPT`，题目的 `clarify.json`），不等真人、结果确定。

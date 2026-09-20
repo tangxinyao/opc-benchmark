@@ -19,7 +19,7 @@ COPY maildir/ /var/mail/support/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 COPY clarify.json /opt/opc/clarify.json
 RUN chmod +x /opt/opc/entrypoint.sh \
- && /opt/opc/bin/opc-prune-tools \
+ && /usr/local/bin/opc-prune-tools \
  && opc-init-audit \
  && chmod a+r /opt/opc/clarify.json
 

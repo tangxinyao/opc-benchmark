@@ -9,7 +9,8 @@
 # 语料也不在 /app 下，而是各自的 fixture 服务端在供。见 docs/todo-no-preflight.md
 # 的「哑命令为什么删掉了」。
 #
-# 这个脚本最后会把自己也删掉：它是构建期的东西，没必要出现在 agent 的 PATH 上。
+# 这个脚本最后会把自己也删掉：它是构建期的东西，跑完就没有存在的理由了。
+# （它本身在 /usr/local/bin，本来就不在 agent 会去翻的 /opt/opc/bin 里。）
 set -eu
 BIN=/opt/opc/bin
 
@@ -22,4 +23,4 @@ prune() {  # prune <工具名> <它必需的语料路径>
 
 prune rules "${OPC_RULES:-/app/rules/platform_rules.json}"
 
-rm -f "$BIN/opc-prune-tools"
+rm -f /usr/local/bin/opc-prune-tools

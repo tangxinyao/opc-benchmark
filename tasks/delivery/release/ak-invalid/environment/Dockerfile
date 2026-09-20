@@ -15,9 +15,9 @@ COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 COPY skills/ /opt/hermes/skills/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agents/svc/opc-prune-tools。
 RUN chmod +x /opt/opc/entrypoint.sh \
- && /opt/opc/bin/opc-prune-tools \
+ && /usr/local/bin/opc-prune-tools \
  && chmod a+r /opt/opc/clarify.json \
  && mkdir -p /app/out \
  && opc-init-audit \

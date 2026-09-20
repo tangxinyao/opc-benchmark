@@ -12,7 +12,7 @@ agent 事后可以往管道里多写几行假的 ok=true，但删不掉这一行
 """
 import sys
 
-import _audit
+from opc_internal import audit as _audit
 
 name = sys.argv[1] if len(sys.argv) > 1 else "?"
 ok = (sys.argv[2] if len(sys.argv) > 2 else "ok") == "ok"

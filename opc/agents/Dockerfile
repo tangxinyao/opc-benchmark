@@ -241,8 +241,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends sudo \
  && groupadd -g 1001 opcsvc \
  && useradd -u 1001 -g 1001 -M -s /usr/sbin/nologin opcsvc \
  && usermod -a -G opc opcsvc
+# opc-entrypoint.sh 与 opc-prune-tools 也在这里：它们是流程脚本（容器启动、
+# 题目构建期裁剪），agent 永远不该调，所以跟其余 svc 脚本一样落 /usr/local/bin，
+# 不进 /opt/opc/bin —— 那个目录在 agent 的 PATH 上、`ls` 就看得见。
 COPY agents/svc/opc-init-audit agents/svc/opc-audit-collector agents/svc/opc-svc-start \
      agents/svc/opc-pin-hosts agents/svc/opc-init-outbound-mail agents/svc/opc-init-billing \
+     agents/svc/opc-entrypoint.sh agents/svc/opc-prune-tools \
      /usr/local/bin/
 # Google 那几个 API 的端口写死在 discovery 文档的 rootUrl 里（443），改不了。
 # 服务身份 opcsvc 绑不了特权端口，于是单独复制一份 python 给它加 cap——
@@ -254,6 +258,7 @@ RUN mkdir -p /usr/local/lib/opc \
 RUN chmod 0755 /usr/local/bin/opc-init-audit /usr/local/bin/opc-audit-collector \
       /usr/local/bin/opc-svc-start /usr/local/bin/opc-pin-hosts \
       /usr/local/bin/opc-init-outbound-mail /usr/local/bin/opc-init-billing \
+      /usr/local/bin/opc-entrypoint.sh /usr/local/bin/opc-prune-tools \
  && printf '%s\n' 'opc ALL=(opcsvc) NOPASSWD: /usr/local/bin/opc-svc-start' \
       'opc ALL=(root) NOPASSWD: /usr/local/bin/opc-pin-hosts' \
       > /etc/sudoers.d/opc-svc \
@@ -273,23 +278,29 @@ RUN chmod 0755 /usr/local/bin/opc-init-audit /usr/local/bin/opc-audit-collector 
 # 相同的拷贝，且拷贝在题目录里和手写文件长得一模一样，改错了没人拦。
 # 烘进基底之后题目录里不再有这个目录，来源只剩这一处。
 #
-# 分三个落点，依据是「它是不是一条命令」，不是它用什么语言写的：
-#   bin/   有 shebang、可执行、被当命令调  -> /opt/opc/bin（在 PATH 上）
-#   lib/   被 import 的模块               -> /opt/opc/pylib（PYTHONPATH）
-#   etc/   被 source 的                   -> /opt/opc/bashenv.sh（BASH_ENV）
-# _audit.py 挪出 bin/ 还有第二个理由：/opt/opc/bin 在 agent 的 PATH 上、
-# `ls` 就看得见，一个下划线开头带 .py 后缀的文件摆在一堆公司内部命令中间，
-# 不像内部工具，像评测脚手架（设计立场 3）。
+# 源目录分三个，一一对应镜像里三个不同的落点——放进哪个目录就决定了落到哪，
+# 没有隐式规则。依据是「它是不是一条命令」，不是它用什么语言写的
+# （rules 是 Python 写的命令，所以它没有 .py 后缀）：
+#   bin/     有 shebang、可执行、被当命令调  -> /opt/opc/bin（在 PATH 上）
+#   pylib/   被 import 的包                 -> /opt/opc/pylib（PYTHONPATH）
+#   etc/     被 source 的                   -> /opt/opc/bashenv.sh（BASH_ENV）
 #
+# 实现收在 pylib/opc_internal/ 里而不是摊在 bin/：/opt/opc/bin 在 agent 的
+# PATH 上、`ls` 就看得见，一个带 .py 后缀的模块摆在一堆公司内部命令中间，
+# 不像内部工具，像评测脚手架（设计立场 3）。
+# 做成包而不是裸模块，是因为 PYTHONPATH 对容器里每个 python 进程都生效。
+#
+# 流程脚本（opc-entrypoint.sh / opc-prune-tools）不在这三个里，它们跟其余
+# svc 脚本一起落 /usr/local/bin——agent 永远不该调，也就不该在它的 PATH 上。
 # 按题裁剪仍然发生在题目构建期：opc-prune-tools 在语料 COPY 之后跑，
 # 把后端语料不存在的只读工具从 PATH 上摘掉。烘进基底不影响这一层。
 COPY bin/ /opt/opc/bin/
-COPY lib/ /opt/opc/pylib/
+COPY pylib/ /opt/opc/pylib/
 COPY etc/bashenv.sh /opt/opc/bashenv.sh
 RUN chmod 0755 /opt/opc/bin/* \
  && chmod -R a+rX /opt/opc/pylib /opt/opc/bashenv.sh \
  && test -x /opt/opc/bin/rules \
- && test -f /opt/opc/pylib/_audit.py
+ && test -f /opt/opc/pylib/opc_internal/audit.py
 
 # PATH 与 PYTHONPATH 在这里就位，题目 Dockerfile 不必再各自声明。
 # BASH_ENV：hermes 每条命令都是一个新的 `bash -c`，于是每条命令都会读这份。
@@ -297,9 +308,9 @@ ENV PATH="/opt/opc/bin:${PATH}" \
     PYTHONPATH="/opt/opc/pylib" \
     BASH_ENV=/opt/opc/bashenv.sh
 
-# 构建期自检：rules 要能在 PATH 上被找到，并且 import 得到 _audit。
+# 构建期自检：rules 要能在 PATH 上被找到，并且 import 得到 opc_internal。
 # 只改了目录布局没改 PYTHONPATH 的话，这里当场炸，而不是等到评测中途。
-RUN python3 -c "import _audit" \
+RUN python3 -c "from opc_internal import audit" \
  && command -v rules >/dev/null
 
 # agent 从这里起不再是 root。题目镜像里凡是 agent 要写的目录，

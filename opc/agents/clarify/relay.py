@@ -92,7 +92,7 @@ def _resolve(question: str, choices, script: dict):
 def _record(question: str, choices, reply: str, rule) -> None:
     """留痕。写不进去不算错——审计日志不该把正事带崩。
 
-    落点与 /opt/opc/bin/_audit.py 一致：优先写 FIFO。容器里 audit.log 是
+    落点与 /opt/opc/pylib/opc_internal/audit.py 一致：优先写 FIFO。容器里 audit.log 是
     opcsvc:opcsvc 0600，agent 直接 open(..., "a") 必然 EACCES——
     真往日志里写的是管道另一侧的收集器。回落到直接追加是给宿主机上的
     smoke 用的，那里没有 FIFO。

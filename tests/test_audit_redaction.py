@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def load_audit(monkeypatch, tmp_path):
     monkeypatch.setenv("OPC_AUDIT_LOG", str(tmp_path / "audit.log"))
     spec = importlib.util.spec_from_file_location(
-        "_audit", ROOT / "opc" / "lib" / "_audit.py"
+        "opc_internal.audit", ROOT / "opc" / "pylib" / "opc_internal" / "audit.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

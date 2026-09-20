@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-import _audit
+from opc_internal import audit as _audit
 
 RULES_PATH = Path(os.environ.get("OPC_RULES", "/app/rules/platform_rules.json"))
 

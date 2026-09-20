@@ -13,9 +13,9 @@ WORKDIR /app
 # 不是连接器。判分器自己那份副本在 tests/data/，agent 改不到（make lint 校两份一致）。
 COPY data/ /app/data/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agents/svc/opc-prune-tools。
 RUN chmod +x /opt/opc/entrypoint.sh \
- && /opt/opc/bin/opc-prune-tools \
+ && /usr/local/bin/opc-prune-tools \
  && opc-init-audit \
  && mkdir -p /app/out \
  && chown -R opc:opc /app

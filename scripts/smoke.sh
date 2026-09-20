@@ -59,9 +59,9 @@ for task in "$ROOT"/tasks/*/*/*/; do
   fi
 
   # 内部命令不再随题下发（烘进基础镜像了），这里直接指向仓库里的源目录。
-  # PYTHONPATH 对应容器里的 /opt/opc/pylib——rules 靠它 import _audit。
+  # PYTHONPATH 对应容器里的 /opt/opc/pylib——rules 靠它 import opc_internal。
   if OPC_AUDIT_LOG="$work/audit.log" OPC_RULES="$app/rules/platform_rules.json" \
-     PATH="$ROOT/opc/bin:$PATH" PYTHONPATH="$ROOT/opc/lib${PYTHONPATH:+:$PYTHONPATH}" \
+     PATH="$ROOT/opc/bin:$PATH" PYTHONPATH="$ROOT/opc/pylib${PYTHONPATH:+:$PYTHONPATH}" \
      bash "$work/solve.sh" \
        > "$work/solve.log" 2>&1; then
     if OPC_AUDIT_LOG="$work/audit.log" OPC_ORACLE_FAKE="$fake" OPC_VERIFIER_LOG_DIR="$work/logs" \
