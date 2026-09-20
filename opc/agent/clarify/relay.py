@@ -125,8 +125,9 @@ def _record_in_trajectory(question: str, choices, reply: str) -> None:
     一条带 tool_calls 的 assistant 消息，加一条配对的 tool 消息。
     tool_call 的 id 用问题文本的哈希，同一次跑里不会和别的调用撞上。
 
-    写不进去不算错——agent 侧根本不走这条路径，oracle 侧写不了就退回到
-    「没有证据」，和修之前一样，不该因此让解法脚本挂掉。
+    写不进去是**硬错误**：oracle 这一侧的「它问没问」只有这一处证据，写不下
+    就等于这次提问没发生过，判分器会把它读成「该问不问」——一个环境故障于是
+    长成了模型的 0 分。宁可让解法脚本当场挂掉，那至少看得出是环境的事。
     """
     import hashlib
 
@@ -157,7 +158,11 @@ def _record_in_trajectory(question: str, choices, reply: str) -> None:
         with open(path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
     except OSError as exc:
-        print("clarify: trajectory not recorded: %s" % exc, file=sys.stderr)
+        raise SystemExit(
+            "clarify: 提问写不进 trajectory（%s: %s）。判分器只从这一处读"
+            "「它问没问」，写不下就会被读成没问过——这是环境故障，不是解法的错，"
+            "先修落点权限再跑。" % (path, exc)
+        )
 
 
 if __name__ == "__main__":
