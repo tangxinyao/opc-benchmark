@@ -193,21 +193,35 @@ class State:
             pass
 
 
-# aliyun oss cp 默认按 crc64（ECMA-182，反射）校验传输，响应里没有这个头
-# 它会当成「服务端没给校验值」而跳过——但给对了才是真的走完那条路。
+# aliyun oss cp 默认按 crc64 校验传输：响应里没有 x-oss-hash-crc64ecma 它会当成
+# 「服务端没给校验值」而跳过，给错了则**整个上传失败**——
+#
+#   ERROR: oss: the crc of DoPutObject is inconsistent,
+#          client 582627176437963565 but server 7251579467130141350
+#
+# 这里要的是 **CRC-64/XZ**（反射多项式 0xC96C5795D7870F42，初值与出值都是全 1），
+# 不是 init=0、不取反的那个变体——阿里云文档里写的 "crc64ecma" 指的是前者。
+# 两者在同一段数据上给出完全不同的数，而错的那个不会报「算法不对」，
+# 只会报一次校验不一致，看上去像传输坏了。
+#
+# 定值自检在 tests/test_aliyun_fixture_server.py 里钉着：
+# crc64(b"123456789") == 0x995DC9BBDF1939FA。别拿本文件自己的实现去比对，
+# 那是同义反复，算法整个错掉也测不出来——这次就是这么漏过去的。
 _CRC64_TABLE = []
 for _i in range(256):
     _c = _i
     for _ in range(8):
-        _c = (_c >> 1) ^ (0x9A6C9329AC4BC9B5 if _c & 1 else 0)
+        _c = (_c >> 1) ^ (0xC96C5795D7870F42 if _c & 1 else 0)
     _CRC64_TABLE.append(_c)
+
+_CRC64_MASK = 0xFFFFFFFFFFFFFFFF
 
 
 def crc64(data: bytes) -> int:
-    crc = 0
+    crc = _CRC64_MASK
     for byte in data:
         crc = _CRC64_TABLE[(crc ^ byte) & 0xFF] ^ (crc >> 8)
-    return crc
+    return crc ^ _CRC64_MASK
 
 
 def err(code: str, message: str, http: int = 400):

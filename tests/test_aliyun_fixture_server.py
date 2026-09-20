@@ -193,6 +193,15 @@ def test_oss_v4_signature_header_is_understood(aliyun):
     assert oss(aliyun, "GET", "index.html", auth=v4)[0] == 200
 
 
+def test_crc64_matches_the_published_check_value(aliyun):
+    """定值自检：CRC-64/XZ 在 "123456789" 上的标准 check 值。
+
+    拿本文件自己的 crc64 去比对下面那条断言是同义反复——算法整个换错了变体
+    也照样绿。ossutil 校验的是这一个，所以这里钉死的必须是外部定值。
+    """
+    assert aliyun.crc64(b"123456789") == 0x995DC9BBDF1939FA
+
+
 def test_oss_put_writes_and_returns_a_crc64(aliyun):
     """ossutil 默认按 crc64 校验，头给不对它会跳过——那条路就没真走完。"""
     status, _, head = oss(aliyun, "PUT", "index.html", NEW.encode())
