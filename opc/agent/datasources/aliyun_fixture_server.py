@@ -224,6 +224,27 @@ def crc64(data: bytes) -> int:
     return crc ^ _CRC64_MASK
 
 
+def merge_params(query_string: str, body: bytes) -> dict:
+    """RPC 的参数：查询串和请求体**合起来**看，不是二选一。
+
+    aliyun CLI 发 POST 时会把公共参数（Action/Version/Signature/AccessKeyId…）
+    留在查询串上，把这个 API 自己的参数（ObjectPath/ObjectType…）放进
+    form-urlencoded 的请求体。这里原来写的是「查询串为空才去读请求体」，
+    于是后一半**整个丢掉**——而 Action 还在查询串上，路由照常命中、照常
+    回一个 RefreshTaskId。
+
+    代价：`aliyun cdn RefreshObjectCaches` 看上去成功了，实际一条路径都没
+    失效（purged 是空的），边缘继续发旧的。发布题里「刷对了」和「刷漏了」
+    于是长得一模一样——正是这几道题唯一要量的那件事。
+    """
+    params = urllib.parse.parse_qs(query_string)
+    if body:
+        for key, values in urllib.parse.parse_qs(
+                body.decode("utf-8", "replace")).items():
+            params.setdefault(key, values)
+    return params
+
+
 def err(code: str, message: str, http: int = 400):
     return http, {"Code": code, "Message": message, "RequestId": "opc-fixture"}
 
@@ -741,10 +762,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._reply(code, blob, head)
 
         # 其余一律当 RPC
-        query = urllib.parse.parse_qs(split.query)
-        if body and not query:
-            query = urllib.parse.parse_qs(body.decode("utf-8", "replace"))
-        code, payload = self.router.handle(query)
+        code, payload = self.router.handle(
+            merge_params(split.query, body))
         blob = json.dumps(payload).encode()
         self._reply(code, blob,
                     {"Content-Type": "application/json; charset=UTF-8"})

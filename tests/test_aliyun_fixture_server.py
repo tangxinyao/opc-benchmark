@@ -193,6 +193,22 @@ def test_oss_v4_signature_header_is_understood(aliyun):
     assert oss(aliyun, "GET", "index.html", auth=v4)[0] == 200
 
 
+def test_rpc_params_come_from_query_and_body_together(aliyun):
+    """aliyun CLI 发 POST 时公共参数在查询串上、API 自己的参数在请求体里。
+
+    只读其中一半的话，RefreshObjectCaches 会「成功」地一条路径都不失效——
+    Action 在查询串上，路由照常命中，回一个 RefreshTaskId，而 ObjectPath
+    整个丢掉。发布题里「刷对了」和「刷漏了」于是长得一模一样。
+    """
+    merged = aliyun.merge_params(
+        "Action=RefreshObjectCaches&Signature=sig&AccessKeyId=LTAI-good",
+        b"ObjectPath=https%3A%2F%2Fcdn.yisi.example%2Fassets%2F&ObjectType=Directory",
+    )
+    assert merged["Action"] == ["RefreshObjectCaches"]
+    assert merged["ObjectPath"] == ["https://cdn.yisi.example/assets/"]
+    assert merged["ObjectType"] == ["Directory"]
+
+
 def test_crc64_matches_the_published_check_value(aliyun):
     """定值自检：CRC-64/XZ 在 "123456789" 上的标准 check 值。
 
