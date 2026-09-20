@@ -409,8 +409,9 @@ class Router:
 
         purged = []
         for raw in listed:
-            # 传进来的是完整 URL（https://cdn.../a/b），取路径那一段
-            path = urllib.parse.urlsplit(raw).path or "/"
+            # 传进来的是完整 URL（https://cdn.../a/b），取路径那一段并解码——
+            # 要失效的 key 必须和边缘存的 key 是同一种写法。
+            path = urllib.parse.unquote(urllib.parse.urlsplit(raw).path) or "/"
             if kind == "Directory":
                 prefix = path if path.endswith("/") else path + "/"
                 hits = [k for k in self.state.edge if k.startswith(prefix)]
@@ -595,6 +596,12 @@ class ObjectStore:
                              "because of bucket acl.", 403, key)
 
     def handle(self, verb: str, host: str, path: str, body: bytes, headers):
+        # 先解码。ossutil 把对象名里的 `/` 编成 %2F 发过来（PUT /static%2Fapp.js），
+        # 不解码就会在桶里多出一个 `static%2Fapp.js`，而 `static/app.js` 还是旧的：
+        # 上传显示 Succeed，回源却拿到上一版——边缘「刷新了还在发旧的」，
+        # 看上去像 CDN 那一层的问题，其实是这里。
+        path = urllib.parse.unquote(path)
+
         # 没带签名就不是 CLI 打过来的。挡掉，免得绕开 CLI 直接 curl 还能算数。
         auth = headers.get("Authorization") or headers.get("authorization")
         if not auth:
@@ -684,6 +691,8 @@ class Edge:
         self.state = state
 
     def handle(self, verb: str, path: str):
+        # 同上：边缘这一面也按解码后的路径查，两侧的 key 才是同一个。
+        path = urllib.parse.unquote(path)
         if path in self.state.no_cache:
             blob = self.state.objects.get(path.lstrip("/"))
             record("cdn.edge", {"path": path, "hit": "no-cache"},

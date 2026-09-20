@@ -193,6 +193,22 @@ def test_oss_v4_signature_header_is_understood(aliyun):
     assert oss(aliyun, "GET", "index.html", auth=v4)[0] == 200
 
 
+def test_object_key_is_percent_decoded(aliyun):
+    """ossutil 把对象名里的 / 编成 %2F 发过来，桶里存的必须是解码后的 key。
+
+    不解码的话桶里会多出一个 `assets%2Fapp.js`，而 `assets/app.js` 还是旧的：
+    上传显示 Succeed，边缘回源却拿到上一版——症状出现在 CDN 那一层，
+    原因在这里。delivery 那 5 道题就是这么红的。
+    """
+    assert oss(aliyun, "PUT", "assets%2Fapp.js", b"v2();")[0] == 200
+    state = aliyun.store.state
+    assert "assets%2Fapp.js" not in state.objects
+    assert state.objects["assets/app.js"] == b"v2();"
+
+    # 边缘那一面按同一种写法查，两侧的 key 才对得上
+    assert aliyun.edge.handle("GET", "/assets%2Fapp.js")[0] == 200
+
+
 def test_rpc_params_come_from_query_and_body_together(aliyun):
     """aliyun CLI 发 POST 时公共参数在查询串上、API 自己的参数在请求体里。
 
