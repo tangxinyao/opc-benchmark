@@ -182,7 +182,8 @@ make check                    # lint + unit + smoke，不需要 Docker
 scripts/validate.sh           # 需要 Docker，在真容器里再验一遍
 ```
 
-改了 `opc/common/datasources/` 或 `opc/verifier/` 的话，先 `scripts/sync-tasks.sh`；
+改了 `opc/verifier/` 的话，先 `scripts/sync-tasks.sh`；
+改了 `opc/agent/datasources/` 的话要 `make image` 重建基底（它们烘在基底里，不扇出）；
 改了 `opc/agent/bin/` 的话，要重建基础镜像 `make image`
 同步到各任务目录，否则你改的是源、跑的是旧副本。
 

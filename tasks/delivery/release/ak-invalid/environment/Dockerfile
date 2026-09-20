@@ -12,7 +12,6 @@ WORKDIR /app
 COPY site/ /app/site/
 COPY clarify.json /opt/opc/clarify.json
 COPY data/ /opt/opc/data/
-COPY lib/ /opt/opc/lib/
 COPY skills/ /opt/hermes/skills/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agent/svc/opc-prune-tools。
@@ -98,9 +97,7 @@ RUN printf '%s\n' \
  && chmod -R a+rX /opt/hermes/skills \
  && chown -R opc:opc /app /home/opc /var/mail/support \
  && chown -R opcsvc:opcsvc /opt/opc/data \
- && chown -R opcsvc:opc /opt/opc/lib \
- && chmod 0700 /opt/opc/data \
- && chmod 0550 /opt/opc/lib
+ && chmod 0700 /opt/opc/data
 
 ENV PATH="/opt/opc/bin:${PATH}" \
     OPC_CLARIFY_SCRIPT=/opt/opc/clarify.json \

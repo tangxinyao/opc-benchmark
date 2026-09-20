@@ -298,6 +298,29 @@ COPY bin/ /opt/opc/bin/
 RUN chmod 0755 /opt/opc/bin/* \
  && test -x /opt/opc/bin/rules
 
+# --- 真 CLI 的对端（mock 数据源）---
+# 四份实现烘进基底，不再按题扇出到 environment/lib/。
+#
+# 以前是 scripts/sync-tasks.sh 按题 opt-in 拷一份、顺手改个名
+# （dws_fixture_server.py -> datasource_server.py 等等），于是同一个文件在三处
+# 三个名字，`grep dws_fixture_server tasks/` 一条都搜不到。省下的只是给用不上的
+# 题少塞几十 KB 只读文件，换来 16 份拷贝加一张改名映射表——不划算。
+#
+# 落 /opt/opc/lib，属主 opcsvc，目录 0550：agent 在 opc 组里，读得到这些实现，
+# 但那没关系——四份都是通用机制，故障注入与语料全在 /opt/opc/data
+# （opcsvc:opcsvc 0700，agent 读不到）。
+#
+# **注意：文件在不在不再代表这道题要不要起它。** 起哪些由题目的 OPC_SERVICES
+# 声明，见 svc/opc-entrypoint.sh。
+COPY datasources/ /opt/opc/lib/
+RUN chown -R opcsvc:opc /opt/opc/lib \
+ && chmod 0550 /opt/opc/lib \
+ && chmod 0440 /opt/opc/lib/*.py \
+ && test -f /opt/opc/lib/dws_fixture_server.py \
+ && test -f /opt/opc/lib/stripe_fixture_server.py \
+ && test -f /opt/opc/lib/gws_fixture_server.py \
+ && test -f /opt/opc/lib/aliyun_fixture_server.py
+
 # PATH 在这里就位，题目 Dockerfile 不必再各自声明。
 ENV PATH="/opt/opc/bin:${PATH}"
 

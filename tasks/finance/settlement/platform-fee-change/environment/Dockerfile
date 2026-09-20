@@ -12,7 +12,6 @@ WORKDIR /app
 COPY rules/ /app/rules/
 # 语料归 opcsvc：agent 读不到，只能经 dws 走连接器拿
 COPY data/ /opt/opc/data/
-COPY lib/ /opt/opc/lib/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agent/svc/opc-prune-tools。
 RUN chmod +x /opt/opc/entrypoint.sh \
@@ -23,9 +22,7 @@ RUN chmod +x /opt/opc/entrypoint.sh \
  && chmod -R a+rX /opt/opc/skills \
  && chown -R opc:opc /app /opt/opc/dws \
  && chown -R opcsvc:opcsvc /opt/opc/data \
- && chown -R opcsvc:opc /opt/opc/lib \
- && chmod 0700 /opt/opc/data \
- && chmod 0550 /opt/opc/lib
+ && chmod 0700 /opt/opc/data
 
 # 企业里这台机器上的连接器配置：数据源端点、长期凭证、CLI 的本地状态目录。
 ENV PATH="/opt/opc/bin:${PATH}" \

@@ -21,10 +21,10 @@ opc/                        # 去重层：22 道题里那些相同拷贝的唯�
 │   ├── Dockerfile          #   agent 基底镜像；构建上下文就是 opc/agent/
 │   ├── svc/                #   流程脚本（entrypoint、prune、服务身份）-> /usr/local/bin
 │   ├── clarify/            #   把 hermes 的提问接到确定性应答表
-│   └── bin/                #   agent 会敲的命令（-> /opt/opc/bin，在 PATH 上）
+│   ├── bin/                #   agent 会敲的命令（-> /opt/opc/bin，在 PATH 上）
+│   └── datasources/        #   真 CLI 的对端 mock（-> /opt/opc/lib，agent 碰不到）
 ├── verifier/               # 【Harbor 三块之一：判分器】-> tasks/*/*/*/tests/
 └── common/                 # 扇到 tasks/*/environment/ 的共同来源
-    ├── datasources/        #   真 CLI 的对端 mock（按 opt-in -> environment/lib/）
     ├── fixtures/           #   语料（合同库、discovery 文档 -> environment/）
     └── skills/             #   vendor 来的 agent skills（按 skills.manifest 点名）
 
@@ -63,7 +63,7 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 |---|---|
 | `rules show <平台> [--at 日期]` | 平台分成规则（带版本，可按日期取） |
 | `opc-prune-tools` | 构建期脚本，不进 agent 的 PATH。语料不存在的只读工具（现在只剩 `rules`）在这里被摘掉，免得留一条一跑就炸的死命令 |
-| `stripe` | Stripe 官方 CLI（版本钉死）。退款是不可逆动作，边界题里是陷阱 | `opc/common/datasources/stripe_fixture_server.py`，`api.stripe.com` 钉到本机 |
+| `stripe` | Stripe 官方 CLI（版本钉死）。退款是不可逆动作，边界题里是陷阱 | `opc/agent/datasources/stripe_fixture_server.py`，`api.stripe.com` 钉到本机 |
 | `himalaya` | 真 IMAP/SMTP 客户端。读本机 Maildir，发本机 SMTP | 对端是 mailpit，外发的信落在 `/var/lib/opc/mailpit.db`，判分读它 |
 
 只读检索这一侧尽量用**真二进制**，不自己造壳（选型见
@@ -71,14 +71,15 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 
 | 命令 | 真实身份 | 对端 |
 |---|---|---|
-| `dws` | 钉钉官方 workspace CLI（版本钉死） | `opc/common/datasources/dws_fixture_server.py`，MCP over HTTP |
-| `gam` | GAMADV-XTD3（Google Workspace 的事实标准 CLI） | `opc/common/datasources/gws_fixture_server.py`：真 TLS、真服务账号 JWT、真 discovery 与 batch，只是 `*.googleapis.com` 被 `opc-pin-hosts` 钉到本机 |
+| `dws` | 钉钉官方 workspace CLI（版本钉死） | `opc/agent/datasources/dws_fixture_server.py`，MCP over HTTP |
+| `gam` | GAMADV-XTD3（Google Workspace 的事实标准 CLI） | `opc/agent/datasources/gws_fixture_server.py`：真 TLS、真服务账号 JWT、真 discovery 与 batch，只是 `*.googleapis.com` 被 `opc-pin-hosts` 钉到本机 |
 | `himalaya` | 开源 IMAP/SMTP 客户端（版本钉死） | 本机 Maildir，配置在 `~/.config/himalaya/config.toml` |
 | `git` | 就是 git | 题目构建期用真 git 造的仓库 |
 
 源在 `opc/agent/bin/`（命令），
 **烘进 agent 基础镜像**，改完要 `make image` 重建基底——题目录里没有它们的拷贝。
-`opc/common/datasources/` 和 `opc/verifier/` 才是 `scripts/sync-tasks.sh` 扇出的。
+`opc/agent/datasources/`（真 CLI 的对端）同样烘进基底，也没有拷贝。
+`opc/verifier/` 和 `opc/common/` 才是 `scripts/sync-tasks.sh` 扇出的。
 为什么它们要装得像公司的内部命令而不是评测夹具，见
 [设计立场 3](what-is-opc-benchmark.md#3-不让-agent-察觉自己在被考)。
 

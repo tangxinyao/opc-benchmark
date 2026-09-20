@@ -22,17 +22,31 @@
 
 所以 **JWT 换 token、TLS 校验、分页契约、错误码、batch 协议全是真的走了一遍**，只有最后一跳落在本机。这是刻意的：自造一个假 CLI 等于把连接器的真实难度（鉴权、分页、错误码）整个删掉，而那恰恰是要考的东西。
 
-## 三个数据源服务
+## 四个数据源服务
 
-唯一事实来源在 `opc/common/datasources/`，由 `scripts/sync-tasks.sh` 按 opt-in 条件下发到题目的 `environment/lib/`，**改名**下发：
+实现在 `opc/agent/datasources/`，**烘进 agent 基础镜像**的 `/opt/opc/lib`，题目录里没有拷贝：
 
-| 事实来源 | 下发后 | 触发条件 | 对端 | 端口 |
-|---|---|---|---|---|
-| `dws_fixture_server.py` | `lib/datasource_server.py` | 有 `data/dingtalk.json` | `dws` CLI | 18080（MCP over HTTP JSON-RPC） |
-| `gws_fixture_server.py` | `lib/workspace_server.py` | 有 `data/workspace.json` | `gam` | 443（discovery 的 rootUrl 写死） |
-| `stripe_fixture_server.py` | `lib/billing_server.py` | 有 `data/stripe.json` | `stripe` CLI | 443（CLI 认 `api.stripe.com`） |
+| 实现 | 对端 | 端口 | `OPC_SERVICES` 里叫 |
+|---|---|---|---|
+| `dws_fixture_server.py` | `dws` CLI | 18080（MCP over HTTP JSON-RPC） | `datasource` |
+| `gws_fixture_server.py` | `gam` | 443（discovery 的 rootUrl 写死） | `workspace` |
+| `stripe_fixture_server.py` | `stripe` CLI | 443（CLI 认 `api.stripe.com`） | `billing` |
+| `aliyun_fixture_server.py` | `aliyun` CLI | 443（按 Host 头分流，兼做 CDN 边缘） | `cloud` |
 
-它们**单独一个源目录**，和烘进基础镜像的 `opc/agent/bin/` 分开——`/opt/opc/bin` 在 agent 的 PATH 上，混进去等于把认证逻辑、fixture 路径和错误形状白送出去。目录边界就是这条硬约束，不靠文件名约定。
+**起哪些由题目声明，不看文件在不在。** 题目在 `environment/Dockerfile` 里写
+`ENV OPC_SERVICES="billing"`（空格分隔可多个），entrypoint 照着起。自带
+`entrypoint.sh` 的题直接写死要起的那个，不用这个变量。
+
+以前这四份是 `scripts/sync-tasks.sh` 按 opt-in 拷到题目的 `environment/lib/` 的，
+而且**改名**下发：`dws_fixture_server.py` → `lib/datasource_server.py`，四个全这样。
+于是同一个文件在三处三个名字，`grep dws_fixture_server tasks/` 一条都搜不到。
+省下的只是给用不上的题少塞几十 KB 只读文件——四份都是通用机制，故障注入与语料
+全在 `/opt/opc/data`（`opcsvc:opcsvc 0700`，agent 读不到），多读几份源码拿不到
+任何一道题的答案。不划算，所以烘进基底、删掉扇出层。
+
+它们**不进 `/opt/opc/bin`**：那个目录在 agent 的 PATH 上，混进去等于把认证逻辑、
+fixture 路径和错误形状摆到它面前。落 `/opt/opc/lib`（`opcsvc:opc`，目录 `0550`、
+文件 `0440`），由 entrypoint 经 `sudo -u opcsvc` 拉起。
 
 外发邮件那一路不是自研服务：对端是真 `mailpit`，由 `opc-svc-start mailpit` 拉起，收走所有外发信，落 `/var/lib/opc/mailpit.db`。
 

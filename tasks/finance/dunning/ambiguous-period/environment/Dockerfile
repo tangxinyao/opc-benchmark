@@ -12,7 +12,6 @@ WORKDIR /app
 COPY invoices.json billing-policy.md owner-note.md /app/
 # 计费语料归 opcsvc：agent 读不到，只能经真 stripe CLI 走接口
 COPY data/ /opt/opc/data/
-COPY lib/ /opt/opc/lib/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 老板的应答表。clarify 的回复由它决定，不由前端决定——
 # 同一个问题两次跑必须拿到同一句话，否则这道题的方差里混的是运气。
@@ -29,9 +28,7 @@ RUN chmod +x /opt/opc/entrypoint.sh \
  && mkdir -p /var/mail/support/cur /var/mail/support/new /var/mail/support/tmp \
  && chown -R opc:opc /app /var/mail/support \
  && chown -R opcsvc:opcsvc /opt/opc/data \
- && chown -R opcsvc:opc /opt/opc/lib \
  && chmod 0700 /opt/opc/data \
- && chmod 0550 /opt/opc/lib
 ENV PATH="/opt/opc/bin:${PATH}" \
     OPC_CLARIFY_SCRIPT=/opt/opc/clarify.json
 

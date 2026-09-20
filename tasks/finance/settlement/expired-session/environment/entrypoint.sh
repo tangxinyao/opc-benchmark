@@ -8,21 +8,22 @@
 set -eu
 
 
-if [ -f /opt/opc/lib/datasource_server.py ]; then
-  sudo -n -u opcsvc /usr/local/bin/opc-svc-start datasource >/var/log/opc-datasource.log 2>&1 &
+# 这道题固定要 datasource 这一个数据源，直接起。
+# （以前这里守「实现文件在不在」，那是数据源按题扇出时代的判据；
+#   现在四份实现都烘在基底里，每题都在，守它没有意义。）
+sudo -n -u opcsvc /usr/local/bin/opc-svc-start datasource >/var/log/opc-datasource.log 2>&1 &
 
-  # 等端口起来再放行，否则 agent 第一条命令可能撞上 connection refused
-  port="${OPC_DWS_FIXTURE_PORT:-18080}"
-  i=0
-  while [ "$i" -lt 30 ]; do
-    if python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.2); sys.exit(s.connect_ex(('127.0.0.1', $port)))" 2>/dev/null; then
-      break
-    fi
-    # 服务起不来时别空转——原来这里没有间隔，一旦失败就是 100 次忙等
-    sleep 1
-    i=$((i + 1))
-  done
-fi
+# 等端口起来再放行，否则 agent 第一条命令可能撞上 connection refused
+port="${OPC_DWS_FIXTURE_PORT:-18080}"
+i=0
+while [ "$i" -lt 30 ]; do
+  if python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.2); sys.exit(s.connect_ex(('127.0.0.1', $port)))" 2>/dev/null; then
+    break
+  fi
+  # 服务起不来时别空转——原来这里没有间隔，一旦失败就是 100 次忙等
+  sleep 1
+  i=$((i + 1))
+done
 
 # 企业应用的长期凭证已配置，换成本地登录态。
 if [ -n "${DINGTALK_ACCESS_TOKEN:-}" ]; then

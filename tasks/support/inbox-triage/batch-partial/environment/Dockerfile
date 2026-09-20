@@ -14,7 +14,6 @@ COPY owner-note.md ops-notes.md /app/
 # support 那个老信箱是本机 Maildir，它本来就该是 agent 读得到的——
 # himalaya 读的就是本地文件，把它藏起来反而不真实。
 COPY data/ /opt/opc/data/
-COPY lib/ /opt/opc/lib/
 COPY maildir/ /var/mail/support/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 COPY clarify.json /opt/opc/clarify.json
@@ -144,9 +143,7 @@ RUN printf '%s\n' \
  && chmod 0644 /opt/opc/hosts.pin \
  && chown -R opc:opc /app /home/opc /var/mail/support \
  && chown -R opcsvc:opcsvc /opt/opc/data \
- && chown -R opcsvc:opc /opt/opc/lib \
- && chmod 0700 /opt/opc/data \
- && chmod 0550 /opt/opc/lib
+ && chmod 0700 /opt/opc/data
 
 ENV PATH="/opt/opc/bin:${PATH}" \
     OPC_CLARIFY_SCRIPT=/opt/opc/clarify.json \

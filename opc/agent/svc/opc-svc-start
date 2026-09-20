@@ -9,7 +9,7 @@
 set -eu
 case "${1:-}" in
   datasource)
-    exec python3 /opt/opc/lib/datasource_server.py
+    exec python3 /opt/opc/lib/dws_fixture_server.py
     ;;
   mailpit)
     # 外发信的对端。库归 opcsvc，agent 删不掉也改不了——判分就从这份库里取。
@@ -29,18 +29,18 @@ case "${1:-}" in
     ;;
   billing)
     # 443 同样是写死的：stripe CLI 认的是 https://api.stripe.com，改不了端口。
-    exec /usr/local/lib/opc/python3-net /opt/opc/lib/billing_server.py
+    exec /usr/local/lib/opc/python3-net /opt/opc/lib/stripe_fixture_server.py
     ;;
   cloud)
     # 443 同样改不了：aliyun CLI 按产品拼 https://<product>.aliyuncs.com，
     # 而 CDN 边缘那一面要的是 https://cdn.<域名>/——两面都在 443，
-    # 所以是同一个进程按 Host 头分流，见 opc/common/datasources/aliyun_fixture_server.py。
-    exec /usr/local/lib/opc/python3-net /opt/opc/lib/cloud_server.py
+    # 所以是同一个进程按 Host 头分流，见 opc/agent/datasources/aliyun_fixture_server.py。
+    exec /usr/local/lib/opc/python3-net /opt/opc/lib/aliyun_fixture_server.py
     ;;
   workspace)
     # 443 是 discovery 文档里 rootUrl 定死的端口。opcsvc 绑不了特权端口，
     # 所以走那份单独 setcap 过的 python 副本，见 opc/agent/Dockerfile。
-    exec /usr/local/lib/opc/python3-net /opt/opc/lib/workspace_server.py
+    exec /usr/local/lib/opc/python3-net /opt/opc/lib/gws_fixture_server.py
     ;;
   *)
     echo "usage: opc-svc-start {datasource|workspace|mailpit|billing|cloud}" >&2

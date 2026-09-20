@@ -1,5 +1,5 @@
 #!/bin/sh
-# 容器启动：拉起审计收集器和企业数据源服务，并准备好 dws 的登录态。
+# 容器启动：钉 DNS、按 OPC_SERVICES 拉起数据源，并准备好 dws 的登录态。
 # harbor 用 ["sh","-c","sleep infinity"] 覆盖 CMD，但不覆盖 ENTRYPOINT，
 # 所以这里是唯一能在 agent 进来之前跑一次的地方。
 #
@@ -27,25 +27,27 @@ if [ -f /var/lib/opc/mailpit.db ]; then
   done
 fi
 
-# 计费数据源：真 stripe CLI 的对端，api.stripe.com 由 opc-pin-hosts 钉到本机。
-if [ -f /opt/opc/lib/billing_server.py ]; then
-  sudo -n -u opcsvc /usr/local/bin/opc-svc-start billing >/var/log/opc-billing.log 2>&1 &
+# 数据源：起哪些由题目在 environment/Dockerfile 里用 OPC_SERVICES 声明，
+# 空格分隔，比如 ENV OPC_SERVICES="billing"。
+#
+# 以前的判据是「/opt/opc/lib/xxx_server.py 在不在」——那时四份实现按题扇出，
+# 文件在就等于这道题要用它。现在四份全烘进基底、每题都在，那个判据会让每道题
+# 都去起四个服务，所以换成显式声明。
+#
+# 端口是为了「等它起来再放行 agent」——不等的话 agent 第一条命令可能撞上
+# connection refused，那会被判成它自己没做对。
+for svc in ${OPC_SERVICES:-}; do
+  case "$svc" in
+    billing)    port=443 ;;
+    cloud)      port=443 ;;
+    workspace)  port=443 ;;
+    datasource) port="${OPC_DWS_FIXTURE_PORT:-18080}" ;;
+    *) echo "opc-entrypoint: 未知的 OPC_SERVICES 项: $svc" >&2; exit 2 ;;
+  esac
 
-  i=0
-  while [ "$i" -lt 30 ]; do
-    if python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.2); sys.exit(s.connect_ex(('127.0.0.1', 443)))" 2>/dev/null; then
-      break
-    fi
-    sleep 1
-    i=$((i + 1))
-  done
-fi
+  sudo -n -u opcsvc /usr/local/bin/opc-svc-start "$svc" \
+    >"/var/log/opc-datasource.log" 2>&1 &
 
-if [ -f /opt/opc/lib/datasource_server.py ]; then
-  sudo -n -u opcsvc /usr/local/bin/opc-svc-start datasource >/var/log/opc-datasource.log 2>&1 &
-
-  # 等端口起来再放行，否则 agent 第一条命令可能撞上 connection refused
-  port="${OPC_DWS_FIXTURE_PORT:-18080}"
   i=0
   while [ "$i" -lt 30 ]; do
     if python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.2); sys.exit(s.connect_ex(('127.0.0.1', $port)))" 2>/dev/null; then
@@ -55,7 +57,7 @@ if [ -f /opt/opc/lib/datasource_server.py ]; then
     sleep 1
     i=$((i + 1))
   done
-fi
+done
 
 # 企业应用的长期凭证已配置，换成本地登录态。
 if [ -n "${DINGTALK_ACCESS_TOKEN:-}" ]; then

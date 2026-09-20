@@ -1,7 +1,7 @@
 #!/bin/bash
 # 把 opc/ 里的工具与判分脚手架同步到每个任务目录。
 #
-#   数据源服务     -> tasks/*/*/*/environment/lib/     （只有声明了 lib/ 的题）
+#   discovery 文档 -> tasks/*/*/*/environment/data/discovery/（声明了 workspace.json 的题）
 #   opc/common/skills/    -> tasks/*/*/*/environment/skills/  （按 skills.manifest 点名）
 #   opc/verifier/  -> tasks/*/*/*/tests/               （进判分容器）
 #
@@ -38,31 +38,17 @@ sync_task() {
   cp "$ROOT"/opc/verifier/task-tests.Dockerfile "$dest/tests/Dockerfile"
   chmod +x "$dest/tests/test.sh"
 
-  # 数据源服务：题目里那份是 opc/common/datasources/ 的拷贝，别让它自己长出第二份实现。
-  # 单独一个源目录（而不是和内部命令混在一起）是硬边界：它们绝不能进
-  # /opt/opc/bin —— 那个目录在 agent 的 PATH 上，等于把数据源的认证逻辑、
-  # fixture 路径和错误形状白送出去。只以 environment/lib/ 的身份下发，
-  # 由 entrypoint 经 sudo 以 opcsvc 拉起。
-  if [ -f "$task/environment/data/dingtalk.json" ]; then
-    mkdir -p "$dest/environment/lib"
-    cp "$ROOT"/opc/common/datasources/dws_fixture_server.py "$dest/environment/lib/datasource_server.py"
-  fi
-  # Google Workspace 数据源：同上，题目声明了 data/workspace.json 才发。
-  # 真 gam 冷启动要拉 discovery，容器里没有外网，所以本地留一份官方文档的副本。
+  # 数据源服务不在这里扇出了——四份实现烘进了 agent 基础镜像的 /opt/opc/lib，
+  # 见 opc/agent/Dockerfile。以前这里按题 opt-in 拷一份、顺手改个名
+  # （dws_fixture_server.py -> environment/lib/datasource_server.py），于是同一个
+  # 文件在三处三个名字，从题目反查实现得先知道这张映射表。
+  # 起哪些数据源改由题目的 OPC_SERVICES 声明，见 opc/agent/svc/opc-entrypoint.sh。
+  #
+  # 仍然要发的只有 discovery 文档：真 gam 冷启动要拉它，而容器里没有外网，
+  # 所以本地留一份官方文档的副本。
   if [ -f "$task/environment/data/workspace.json" ]; then
-    mkdir -p "$dest/environment/lib" "$dest/environment/data/discovery"
-    cp "$ROOT"/opc/common/datasources/gws_fixture_server.py "$dest/environment/lib/workspace_server.py"
+    mkdir -p "$dest/environment/data/discovery"
     cp "$ROOT"/opc/common/fixtures/google-discovery/*.json "$dest/environment/data/discovery/"
-  fi
-  # 计费数据源：题目声明了 data/stripe.json 才发。真 stripe CLI 的对端。
-  if [ -f "$task/environment/data/stripe.json" ]; then
-    mkdir -p "$dest/environment/lib"
-    cp "$ROOT"/opc/common/datasources/stripe_fixture_server.py "$dest/environment/lib/billing_server.py"
-  fi
-  # 阿里云数据源：题目声明了 data/aliyun.json 才发。真 aliyun CLI 的对端。
-  if [ -f "$task/environment/data/aliyun.json" ]; then
-    mkdir -p "$dest/environment/lib"
-    cp "$ROOT"/opc/common/datasources/aliyun_fixture_server.py "$dest/environment/lib/cloud_server.py"
   fi
 
   # agent skills：**按名字点名下发**，清单在 environment/skills.manifest，

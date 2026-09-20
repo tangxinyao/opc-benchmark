@@ -126,9 +126,10 @@ docker 构建上下文就是 `opc/agent/` 本身，所以判分器和语料进�
 | 运行期状态（AK 失效、桶不可写、CDN 有没有独立缓存副本、登录态过没过期） | **运行期**，fixture 服务端在 agent 进来之前往服务端日志写 `_env:<名字>`，判分器用 `preflight.assert_env_witness` 读 |
 
 `dws` / `gam` / `himalaya` / `stripe` / `aliyun` 是真 CLI，装在基础镜像，
-请求由各自的 fixture 服务端记。fixture 服务端刻意单独放 `opc/common/datasources/`：
+请求由各自的 fixture 服务端记。fixture 服务端在 `opc/agent/datasources/`，烘进基底的 `/opt/opc/lib`。
+刻意不放 `/opt/opc/bin`：
 `/opt/opc/bin` 在 agent 的 PATH 上，混进去等于把认证逻辑和错误形状白送。
-它们走 `environment/lib/`，由 entrypoint 经 `sudo -u opcsvc` 拉起，agent 够不着。
+起哪些由题目的 `OPC_SERVICES` 声明，entrypoint 经 `sudo -u opcsvc` 拉起。
 
 **为什么不放 `/app`。** 不是怕 agent 看出这是考场（`/opt/opc/bin` 它本来就读得到，
 防「看出是考场」靠的是 `check_tasks.py` 的反向检查：进容器的文件不许出现
