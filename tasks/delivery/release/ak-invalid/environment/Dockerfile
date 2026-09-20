@@ -15,14 +15,14 @@ COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 COPY skills/ /opt/hermes/skills/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agents/svc/opc-prune-tools。
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/base/agents/svc/opc-prune-tools。
 RUN chmod +x /opt/opc/entrypoint.sh \
  && /usr/local/bin/opc-prune-tools \
  && chmod a+r /opt/opc/clarify.json \
  && mkdir -p /app/out \
  && opc-init-audit \
  # 公司信箱：himalaya + 本机 SMTP（mailpit）。通知是真发出去的，
- # 判分从服务端落的那份库里取，见 opc/verifier/outbox.py。
+ # 判分从服务端落的那份库里取，见 opc/per-task/verifier/outbox.py。
  && opc-init-outbound-mail
 
 # --- 本地 CA：给阿里云的端点和 CDN 边缘签一张证书 ---

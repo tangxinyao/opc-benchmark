@@ -75,7 +75,7 @@ scripts/sync-tasks.sh
 ## 要用 skill 的题
 
 skills **按名字点名下发**，在题目里放一份 `environment/skills.manifest`，
-一行一个，对应 `opc/skills/` 下的目录名：
+一行一个，对应 `opc/per-task/skills/` 下的目录名：
 
 ```
 obsidian
@@ -83,7 +83,7 @@ obsidian
 
 然后 `scripts/sync-tasks.sh` 会把它铺进 `environment/skills/`。
 **不点名就不发**——用不上的 skill 是纯噪声，还会诱 agent 去试不存在的工具，
-理由见 [opc/skills/README.md](../opc/skills/README.md)。
+理由见 [opc/per-task/skills/README.md](../opc/per-task/skills/README.md)。
 
 清单放在 `skills/` 外面是有意的：题目的 Dockerfile 只 `COPY skills/`，
 所以清单本身不进容器。
@@ -114,7 +114,7 @@ docstring 第一行以 `#<数字>` 开头时，那个编号会被拆进「流程
 1. 挑一道结构最接近你业务的题，复制整个任务目录
 2. 只换 `environment/` 下的语料（`vault/`、`rules/`、`data/`、`inbox/`）和题面里的具体问题。
    只读工具按语料定去留：`environment/rules/platform_rules.json` 不在，`rules` 就不会
-   出现在 agent 的 PATH 上（`opc/agents/svc/opc-prune-tools` 在构建期摘的）
+   出现在 agent 的 PATH 上（`opc/base/agents/svc/opc-prune-tools` 在构建期摘的）
 3. 判分器里改掉写死的期望值（合同号、费率、金额）
 4. `scripts/smoke.sh` 跑通。带 `environment/entrypoint.sh` 的题它会跳过——
    那类题的环境要在 agent 进来之前立起来（拉服务、摆权限、换登录态、删二进制），
@@ -128,7 +128,7 @@ docstring 第一行以 `#<数字>` 开头时，那个编号会被拆进「流程
 `5%`、合同号、90000 这些全部失效，判分只能退回去让模型当裁判——那是这个仓库拒绝的东西。
 
 **差分判分**绕开这一点：不预设答案，判分器用同一套凭证调同一个真 API 现场取真值，再比对。
-声明方式见 `configs/task-template.toml` 的 `[metadata.opc]`，骨架在 `opc/verifier/oracle.py`。
+声明方式见 `configs/task-template.toml` 的 `[metadata.opc]`，骨架在 `opc/per-task/verifier/oracle.py`。
 
 三条硬约束（前两条 `make lint` 会check）：
 
@@ -158,7 +158,7 @@ docstring 第一行以 `#<数字>` 开头时，那个编号会被拆进「流程
 
 ## 加一个新的 provider
 
-改 `opc/agents/providers.py`：加前缀、base_url 默认值、key 环境变量，
+改 `opc/base/agents/providers.py`：加前缀、base_url 默认值、key 环境变量，
 并在 `tests/test_providers.py` 里补上路由测试。
 
 **不要加兜底。** 现在不在表里的 provider 直接报错，这是故意的——
@@ -166,10 +166,10 @@ docstring 第一行以 `#<数字>` 开头时，那个编号会被拆进「流程
 
 ## 加一个新的 agent
 
-`opc/agents/` 一个子模块一种 agent。新 agent 需要：
+`opc/base/agents/` 一个子模块一种 agent。新 agent 需要：
 
 1. 一个 harbor 适配器（照 `hermes.py` 的样子写，`install()` 只做存在性校验）
-2. 一个预烘好它的基础镜像（照 `opc/agents/Dockerfile`）
+2. 一个预烘好它的基础镜像（照 `opc/base/agents/Dockerfile`）
 3. 在 `Makefile` 里加构建目标
 
 **别在 `install()` 里装东西。** 运行时装包意味着每道题每次 trial 都联一次网，
@@ -182,8 +182,8 @@ make check                    # lint + unit + smoke，不需要 Docker
 scripts/validate.sh           # 需要 Docker，在真容器里再验一遍
 ```
 
-改了 `opc/datasources/` 或 `opc/verifier/` 的话，先 `scripts/sync-tasks.sh`；
-改了 `opc/bin/`、`opc/pylib/`、`opc/etc/` 的话，要重建基础镜像 `make image`
+改了 `opc/per-task/datasources/` 或 `opc/per-task/verifier/` 的话，先 `scripts/sync-tasks.sh`；
+改了 `opc/base/bin/`、`opc/base/pylib/`、`opc/base/etc/` 的话，要重建基础镜像 `make image`
 同步到各任务目录，否则你改的是源、跑的是旧副本。
 
 ## 预检题：动手之前的那一步
@@ -196,7 +196,7 @@ scripts/validate.sh           # 需要 Docker，在真容器里再验一遍
 
 | 要什么 | 用什么 | 在哪 |
 |---|---|---|
-| 前置失败/补救/编造/绕行的公共断言 | `import preflight` | `opc/verifier/preflight.py`，`sync-tasks.sh` 铺进每道题的 `tests/` |
+| 前置失败/补救/编造/绕行的公共断言 | `import preflight` | `opc/per-task/verifier/preflight.py`，`sync-tasks.sh` 铺进每道题的 `tests/` |
 | 「环境此刻是坏的」这条事实 | `_record-env <事实名> ok\|fail [说明]` | 在 `environment/entrypoint.sh` 里调，agent 进来之前就写死 |
 | 「agent 敲了个不存在的命令」 | `BASH_ENV=/opt/opc/bashenv.sh` | 挂 `command_not_found_handle`，留痕后照常 127 |
 | 「该问老板而没问」 | `environment/clarify.json` 应答表 + `OPC_CLARIFY_SCRIPT` | 判三段：问没问 / 命中的是不是那条规则 / 有没有照答复做。歧义可以长在业务口径上（`dunning`），也可以长在工具与数据源的选择上（`mail`：两个信箱都能给出答案） |

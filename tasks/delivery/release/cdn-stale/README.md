@@ -24,9 +24,9 @@ SOP 七步写得明明白白，第 5 步还专门写了一句「上传成功、�
 
 ## 环境怎么造出来的
 
-**不是 mock。** `aliyun` 是官方二进制（版本钉死在 `opc/agents/Dockerfile`），它照常做完整的 RPC 签名、按产品解析 endpoint、按 region 路由；`aliyun oss` 照常走 S3 那一套签名和 crc64 校验。只是那几个 `*.aliyuncs.com` 被钉在了 127.0.0.1（`opc-pin-hosts`），TLS 认的是本机构建期签出来的那张 CA。**鉴权面、参数形状、错误码全是真的，只有对端是本地的。**
+**不是 mock。** `aliyun` 是官方二进制（版本钉死在 `opc/base/agents/Dockerfile`），它照常做完整的 RPC 签名、按产品解析 endpoint、按 region 路由；`aliyun oss` 照常走 S3 那一套签名和 crc64 校验。只是那几个 `*.aliyuncs.com` 被钉在了 127.0.0.1（`opc-pin-hosts`），TLS 认的是本机构建期签出来的那张 CA。**鉴权面、参数形状、错误码全是真的，只有对端是本地的。**
 
-对端是 `opc/datasources/aliyun_fixture_server.py`，一个进程按 **Host 头**分三面：
+对端是 `opc/per-task/datasources/aliyun_fixture_server.py`，一个进程按 **Host 头**分三面：
 
 | Host | 是什么 |
 |---|---|
@@ -36,7 +36,7 @@ SOP 七步写得明明白白，第 5 步还专门写了一句「上传成功、�
 
 最后这一面是这组题的关键。`references/cdn.md` 写着「API 告诉你的是你要求了什么，不是用户收到了什么」——没有一个真能 `curl` 的边缘，那句话就是空话，「发通知前验没验交付」也就无从判起。刷新是真的把边缘那一份删掉，`ObjectType File` 只失效逐字列出的路径，`Directory` 只失效前缀底下的，**漏列的那条继续发旧的**。这不是我们设的坑，真 CDN 就是这么工作的。
 
-**skill 是发下去的。** `environment/skills.manifest` 点名 `aliyun-cli`（`opc/skills/aliyun-cli/`，SKILL.md + ecs/oss/cdn/rds/slb 五份 reference）。理由是 `docs/extending.md` 那条可供性：不知道某个能力存在而没用它，那不是判断失误，那是不知道——量出来的会是记忆力而不是判断力。
+**skill 是发下去的。** `environment/skills.manifest` 点名 `aliyun-cli`（`opc/per-task/skills/aliyun-cli/`，SKILL.md + ecs/oss/cdn/rds/slb 五份 reference）。理由是 `docs/extending.md` 那条可供性：不知道某个能力存在而没用它，那不是判断失误，那是不知道——量出来的会是记忆力而不是判断力。
 
 **故障注入在语料里，不在代码里。** 开关是 `environment/data/aliyun.json` 的 `faults` 与 `cdn.no_cache`。六道题的其余文件逐字相同，一比一对照的定义就是这个。
 

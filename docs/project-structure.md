@@ -12,22 +12,30 @@ tasks/<职能>/<活>/<案例>/   # 题目。职能=六个之一，活=一件差�
 └── tests/                  #   判分容器
     ├── Dockerfile          #     FROM 判分基础镜像，pytest 已烘好
     ├── test.sh             #     入口，把 0/1 写进 /logs/verifier/reward.txt
-    ├── preflight.py        #     预检题的公共断言（由 opc/verifier/ 同步而来）
+    ├── preflight.py        #     预检题的公共断言（由 opc/per-task/verifier/ 同步而来）
     └── test_state.py       #     判分器，真正的尺子
 opc/                        # 本仓库自己的代码（题目在 tasks/，不在这里）
-├── agents/                 #   Harbor 适配器 + agent 基础镜像
-├── bin/                    #   agent 会敲的命令（烘进基础镜像 -> /opt/opc/bin，在 PATH 上）
-├── pylib/                  #   被 import 的包 opc_internal（烘进基底 -> /opt/opc/pylib，PYTHONPATH）
-├── etc/                    #   被 source 的（烘进基底 -> /opt/opc/bashenv.sh，BASH_ENV）
-├── datasources/            #   真 CLI 的对端 fixture（按 opt-in 同步到 environment/lib/）
-├── skills/                 #   vendor 来的 agent skills（按 skills.manifest 点名下发）
-└── verifier/               #   进判分容器的东西（同步到 tasks/*/*/*/tests/）
+├── base/                   # 【全仓一份，烘进基底镜像】改了要 make image
+│   ├── agents/             #   Harbor 适配器 + 基底 Dockerfile + svc 流程脚本
+│   ├── bin/                #   agent 会敲的命令（-> /opt/opc/bin，在 PATH 上）
+│   ├── pylib/              #   被 import 的包 opc_internal（-> /opt/opc/pylib，PYTHONPATH）
+│   └── etc/                #   被 source 的（-> /opt/opc/bashenv.sh，BASH_ENV）
+└── per-task/               # 【每道题一份，扇出到 tasks/】改了要 sync-tasks.sh
+    ├── datasources/        #   真 CLI 的对端 fixture（按 opt-in -> environment/lib/）
+    ├── fixtures/           #   语料（合同库、discovery 文档 -> environment/）
+    ├── skills/             #   vendor 来的 agent skills（按 skills.manifest 点名下发）
+    └── verifier/           #   进判分容器的东西（-> tasks/*/*/*/tests/）
 
-bin/pylib/etc 三分的依据是「它是不是一条命令」，不是用什么语言写的——
+一级分法是**交付路径**：base/ 构建期烘进镜像，per-task/ 由 sync-tasks.sh 按题下发。
+这条线同时是两条命令的分界——改了 base/ 跑 make image，改了 per-task/ 跑 make lint
+（含 sync-tasks.sh --check）。docker 构建上下文就是 opc/base/ 本身，所以判分器和
+语料进不了 agent 镜像靠的是目录边界，不是一条会静默失配的 .dockerignore 规则。
+
+base/ 内部再分三个落点，依据是「它是不是一条命令」，不是用什么语言写的——
 rules 是 Python 写的命令，所以它没有 .py 后缀。实现收在 pylib/opc_internal/ 包里
 而不是摊在 bin/，因为 /opt/opc/bin 在 agent 的 PATH 上、ls 就看得见。
 流程脚本（opc-entrypoint.sh / opc-prune-tools）不在这三个里：agent 永远不该调，
-所以跟其余 svc 脚本一起在 agents/svc/，落 /usr/local/bin。
+所以跟其余 svc 脚本一起在 base/agents/svc/，落 /usr/local/bin。
 configs/                    # 所有配置文件。jobs/ 是产物，其余是手改的输入
 ├── policy.toml             #   全仓库默认跑法，gen_job_configs.py 读
 ├── task-template.toml      #   新建题的元数据模板，harbor tasks init 读
@@ -47,7 +55,7 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 |---|---|
 | `rules show <平台> [--at 日期]` | 平台分成规则（带版本，可按日期取） |
 | `opc-prune-tools` | 构建期脚本，不进 agent 的 PATH。语料不存在的只读工具（现在只剩 `rules`）在这里被摘掉，免得留一条一跑就炸的死命令 |
-| `stripe` | Stripe 官方 CLI（版本钉死）。退款是不可逆动作，边界题里是陷阱 | `opc/datasources/stripe_fixture_server.py`，`api.stripe.com` 钉到本机 |
+| `stripe` | Stripe 官方 CLI（版本钉死）。退款是不可逆动作，边界题里是陷阱 | `opc/per-task/datasources/stripe_fixture_server.py`，`api.stripe.com` 钉到本机 |
 | `himalaya` | 真 IMAP/SMTP 客户端。读本机 Maildir，发本机 SMTP | 对端是 mailpit，外发的信落在 `/var/lib/opc/mailpit.db`，判分读它 |
 
 只读检索这一侧尽量用**真二进制**，不自己造壳（选型见
@@ -55,14 +63,14 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 
 | 命令 | 真实身份 | 对端 |
 |---|---|---|
-| `dws` | 钉钉官方 workspace CLI（版本钉死） | `opc/datasources/dws_fixture_server.py`，MCP over HTTP |
-| `gam` | GAMADV-XTD3（Google Workspace 的事实标准 CLI） | `opc/datasources/gws_fixture_server.py`：真 TLS、真服务账号 JWT、真 discovery 与 batch，只是 `*.googleapis.com` 被 `opc-pin-hosts` 钉到本机 |
+| `dws` | 钉钉官方 workspace CLI（版本钉死） | `opc/per-task/datasources/dws_fixture_server.py`，MCP over HTTP |
+| `gam` | GAMADV-XTD3（Google Workspace 的事实标准 CLI） | `opc/per-task/datasources/gws_fixture_server.py`：真 TLS、真服务账号 JWT、真 discovery 与 batch，只是 `*.googleapis.com` 被 `opc-pin-hosts` 钉到本机 |
 | `himalaya` | 开源 IMAP/SMTP 客户端（版本钉死） | 本机 Maildir，配置在 `~/.config/himalaya/config.toml` |
 | `git` | 就是 git | 题目构建期用真 git 造的仓库 |
 
-源在 `opc/bin/`（命令）、`opc/pylib/`（被 import 的）、`opc/etc/`（被 source 的），
+源在 `opc/base/bin/`（命令）、`opc/base/pylib/`（被 import 的）、`opc/base/etc/`（被 source 的），
 **烘进 agent 基础镜像**，改完要 `make image` 重建基底——题目录里没有它们的拷贝。
-`opc/datasources/` 和 `opc/verifier/` 才是 `scripts/sync-tasks.sh` 扇出的。
+`opc/per-task/datasources/` 和 `opc/per-task/verifier/` 才是 `scripts/sync-tasks.sh` 扇出的。
 为什么它们要装得像公司的内部命令而不是评测夹具，见
 [设计立场 3](what-is-opc-benchmark.md#3-不让-agent-察觉自己在被考)。
 
@@ -74,7 +82,7 @@ harbor 那层绕不过去，但它**不负责算分**。`harbor.verifier` 干的
 
 ```
 harbor.verifier  →  tests/test.sh  →  pytest /tests/test_state.py  →  reward.txt
-   （harbor 的）      （opc/verifier/）        （每道题自己的判分断言）
+   （harbor 的）      （opc/per-task/verifier/）        （每道题自己的判分断言）
 ```
 
 几件容易误会的事：
@@ -97,8 +105,8 @@ harbor.verifier  →  tests/test.sh  →  pytest /tests/test_state.py  →  rewa
 
 | 镜像 | 谁用 | 烘了什么 |
 |---|---|---|
-| `opc/agents/Dockerfile` | agent 容器（任务 `environment/Dockerfile` 的基底） | hermes 及其依赖 |
-| `opc/verifier/Dockerfile` | 判分容器（任务 `tests/Dockerfile` 的基底） | pytest、pytest-json-ctrf |
+| `opc/base/agents/Dockerfile` | agent 容器（任务 `environment/Dockerfile` 的基底） | hermes 及其依赖 |
+| `opc/per-task/verifier/Dockerfile` | 判分容器（任务 `tests/Dockerfile` 的基底） | pytest、pytest-json-ctrf |
 
 判分那个尤其不能省。`verifier.environment_mode = "separate"` 意味着判分跑在自己的容器里，
 如果 pytest 是在 `test.sh` 里现装的：每道题每次 trial 都要联一次网，判分变慢还会因
@@ -109,12 +117,12 @@ PyPI 抖动而假失败；版本在 trial 时才解析，两次跑分用的可�
 
 ## agent 适配器
 
-`opc/agents/hermes.py` 是自己写的，和 harbor 自带的那个 hermes 适配器有三点不同：
+`opc/base/agents/hermes.py` 是自己写的，和 harbor 自带的那个 hermes 适配器有三点不同：
 
 1. **`install()` 不装东西。** hermes 和依赖全部预烘进基础镜像，install 只做一次存在性校验，
    镜像不对时在 setup 阶段就失败，而不是烧掉任务启动时间之后在 run 中途失败。
    镜像可信、想省掉这次 exec：`--ak assume_installed=true`。
-2. **只路由三个 provider，没有 OpenRouter 兜底**（`opc/agents/providers.py`）：
+2. **只路由三个 provider，没有 OpenRouter 兜底**（`opc/base/agents/providers.py`）：
 
    | provider 前缀 | base_url 默认值 | key 环境变量 |
    |---|---|---|
@@ -139,7 +147,7 @@ prompt_toolkit 的一个 modal——容器里没人按键，于是每问一次�
 两件事都不能留着：一次提问吃掉 600 秒预算的五分之一，而那句超时语是在往
 「别问了自己拍板」的方向推——恰好是 `email/pressure-demand` 想测的失败形态。
 
-基础镜像里把它改接到一份应答表上（`opc/agents/clarify/`）：
+基础镜像里把它改接到一份应答表上（`opc/base/agents/clarify/`）：
 
 | 文件 | 作用 |
 |---|---|

@@ -8,11 +8,11 @@
 
 | 工具 | 是什么 | 版本钉在哪 |
 |---|---|---|
-| `dws` | 钉钉官方 CLI | `opc/agents/Dockerfile`（v1.0.60，gitee 镜像） |
-| `gam` | GAMADV-XTD3，真 Google Workspace 客户端 | `opc/agents/Dockerfile` |
-| `stripe` | Stripe 官方 CLI | `opc/agents/Dockerfile` |
-| `himalaya` | 真 IMAP/SMTP 客户端 | `opc/agents/Dockerfile` |
-| `git` | 发行版自带 | `opc/agents/Dockerfile` |
+| `dws` | 钉钉官方 CLI | `opc/base/agents/Dockerfile`（v1.0.60，gitee 镜像） |
+| `gam` | GAMADV-XTD3，真 Google Workspace 客户端 | `opc/base/agents/Dockerfile` |
+| `stripe` | Stripe 官方 CLI | `opc/base/agents/Dockerfile` |
+| `himalaya` | 真 IMAP/SMTP 客户端 | `opc/base/agents/Dockerfile` |
+| `git` | 发行版自带 | `opc/base/agents/Dockerfile` |
 
 被换掉的只有**对端**。做法统一是三步：
 
@@ -24,7 +24,7 @@
 
 ## 三个数据源服务
 
-唯一事实来源在 `opc/datasources/`，由 `scripts/sync-tasks.sh` 按 opt-in 条件下发到题目的 `environment/lib/`，**改名**下发：
+唯一事实来源在 `opc/per-task/datasources/`，由 `scripts/sync-tasks.sh` 按 opt-in 条件下发到题目的 `environment/lib/`，**改名**下发：
 
 | 事实来源 | 下发后 | 触发条件 | 对端 | 端口 |
 |---|---|---|---|---|
@@ -32,7 +32,7 @@
 | `gws_fixture_server.py` | `lib/workspace_server.py` | 有 `data/workspace.json` | `gam` | 443（discovery 的 rootUrl 写死） |
 | `stripe_fixture_server.py` | `lib/billing_server.py` | 有 `data/stripe.json` | `stripe` CLI | 443（CLI 认 `api.stripe.com`） |
 
-它们**单独一个源目录**，和烘进基础镜像的 `opc/bin/` 分开——`/opt/opc/bin` 在 agent 的 PATH 上，混进去等于把认证逻辑、fixture 路径和错误形状白送出去。目录边界就是这条硬约束，不靠文件名约定。
+它们**单独一个源目录**，和烘进基础镜像的 `opc/base/bin/` 分开——`/opt/opc/bin` 在 agent 的 PATH 上，混进去等于把认证逻辑、fixture 路径和错误形状白送出去。目录边界就是这条硬约束，不靠文件名约定。
 
 外发邮件那一路不是自研服务：对端是真 `mailpit`，由 `opc-svc-start mailpit` 拉起，收走所有外发信，落 `/var/lib/opc/mailpit.db`。
 
@@ -52,19 +52,19 @@ agent 是 `opc`，服务是 `opcsvc`。sudoers 只放行两个目标：
 - **贵的一档（服务端写的）**：`dws` / `gam` / `stripe` 三个数据源服务、`mailpit` 落的库、`_record-missing` 的探针。agent 删不掉已经落下的行，**可以用来做正断言**。
 - **便宜的一档（agent 侧工具写的）**：`rules`、`clarify` 这些 `/opt/opc/bin` 下的命令。agent 能多写假事件，**只适合做负断言**（「没出现过」）。
 
-判分片段按这个分层写在 `opc/verifier/` 下：`preflight.py`（预检四条）、`outbox.py`（读 mailpit 库）、`billing.py`（读 stripe 服务端的 refund 行）、`oracle.py`（差分判分骨架）。
+判分片段按这个分层写在 `opc/per-task/verifier/` 下：`preflight.py`（预检四条）、`outbox.py`（读 mailpit 库）、`billing.py`（读 stripe 服务端的 refund 行）、`oracle.py`（差分判分骨架）。
 
 ## agent 侧的小工具
 
-源在 `opc/bin/` / `opc/pylib/` / `opc/etc/`，烘进基础镜像（题目录里没有拷贝），但**只有 `rules` 是 agent 会敲的命令**，其余是留痕脚手架：
+源在 `opc/base/bin/` / `opc/base/pylib/` / `opc/base/etc/`，烘进基础镜像（题目录里没有拷贝），但**只有 `rules` 是 agent 会敲的命令**，其余是留痕脚手架：
 
 - `rules` —— 平台规则/费率查询。语料不在就由 `opc-prune-tools` 在构建期从 PATH 上摘掉。
-- `opc_internal/audit.py` —— 写审计的公共模块，带脱敏。它是被 `import` 的库不是命令，所以在 `opc/pylib/`、落 `/opt/opc/pylib`（`PYTHONPATH`），不在 `bin/`。
+- `opc_internal/audit.py` —— 写审计的公共模块，带脱敏。它是被 `import` 的库不是命令，所以在 `opc/base/pylib/`、落 `/opt/opc/pylib`（`PYTHONPATH`），不在 `bin/`。
 - `_record-env` / `_record-missing` —— 由 `bashenv.sh` 的 `command_not_found_handle` 调，把「敲了个不存在的命令」记进审计。没有它，「探测过」和「压根没试就开始编」在日志上长得一模一样。
-- `opc-entrypoint.sh` / `opc-prune-tools` —— 启动与构建期脚手架。agent 永远不该调，所以在 `opc/agents/svc/`、落 `/usr/local/bin`，不在它的 PATH 上。
-- `bashenv.sh` —— 被 `BASH_ENV` source 的，不是命令，所以在 `opc/etc/`、落 `/opt/opc/bashenv.sh`。
+- `opc-entrypoint.sh` / `opc-prune-tools` —— 启动与构建期脚手架。agent 永远不该调，所以在 `opc/base/agents/svc/`、落 `/usr/local/bin`，不在它的 PATH 上。
+- `bashenv.sh` —— 被 `BASH_ENV` source 的，不是命令，所以在 `opc/base/etc/`、落 `/opt/opc/bashenv.sh`。
 
-另有 `clarify`：hermes 的提问通道，由 `opc/agents/clarify/relay.py` 接到一份按正则应答的留言表（`OPC_CLARIFY_SCRIPT`，题目的 `clarify.json`），不等真人、结果确定。
+另有 `clarify`：hermes 的提问通道，由 `opc/base/agents/clarify/relay.py` 接到一份按正则应答的留言表（`OPC_CLARIFY_SCRIPT`，题目的 `clarify.json`），不等真人、结果确定。
 
 ## 怎么确认这些供数没坏
 

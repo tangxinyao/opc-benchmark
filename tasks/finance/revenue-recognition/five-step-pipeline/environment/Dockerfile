@@ -10,7 +10,7 @@ USER root
 
 WORKDIR /app
 COPY data/ /app/data/
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agents/svc/opc-prune-tools。
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/base/agents/svc/opc-prune-tools。
 RUN /usr/local/bin/opc-prune-tools \
  && opc-init-audit \
  && chown -R opc:opc /app

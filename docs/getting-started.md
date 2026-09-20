@@ -72,7 +72,7 @@ scripts/validate.sh                                        # 7 道全跑
 ```bash
 . scripts/load-env.sh
 harbor run -p tasks/finance/settlement/platform-fee-change \
-  --agent opc.agents.hermes:Hermes -m deepseek/deepseek-flash
+  --agent opc.base.agents.hermes:Hermes -m deepseek/deepseek-flash
 ```
 
 这一步验的是前两级都验不到的：API key 有没有正确进到容器、provider 路由对不对、
@@ -100,7 +100,7 @@ make run CONFIG=configs/jobs/job-deepseek-x5.yaml    # 4 道题 × 5 遍 = 20 �
 - **最小权限。** 差分判分意味着一个任意模型拿着你的凭证联网（那些题的
   `network_mode` 必须是 `"public"`）。只读、只给必要的那一个服务。
 - **审计日志会脱敏。** `/var/lib/opc/audit.log` 记录完整 argv 且会被当 artifact 收走，
-  `opc/pylib/opc_internal/audit.py` 把 argv 和异常文本里的 key/secret/token 打码。
+  `opc/base/pylib/opc_internal/audit.py` 把 argv 和异常文本里的 key/secret/token 打码。
 
 凭证怎么从 shell 进到容器里，见[项目结构](project-structure.md#凭证怎么进到容器里)。
 

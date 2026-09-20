@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.12"
 
 dependencies = [
-    # 适配器 import 的就是它（opc/agents/hermes.py -> harbor.environments.base）。
+    # 适配器 import 的就是它（opc/base/agents/hermes.py -> harbor.environments.base）。
     # 上界钉死大版本：harbor 的 environment / verifier 接口变了，这里的适配器就得跟着改，
     # 让它静悄悄升上去等于让跑分结果静悄悄变。精确版本见 uv.lock。
     "harbor>=0.23,<0.24",
@@ -20,13 +20,13 @@ dependencies = [
 [dependency-groups]
 dev = [
     # 适配器与判分骨架的单元测试（tests/）。
-    # 注意判分器容器里的 pytest 不从这里来——那个烘在 opc/verifier/Dockerfile 里，
+    # 注意判分器容器里的 pytest 不从这里来——那个烘在 opc/per-task/verifier/Dockerfile 里，
     # 版本单独钉死，理由见那个 Dockerfile。
     "pytest>=8.4,<9",
 ]
 
 # 这个仓库不是要发布的库，但仍然要可编辑安装 opc/。
-# 原因：job config 和 --agent 传的都是 import path（opc.agents.hermes:Hermes），
+# 原因：job config 和 --agent 传的都是 import path（opc.base.agents.hermes:Hermes），
 # harbor 是 console script，sys.path[0] 是 .venv/bin 而不是 cwd，
 # 不装进 venv 的话在任何目录都 import 不到 opc。
 [build-system]

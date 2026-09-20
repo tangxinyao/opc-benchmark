@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SERVER = ROOT / "opc/datasources/dws_fixture_server.py"
+SERVER = ROOT / "opc/per-task/datasources/dws_fixture_server.py"
 VALID = "dt-corp-7b3e15d924"
 STALE = "dt-corp-9f21c4e80a"
 

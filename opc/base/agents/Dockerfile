@@ -66,7 +66,7 @@ RUN test -x /usr/local/bin/hermes \
  && chmod -R a+rX /usr/local/lib/hermes-agent
 
 # --- HERMES_HOME：配置、会话、skills 的落点 ---
-# 必须与 opc/agents/hermes.py 里的 HERMES_HOME 常量一致（make lint 会check）。
+# 必须与 opc/base/agents/hermes.py 里的 HERMES_HOME 常量一致（make lint 会check）。
 # 放 /opt 而不是上游默认的 /tmp：/tmp 在某些环境里会被清理或挂成 tmpfs。
 ENV HERMES_HOME=/opt/hermes \
     TERMINAL_ENV=local \

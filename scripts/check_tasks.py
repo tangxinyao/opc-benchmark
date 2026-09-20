@@ -39,13 +39,13 @@ TAG_VOCABULARY = {
 # 职能是路径第一段的唯一事实来源；其余分类维度一律在 tags 里，路径不许重复写。
 # 「两边都写，迟早对不上」这条没变，只是职能那一维删掉的是标签那一份。
 RESERVED_PATH_WORDS = {v for values in TAG_VOCABULARY.values() for v in values}
-# 适配器只路由这三个 provider，见 opc/agents/providers.py
+# 适配器只路由这三个 provider，见 opc/base/agents/providers.py
 SUPPORTED_PROVIDERS = ("deepseek", "antchat", "local")
 ARG_DEFAULT_RE = re.compile(r"^ARG\s+\w*BASE_IMAGE=(\S+)", re.MULTILINE)
 # task.toml 会提交进 git，所以 env 的值只能是占位符，不能是字面凭证
 ENV_PLACEHOLDER_RE = re.compile(r"^\$\{\w+\}$")
 # 只读工具 -> 它必需的语料（题目 environment/ 下的相对路径）。
-# 这张表是 opc/agents/svc/opc-prune-tools 那份的镜像：那边在构建期按同样的规则
+# 这张表是 opc/base/agents/svc/opc-prune-tools 那份的镜像：那边在构建期按同样的规则
 # 把语料缺失的工具从 PATH 上摘掉，这边保证每道题都真的调了它，
 # 并且 solve.sh 不会去用一条注定被摘掉的命令。
 FIXTURE_BACKED_TOOLS = {"rules": "rules/platform_rules.json"}
@@ -232,7 +232,7 @@ def check_score_table(task: Path, rel: Path) -> list[str]:
 def check_dead_tools(task: Path, rel: Path) -> list[str]:
     """只读工具必须有语料撑着，否则一跑就是 FileNotFoundError。
 
-    opc/bin/ 是烘进基础镜像、每道题都有的，但 rules 的全部意义就是读它那份语料。
+    opc/base/bin/ 是烘进基础镜像、每道题都有的，但 rules 的全部意义就是读它那份语料。
     语料不在还留在 PATH 上，agent 会花预算去试，试完还得自己判断
     「是环境坏了还是知识库空了」——白送的混淆，不是题要考的东西。
     构建期由 opc-prune-tools 摘掉；这里只保证每道题都调了它。
@@ -434,8 +434,8 @@ def check_repo() -> list[str]:
 
     # HERMES_HOME 在镜像和适配器里必须是同一个值。改一边不改另一边，
     # 适配器的 install 自检会在真容器里才失败——那时已经烧掉了构建时间。
-    dockerfile = (ROOT / "opc/agents/Dockerfile").read_text(encoding="utf-8")
-    adapter = (ROOT / "opc/agents/hermes.py").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "opc/base/agents/Dockerfile").read_text(encoding="utf-8")
+    adapter = (ROOT / "opc/base/agents/hermes.py").read_text(encoding="utf-8")
     image_home = re.search(r"HERMES_HOME=(\S+)", dockerfile)
     adapter_home = re.search(r'^HERMES_HOME = "([^"]+)"', adapter, re.MULTILINE)
     if not image_home or not adapter_home:
@@ -448,7 +448,7 @@ def check_repo() -> list[str]:
 
     # 两张表必须同步：lint 这边的 FIXTURE_BACKED_TOOLS 和构建期真正干活的
     # opc-prune-tools。只改一边，lint 会给出「都过了」的假绿灯。
-    prune = (ROOT / "opc/agents/svc/opc-prune-tools").read_text(encoding="utf-8")
+    prune = (ROOT / "opc/base/agents/svc/opc-prune-tools").read_text(encoding="utf-8")
     pruned = set(re.findall(r"^prune (\w+)", prune, re.MULTILINE))
     if pruned != set(FIXTURE_BACKED_TOOLS):
         problems.append(

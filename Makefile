@@ -21,10 +21,10 @@ image:  ## agent 基础镜像（hermes 预烘）
 	docker build \
 	  --build-arg HERMES_VERSION=$(HERMES_VERSION) \
 	  --build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
-	  -f opc/agents/Dockerfile -t $(IMAGE) opc
+	  -f opc/base/agents/Dockerfile -t $(IMAGE) opc/base
 
 verifier-image:  ## 判分基础镜像（pytest 预烘）
-	docker build -f opc/verifier/Dockerfile -t $(VERIFIER_IMAGE) opc/verifier
+	docker build -f opc/per-task/verifier/Dockerfile -t $(VERIFIER_IMAGE) opc/per-task/verifier
 
 configs:  ## 由 task.toml 的 [metadata.opc] 生成 harbor job config
 	$(UV_RUN) python scripts/gen_job_configs.py

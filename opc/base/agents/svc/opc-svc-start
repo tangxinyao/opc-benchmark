@@ -38,12 +38,12 @@ case "${1:-}" in
   cloud)
     # 443 同样改不了：aliyun CLI 按产品拼 https://<product>.aliyuncs.com，
     # 而 CDN 边缘那一面要的是 https://cdn.<域名>/——两面都在 443，
-    # 所以是同一个进程按 Host 头分流，见 opc/datasources/aliyun_fixture_server.py。
+    # 所以是同一个进程按 Host 头分流，见 opc/per-task/datasources/aliyun_fixture_server.py。
     exec /usr/local/lib/opc/python3-net /opt/opc/lib/cloud_server.py
     ;;
   workspace)
     # 443 是 discovery 文档里 rootUrl 定死的端口。opcsvc 绑不了特权端口，
-    # 所以走那份单独 setcap 过的 python 副本，见 opc/agents/Dockerfile。
+    # 所以走那份单独 setcap 过的 python 副本，见 opc/base/agents/Dockerfile。
     exec /usr/local/lib/opc/python3-net /opt/opc/lib/workspace_server.py
     ;;
   *)
