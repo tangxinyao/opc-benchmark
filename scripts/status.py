@@ -33,22 +33,54 @@ def load(path: Path) -> dict:
         return {}
 
 
-def reward_of(trial: dict):
-    """harbor 版本之间 verifier_result 的形状变过，所以按几个常见键找。"""
-    vr = trial.get("verifier_result") or {}
-    for key in ("reward", "score", "value"):
-        if isinstance(vr.get(key), (int, float)):
-            return vr[key]
-    metrics = vr.get("metrics")
-    if isinstance(metrics, dict):
-        for key in ("reward", "score"):
-            if isinstance(metrics.get(key), (int, float)):
-                return metrics[key]
+def _primary_reward(rewards) -> float | None:
+    """照抄 harbor 自己的取法，别另发明一套。
+
+    见 harbor/cli/jobs.py:_primary_reward —— VerifierResult 只有 `rewards`
+    一个字段，是个 {名字: 数} 的**字典**，不是标量：优先取 "reward" 这个键，
+    只有一项时就取那一项，其余情况说不清是哪个,返回 None。
+    """
+    if not isinstance(rewards, dict) or not rewards:
+        return None
+    if isinstance(rewards.get("reward"), (int, float)):
+        return float(rewards["reward"])
+    if len(rewards) == 1:
+        only = next(iter(rewards.values()))
+        if isinstance(only, (int, float)):
+            return float(only)
     return None
 
 
-def classify(trial: dict) -> tuple[str, str]:
-    """返回 (状态, 备注)。"""
+def reward_of(trial: dict):
+    """返回 (reward, 说明)。reward 为 None 时说明里写清是哪一步断的。"""
+    vr = trial.get("verifier_result")
+    if isinstance(vr, dict):
+        reward = _primary_reward(vr.get("rewards"))
+        if reward is not None:
+            return reward, ""
+
+    # 多步题不在 trial 顶层记 verifier_result，而是每步各记一份。
+    for step in trial.get("step_results") or []:
+        if not isinstance(step, dict):
+            continue
+        svr = step.get("verifier_result")
+        if isinstance(svr, dict):
+            reward = _primary_reward(svr.get("rewards"))
+            if reward is not None:
+                return reward, f"（取自步骤 {step.get('step_name', '?')}）"
+
+    if vr is None:
+        return None, "没有 verifier_result（判分没跑到，多半是被中断）"
+    return None, f"verifier_result.rewards 取不到数：{vr.get('rewards')!r}"
+
+
+def classify(trial: dict, agent: str = "") -> tuple[str, str]:
+    """返回 (状态, 备注)。
+
+    oracle / nop 这两个基线 agent 要按**这道题的尺子成不成立**来读，
+    不是按分数高低：oracle 必须满分、nop 必须零分（见 scripts/validate.sh）。
+    nop 拿 0 分是**对的**，照着分数报一个 FAIL 会让人以为题坏了。
+    """
     exc = trial.get("exception_info")
     if exc:
         kind = exc.get("exception_type", "Error")
@@ -56,12 +88,20 @@ def classify(trial: dict) -> tuple[str, str]:
         head = msg[0][:60] if msg else ""
         return "ERR ", f"{kind}: {head}"
 
-    reward = reward_of(trial)
+    reward, note = reward_of(trial)
     if reward is None:
-        return "?   ", "没有 verifier_result（可能被中断）"
+        return "?   ", note
+
+    if agent == "oracle":
+        return ("PASS", note) if reward >= 1 else (
+            "BAD ", f"oracle 只拿到 {reward:g}，解法或判分器对不上 {note}".strip())
+    if agent == "nop":
+        return ("PASS", f"nop=0，符合预期 {note}".strip()) if reward <= 0 else (
+            "BAD ", f"nop 拿到 {reward:g}，这道题量不出东西 {note}".strip())
+
     if reward >= 1:
-        return "PASS", ""
-    return "FAIL", f"reward={reward}"
+        return "PASS", note
+    return "FAIL", f"reward={reward:g} {note}".strip()
 
 
 def agent_of(trial: dict) -> str:
@@ -79,9 +119,10 @@ def report(job_dir: Path) -> int:
     rows = []
     for path in trials:
         t = load(path)
-        status, note = classify(t)
+        agent = agent_of(t)
+        status, note = classify(t, agent)
         rows.append((status, t.get("task_name", path.parent.name),
-                     agent_of(t), note))
+                     agent, note))
 
     width = max(len(r[1]) for r in rows)
     print(f"\n{job_dir}  （{len(rows)} 个 trial）\n")
@@ -117,7 +158,10 @@ def main() -> int:
     if args.all:
         for d in jobs:
             trials = list(d.glob("*/result.json"))
-            states = [classify(load(p))[0].strip() for p in trials]
+            states = []
+            for p in trials:
+                t = load(p)
+                states.append(classify(t, agent_of(t))[0].strip())
             tally = {s: states.count(s) for s in sorted(set(states))}
             summary = " ".join(f"{k}={v}" for k, v in tally.items()) or "空"
             print(f"{d.name}  {len(trials):>3} trial  {summary}")
