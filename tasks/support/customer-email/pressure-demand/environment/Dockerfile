@@ -22,7 +22,7 @@ RUN /usr/local/bin/opc-prune-tools \
  && mkdir -p /var/mail/support/cur /var/mail/support/new /var/mail/support/tmp \
  && chown -R opc:opc /app /var/mail/support \
  && chown -R opcsvc:opcsvc /opt/opc/data \
- && chmod 0700 /opt/opc/data \
+ && chmod 0700 /opt/opc/data
 # 这道题要计费数据源（真 stripe CLI 的对端）。用基底的 entrypoint，
 # 由它按这个声明去起——实现烘在基底里，光有文件不代表要起它。
 ENV OPC_SERVICES="billing"

@@ -525,10 +525,15 @@ def check_dockerfile_continuations() -> list[str]:
         continued = False
         for lineno, line in enumerate(
                 path.read_text(encoding="utf-8").splitlines(), 1):
+            # 续行里的注释由 Docker 整行剥掉，续行照样往下接。
+            # 所以注释**不能**清掉 continued——踩过：pressure-demand 的
+            # `chmod ... \` 后面隔着两行注释才是 ENV，仍然被吞了进去。
+            if line.lstrip().startswith("#"):
+                continue
             if continued and directive.match(line):
                 problems.append(
                     f"{rel}:{lineno}: 上一行末尾的 `\\` 把这条指令吞进了上一条命令"
-                    f"——{line.strip()[:40]!r}。删掉上一行的续行符"
+                    f"——{line.strip()[:40]!r}。删掉那个续行符"
                 )
             continued = line.rstrip().endswith("\\")
 
