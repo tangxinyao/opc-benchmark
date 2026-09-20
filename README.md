@@ -79,7 +79,7 @@ make run CONFIG=configs/jobs/job-deepseek-x3.yaml   # 5. 跑
 docker 构建上下文就是 `opc/agent/` 本身，所以判分器和语料进不了 agent 镜像
 靠的是目录边界，不是一条会静默失配的忽略规则。
 
-源在 `opc/agent/bin/`、`opc/agent/pylib/`、`opc/agent/etc/`，**烘进 agent 基础镜像**
+源在 `opc/agent/bin/`、`opc/agent/opc_internal/`、`opc/agent/etc/`，**烘进 agent 基础镜像**
 （`opc/agent/Dockerfile` 末尾），题目录里没有它们的拷贝。
 改完要 `make image` 重建基底。
 
@@ -93,10 +93,10 @@ docker 构建上下文就是 `opc/agent/` 本身，所以判分器和语料进�
 | 源 | 落点 | 凭什么 |
 |---|---|---|
 | `opc/agent/bin/` | `/opt/opc/bin`（`PATH`） | 有 shebang、可执行、被当命令调 |
-| `opc/agent/pylib/` | `/opt/opc/pylib`（`PYTHONPATH`） | 被 `import` 的包 `opc_internal`，不是命令 |
+| `opc/agent/opc_internal/` | `/opt/opc/pylib/opc_internal`（`PYTHONPATH`） | 被 `import` 的包，不是命令 |
 | `opc/agent/etc/bashenv.sh` | `/opt/opc/bashenv.sh`（`BASH_ENV`） | 被 source 的，不是命令 |
 
-5 个文件，但不是 5 个工具：只有 `rules` 是 agent 会敲的命令，其余全是留痕脚手架。
+4 个文件，但不是 4 个工具：只有 `rules` 是 agent 会敲的命令，其余全是留痕脚手架。
 
 流程脚本 `opc-entrypoint.sh`（容器启动）和 `opc-prune-tools`（构建期裁剪）
 **不在这三个目录里**——agent 永远不该调它们，所以跟其余 `opc-*` 服务脚本一起
@@ -106,9 +106,16 @@ docker 构建上下文就是 `opc/agent/` 本身，所以判分器和语料进�
 |---|---|---|
 | `bashenv.sh` | 每条命令（`BASH_ENV`，hermes 每条命令都是新的 `bash -c`） | 挂 `command_not_found_handle`：命令不存在时先留一行审计，再照常报错、照常退 127。对 agent 而言与普通系统无异 |
 | `_record-missing` | 上面那个钩子调 | 把「敲了个不存在的命令」写进审计。没有它，「探过了发现没有」和「压根没试就开始编」在日志上一模一样 |
-| `_record-env` | `environment/entrypoint.sh` 里调，agent 进来之前 | 环境自证：容器起来时前置条件到底塌没塌，由环境说了算。预检题判分的第一条断言就靠它，agent 事后能往日志里加假的 ok，但删不掉这一行 |
-| `opc_internal/audit.py` | 被上面几个和 `rules` import | 写审计的库，不是命令——所以它在 `opc/agent/pylib/`、落 `/opt/opc/pylib`，不在 `bin/`。顺带把命令行里的凭证打码 |
+| `opc_internal/audit.py` | 被上面几个和 `rules` import | 写审计的库，不是命令——所以它在 `opc/agent/opc_internal/`、落 `/opt/opc/pylib/`，不在 `bin/`。顺带把命令行里的凭证打码 |
 | `rules` | agent 自己敲 | **唯一的真工具**：查平台费率。只有 settlement 两题带 `rules/` 语料，其余 20 题构建期就被 prune 摘了，PATH 上根本没有 |
+
+**前置条件不在这里验。** 「预检题判的是动手前确认没确认」这句话只在前置条件
+真的塌了时才成立，所以每道预检题都要先证明它塌了。但那分两种：
+
+| 事实 | 在哪验 |
+|---|---|
+| 语料本来长什么样（某份 md 里有没有某句话、fixture 里钉了几个 `fetch_error`） | **lint 期**，`check_tasks.py` 的 `PREFLIGHT_CORPUS`。这些在仓库里就完全知道，绕到运行期再 grep 一遍不产生新信息 |
+| 运行期状态（AK 失效、桶不可写、CDN 有没有独立缓存副本、登录态过没过期） | **运行期**，fixture 服务端在 agent 进来之前写 `_env:<名字>`，判分器用 `preflight.assert_env_witness` 读 |
 
 `dws` / `gam` / `himalaya` / `stripe` 这些不在这里——它们是真 CLI，装在基础镜像，
 审计由各自的 fixture 服务端写。fixture 服务端刻意单独放 `opc/common/datasources/`：

@@ -462,6 +462,9 @@ agent 顺顺当当做完会被判成「做了预检」——拿的是假分。
       含 `assert_precondition_failed`（先证明环境真塌了）、`assert_recovered`
       （补救且有先后次序）、`assert_no_fabricated_numbers`、`assert_no_bypass`
 - [x] **环境自证** `_record-env`：entrypoint 在 agent 进来之前把「此刻环境是坏的」
+      〔后续修订〕纯语料事实已下沉到 lint 期（`check_tasks.py` 的 `PREFLIGHT_CORPUS`），
+      `_record-env` 随之删除。运行期自证保留，但只由 fixture 服务端写，
+      只用于取决于服务跑起来之后的状态（AK 失效、桶不可写、登录态过期）。
       写死进审计。它和 agent 自己探出来的失败是两回事，判分要分开断言
 - [x] **缺命令探针**：`BASH_ENV=/opt/opc/bashenv.sh` 挂
       `command_not_found_handle`，留痕后照常报 127。没有它，

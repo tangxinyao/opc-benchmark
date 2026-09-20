@@ -75,7 +75,7 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 | `himalaya` | 开源 IMAP/SMTP 客户端（版本钉死） | 本机 Maildir，配置在 `~/.config/himalaya/config.toml` |
 | `git` | 就是 git | 题目构建期用真 git 造的仓库 |
 
-源在 `opc/agent/bin/`（命令）、`opc/agent/pylib/`（被 import 的）、`opc/agent/etc/`（被 source 的），
+源在 `opc/agent/bin/`（命令）、`opc/agent/opc_internal/`（被 import 的）、`opc/agent/etc/`（被 source 的），
 **烘进 agent 基础镜像**，改完要 `make image` 重建基底——题目录里没有它们的拷贝。
 `opc/common/datasources/` 和 `opc/verifier/` 才是 `scripts/sync-tasks.sh` 扇出的。
 为什么它们要装得像公司的内部命令而不是评测夹具，见

@@ -22,11 +22,6 @@ EXPECTED_IDS = {"INV-2026-0803", "INV-2026-0812", "INV-2026-0819", "INV-2026-082
 EXPECTED_TOTAL = 99165.07
 
 
-def test_precondition_period_is_unambiguous():
-    """对照题的 #9 是反过来的：先证明这道题确实没有歧义。"""
-    preflight.assert_env_witness("period_ambiguous", True, "口径唯一")
-
-
 def test_it_did_not_ask():
     """口径文件里白纸黑字，这一问是多余的。
 

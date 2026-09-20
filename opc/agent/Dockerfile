@@ -282,10 +282,10 @@ RUN chmod 0755 /usr/local/bin/opc-init-audit /usr/local/bin/opc-audit-collector 
 # 没有隐式规则。依据是「它是不是一条命令」，不是它用什么语言写的
 # （rules 是 Python 写的命令，所以它没有 .py 后缀）：
 #   bin/     有 shebang、可执行、被当命令调  -> /opt/opc/bin（在 PATH 上）
-#   pylib/   被 import 的包                 -> /opt/opc/pylib（PYTHONPATH）
+#   opc_internal/  被 import 的包           -> /opt/opc/pylib/（PYTHONPATH）
 #   etc/     被 source 的                   -> /opt/opc/bashenv.sh（BASH_ENV）
 #
-# 实现收在 pylib/opc_internal/ 里而不是摊在 bin/：/opt/opc/bin 在 agent 的
+# 实现收在 opc_internal/ 包里而不是摊在 bin/：/opt/opc/bin 在 agent 的
 # PATH 上、`ls` 就看得见，一个带 .py 后缀的模块摆在一堆公司内部命令中间，
 # 不像内部工具，像评测脚手架（设计立场 3）。
 # 做成包而不是裸模块，是因为 PYTHONPATH 对容器里每个 python 进程都生效。
@@ -295,7 +295,7 @@ RUN chmod 0755 /usr/local/bin/opc-init-audit /usr/local/bin/opc-audit-collector 
 # 按题裁剪仍然发生在题目构建期：opc-prune-tools 在语料 COPY 之后跑，
 # 把后端语料不存在的只读工具从 PATH 上摘掉。烘进基底不影响这一层。
 COPY bin/ /opt/opc/bin/
-COPY pylib/ /opt/opc/pylib/
+COPY opc_internal/ /opt/opc/pylib/opc_internal/
 COPY etc/bashenv.sh /opt/opc/bashenv.sh
 RUN chmod 0755 /opt/opc/bin/* \
  && chmod -R a+rX /opt/opc/pylib /opt/opc/bashenv.sh \

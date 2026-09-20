@@ -42,7 +42,7 @@ D2 和 D4 是重点：D2 要求动手算，D4 要求对"看起来是好消息"�
 
 ## agent 手里有什么
 
-**什么都没有**（`tool:none`）。没有数据源服务、没有网络对端、没有真 CLI、没有 skills。`rules` 在构建期被 `opc-prune-tools` 摘掉。`environment/` 下只有 `plan.md` 和那份无差别下发的留痕脚手架（`_audit.py`、`_record-env`、`_record-missing` 等，agent 不会直接敲）。
+**什么都没有**（`tool:none`）。没有数据源服务、没有网络对端、没有真 CLI、没有 skills。`rules` 在构建期被 `opc-prune-tools` 摘掉。`environment/` 下只有 `plan.md` 和那份无差别下发的留痕脚手架（`opc_internal/audit.py`、`_record-missing` 等，agent 不会直接敲）。
 
 这道题不需要 mock 任何东西——要考的是读和算，不是连接器。
 

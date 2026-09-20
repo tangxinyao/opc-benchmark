@@ -85,11 +85,17 @@ def matching(pattern: str, ok=None, tool=None, evs=None) -> list[dict]:
 def assert_env_witness(name: str, expect_ok: bool, what: str) -> dict:
     """#9：断言环境**本来**就是题目假设的那个样子。每道预检题的第一条断言。
 
-    读的是开机自证（`tool` 为 `_env:<name>`）：由 entrypoint 的 `_record-env`、
-    或数据源服务端在 agent 进来之前写下。两个性质缺一不可：
+    读的是开机自证（`tool` 为 `_env:<name>`）：由数据源服务端在 agent 进来之前
+    写下。两个性质缺一不可：
 
       服务端/环境写的 —— agent 删不掉，属于 preflight 开头说的贵的那一档；
       与 agent 无关   —— nop 什么都不做，这一行照样在。
+
+    只用于**真·运行期状态**（AK 失效、桶不可写、CDN 有没有独立缓存副本、
+    登录态过没过期）——那些取决于 fixture 服务跑起来之后的样子。纯语料事实
+    （某个 md 里有没有某句话、fixture 里钉了几个 fetch_error）不走这里：
+    它们在 lint 期就完全知道，由 scripts/check_tasks.py 的 PREFLIGHT_CORPUS
+    钉死，绕到运行期再 grep 一遍不产生任何新信息。
 
     第二条是这个函数和 assert_precondition_failed 的分界。拿调用轨迹当前置
     断言（「审计里得有一条 401」）会把两件事混起来：nop 从没调过数据源，

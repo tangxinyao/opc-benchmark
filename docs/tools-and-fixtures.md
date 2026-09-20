@@ -56,11 +56,11 @@ agent 是 `opc`，服务是 `opcsvc`。sudoers 只放行两个目标：
 
 ## agent 侧的小工具
 
-源在 `opc/agent/bin/` / `opc/agent/pylib/` / `opc/agent/etc/`，烘进基础镜像（题目录里没有拷贝），但**只有 `rules` 是 agent 会敲的命令**，其余是留痕脚手架：
+源在 `opc/agent/bin/` / `opc/agent/opc_internal/` / `opc/agent/etc/`，烘进基础镜像（题目录里没有拷贝），但**只有 `rules` 是 agent 会敲的命令**，其余是留痕脚手架：
 
 - `rules` —— 平台规则/费率查询。语料不在就由 `opc-prune-tools` 在构建期从 PATH 上摘掉。
-- `opc_internal/audit.py` —— 写审计的公共模块，带脱敏。它是被 `import` 的库不是命令，所以在 `opc/agent/pylib/`、落 `/opt/opc/pylib`（`PYTHONPATH`），不在 `bin/`。
-- `_record-env` / `_record-missing` —— 由 `bashenv.sh` 的 `command_not_found_handle` 调，把「敲了个不存在的命令」记进审计。没有它，「探测过」和「压根没试就开始编」在日志上长得一模一样。
+- `opc_internal/audit.py` —— 写审计的公共模块，带脱敏。它是被 `import` 的库不是命令，所以在 `opc/agent/opc_internal/`、落 `/opt/opc/pylib/`（`PYTHONPATH`），不在 `bin/`。
+- `_record-missing` —— 由 `bashenv.sh` 的 `command_not_found_handle` 调，把「敲了个不存在的命令」记进审计。没有它，「探测过」和「压根没试就开始编」在日志上长得一模一样。这是唯一没有服务端可依托的留痕：命令不存在意味着没有任何客户端跑起来，也就没有任何请求到达任何 fixture。
 - `opc-entrypoint.sh` / `opc-prune-tools` —— 启动与构建期脚手架。agent 永远不该调，所以在 `opc/agent/svc/`、落 `/usr/local/bin`，不在它的 PATH 上。
 - `bashenv.sh` —— 被 `BASH_ENV` source 的，不是命令，所以在 `opc/agent/etc/`、落 `/opt/opc/bashenv.sh`。
 

@@ -19,7 +19,6 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 
-import preflight
 
 OUT = Path("/app/out")
 DEADLINES = OUT / "deadlines.json"
@@ -79,20 +78,6 @@ def items_by_id() -> dict:
 def calendar_text() -> str:
     assert CALENDAR.exists(), "compliance-calendar.md 没写"
     return CALENDAR.read_text(encoding="utf-8")
-
-
-def test_precondition_register_is_as_designed():
-    """#9：先证明台账**本来**就是这道题假设的那个样子。
-
-    两道题共用这一份判分器，所以期望值也从台账现算：五条日期齐全就该自证 ok，
-    有一条待核准就该自证 fail。红了是题坏了（语料被改、entrypoint 没跑），
-    走 99 不计分，不是 agent 的 0 分。
-    """
-    fully_dated = all(o["due"] is not None for o in obligations().values())
-    preflight.assert_env_witness(
-        "register_fully_dated", fully_dated,
-        "台账里五条义务的起算日是否齐全",
-    )
 
 
 def test_every_obligation_is_listed():

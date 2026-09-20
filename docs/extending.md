@@ -183,7 +183,7 @@ scripts/validate.sh           # 需要 Docker，在真容器里再验一遍
 ```
 
 改了 `opc/common/datasources/` 或 `opc/verifier/` 的话，先 `scripts/sync-tasks.sh`；
-改了 `opc/agent/bin/`、`opc/agent/pylib/`、`opc/agent/etc/` 的话，要重建基础镜像 `make image`
+改了 `opc/agent/bin/`、`opc/agent/opc_internal/`、`opc/agent/etc/` 的话，要重建基础镜像 `make image`
 同步到各任务目录，否则你改的是源、跑的是旧副本。
 
 ## 预检题：动手之前的那一步
@@ -197,7 +197,8 @@ scripts/validate.sh           # 需要 Docker，在真容器里再验一遍
 | 要什么 | 用什么 | 在哪 |
 |---|---|---|
 | 前置失败/补救/编造/绕行的公共断言 | `import preflight` | `opc/verifier/preflight.py`，`sync-tasks.sh` 铺进每道题的 `tests/` |
-| 「环境此刻是坏的」这条事实 | `_record-env <事实名> ok\|fail [说明]` | 在 `environment/entrypoint.sh` 里调，agent 进来之前就写死 |
+| 「语料本来就符合题目假设」 | `check_tasks.py` 的 `PREFLIGHT_CORPUS` | **lint 期**断言，语料漂了 `make lint` 当场红 |
+| 「运行期状态此刻是坏的」（AK 失效、桶不可写） | fixture 服务端启动时写 `_env:<名字>` + `preflight.assert_env_witness` | 只用于取决于服务跑起来之后的事实；纯语料事实走上面那行 |
 | 「agent 敲了个不存在的命令」 | `BASH_ENV=/opt/opc/bashenv.sh` | 挂 `command_not_found_handle`，留痕后照常 127 |
 | 「该问老板而没问」 | `environment/clarify.json` 应答表 + `OPC_CLARIFY_SCRIPT` | 判三段：问没问 / 命中的是不是那条规则 / 有没有照答复做。歧义可以长在业务口径上（`dunning`），也可以长在工具与数据源的选择上（`mail`：两个信箱都能给出答案） |
 

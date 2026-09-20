@@ -75,7 +75,7 @@ def record(action: str, arguments: dict, ok: bool = True, extra: dict = None) ->
 
 
 def record_env(name: str, ok: bool, note: str = "") -> None:
-    """环境自证，形状与 opc/agent/bin/_record-env 写的那一行完全一致。
+    """环境自证：agent 进来之前由服务端写下，形状是 tool=`_env:<名字>`。
 
     为什么由服务端写、而不是 entrypoint 拿 CLI 探一次：探测本身也是流量。
     entrypoint 探一次 OSS 写权限，审计里就会先有一条 agent 不知情的

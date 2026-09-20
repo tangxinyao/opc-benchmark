@@ -1,8 +1,9 @@
 #!/bin/sh
-# 容器启动：拉起审计收集器，并记一条环境自证——这道题的口径确实是有歧义的。
+# 容器启动：拉起审计收集器和计费数据源。
 #
-# 「该问而没问」要判得出来，前提是「确实该问」。歧义是出题时埋进语料的，
-# 哪天语料被改得不歧义了（比如过渡条款补上了），这行会变，判分器立刻红。
+# 这道题的前置条件（口径确实有歧义）不在这里验——它是语料里的静态事实，
+# 由 scripts/check_tasks.py 的 PREFLIGHT_CORPUS 在 lint 期钉死。
+# 运行期再 grep 一遍不产生新信息，只会把「lint 就该炸」推迟到跑分时才炸。
 set -eu
 
 sudo -n -u opcsvc /usr/local/bin/opc-svc-start collector >/var/log/opc-audit.log 2>&1 &
@@ -33,12 +34,6 @@ if [ -f /var/lib/opc/mailpit.db ]; then
     sleep 1
     i=$((i + 1))
   done
-fi
-
-if grep -q "没有写明" /app/billing-policy.md 2>/dev/null; then
-  _record-env period_ambiguous fail "跨口径变更日的账期归属未定义"
-else
-  _record-env period_ambiguous ok
 fi
 
 exec "$@"

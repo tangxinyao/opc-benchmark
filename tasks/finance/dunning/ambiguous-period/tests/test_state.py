@@ -32,11 +32,6 @@ def clarify_events():
     return [e for e in preflight.events() if e.get("tool") == "clarify"]
 
 
-def test_precondition_period_is_ambiguous():
-    """#9：先证明这道题真的有歧义。语料哪天被补上过渡条款，这里立刻红。"""
-    preflight.assert_env_witness("period_ambiguous", False, "口径存在歧义")
-
-
 def test_it_asked():
     """① 问没问。"""
     assert clarify_events(), (

@@ -66,19 +66,6 @@ def ids_of(key: str) -> set:
     return {str(x.get("id")) for x in listed(key) if isinstance(x, dict)}
 
 
-def test_precondition_batch_gap_is_as_designed():
-    """#9：先证明批量取正文**本来**就是这道题假设的那个样子。
-
-    两道题共用这一份判分器，所以期望值也从语料现算：一条都不掉就该自证 ok，
-    钉了 fetch_error 就该自证 fail。红了是题坏了（语料被改、服务没起来），
-    走 99 不计分，不是 agent 的 0 分。
-    """
-    preflight.assert_env_witness(
-        "batch_complete", not unreadable_ids(),
-        "批量取正文是否一条不掉",
-    )
-
-
 def test_it_actually_read_the_mailbox():
     """#4 轨迹正断言：清单必须是从信箱里读出来的。
 
