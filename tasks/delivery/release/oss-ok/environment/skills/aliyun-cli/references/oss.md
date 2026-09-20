@@ -13,19 +13,23 @@ pass them per command.
 ## Upload
 
 ```bash
-# one file
+# one file, explicit destination key — always parses
 aliyun oss cp ./dist/index.html oss://my-bucket/index.html
 
-# a whole directory (recursive)
-aliyun oss cp ./dist/ oss://my-bucket/ -r
-
 # overwrite without prompting
-aliyun oss cp ./dist/ oss://my-bucket/ -r -f
+aliyun oss cp -f ./dist/index.html oss://my-bucket/index.html
 ```
 
-Flags go **after** the source and destination. `aliyun oss cp -r -f ./dist/ oss://my-bucket/`
-does not parse: the first positional is taken as the destination and every later flag
-(including `--region`) is dropped, so the command fails before it reaches the network.
+Prefer **one file per call with an explicit destination key**. The recursive directory
+form (`aliyun oss cp -r ./dist/ oss://my-bucket/`) is parsed differently by different
+`aliyun` builds — some report `region can't be empty`, others take the first positional
+as the destination and fail with
+`copy files between local file system is not allowed ... dest_url:./dist/`.
+Moving the flags after the positionals does not fix it; it fails the same way on other
+builds. Two positionals and no `-r` leaves nothing to misparse.
+
+`-f` is needed whenever the object already exists, otherwise `cp` waits for a
+confirmation that never comes in a non-interactive shell.
 
 `cp` verifies transfers with crc64 by default.
 
