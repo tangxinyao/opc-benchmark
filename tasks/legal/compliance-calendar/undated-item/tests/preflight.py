@@ -38,10 +38,14 @@ import shlex
 import sys
 from pathlib import Path
 
-# hermes 导出的会话，由 task.toml 的 artifacts 从 agent 容器带进来。
-TRAJECTORY = Path(os.environ.get("OPC_TRAJECTORY", "/app/hermes-session.jsonl"))
-# fixture server 自己写的那一份，同样走 artifacts。
-SERVER_LOG = Path(os.environ.get("OPC_SERVER_LOG", "/app/server-log.jsonl"))
+# 两份证据都由 task.toml 的 artifacts 从 agent 容器带进判分容器。
+#
+# **路径必须和 artifacts 里写的逐字一致。** harbor 是按绝对路径原样放进来的，
+# 不会拍平到 /app —— 这两个默认值写错过一次（写成了 /app/xxx），结果判分器
+# 永远找不到文件，每道题都判成「前置条件没造出来」走 99，报出来却是 harbor 的
+# RewardFileNotFoundError，跟真实原因毫无关系。
+TRAJECTORY = Path(os.environ.get("OPC_TRAJECTORY", "/logs/agent/hermes-session.jsonl"))
+SERVER_LOG = Path(os.environ.get("OPC_SERVER_LOG", "/var/lib/opc/server-log.jsonl"))
 
 # 和 test.sh、oracle.py 是同一个约定：99 表示「判分器/环境自己坏了」，
 # 本次 trial 不计分。环境没按预期塌掉属于这一类——它不是 agent 的 0 分。

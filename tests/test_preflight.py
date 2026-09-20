@@ -186,3 +186,48 @@ def test_events_merges_trajectory_and_server_log(tmp_path):
     assert [e["tool"] for e in pf.events()] == ["rules", "stripe"]
     # 服务端那条仍然认得出来——退款的负断言就靠它
     assert pf.matching("refunds.create", tool="stripe")
+
+
+# --- 证据路径必须和 artifacts 声明的一致 ---
+#
+# 这条是补票：默认值一度写成 /app/server-log.jsonl，而 harbor 是按绝对路径原样
+# 把产物放进判分容器的（artifacts 里写 /var/lib/opc/xxx，进来还在 /var/lib/opc/xxx，
+# 不会拍平到 /app）。于是判分器永远找不到文件，每道题都走 assert_env_witness 的
+# 99 分支，报到用户面前却是 harbor 的 RewardFileNotFoundError。
+#
+# smoke.sh 显式设了 OPC_TRAJECTORY / OPC_SERVER_LOG，所以宿主机上全绿，
+# 完全盖住了这个 bug —— 只有在容器里跑才会暴露。这条测试让它在 unit 层就炸。
+
+def test_evidence_defaults_match_what_tasks_declare_as_artifacts():
+    import re
+    import importlib.util
+
+    src = (ROOT / "opc/verifier/preflight.py").read_text(encoding="utf-8")
+    defaults = dict(re.findall(
+        r'^(TRAJECTORY|SERVER_LOG) = Path\(os\.environ\.get\("[^"]+", "([^"]+)"\)\)',
+        src, re.M))
+    assert set(defaults) == {"TRAJECTORY", "SERVER_LOG"}, defaults
+
+    # 所有声明了证据类 artifact 的题，路径都得跟默认值对得上
+    seen = {"TRAJECTORY": 0, "SERVER_LOG": 0}
+    for toml in (ROOT / "tasks").rglob("task.toml"):
+        text = toml.read_text(encoding="utf-8")
+        for name, path in defaults.items():
+            if Path(path).name in text:
+                assert path in text, (
+                    f"{toml.relative_to(ROOT)} 里出现了 {Path(path).name}，"
+                    f"但不是 preflight 认的完整路径 {path}"
+                )
+                seen[name] += 1
+    assert seen["SERVER_LOG"] > 0, "没有任何题把服务端日志列进 artifacts"
+    assert seen["TRAJECTORY"] > 0, "没有任何题把 trajectory 列进 artifacts"
+
+
+def test_trajectory_default_matches_the_adapter_session_log():
+    """判分器找的那份，就是 hermes 适配器导出的那份。两边写死的常量不能各走各的。"""
+    import re
+    pf = (ROOT / "opc/verifier/preflight.py").read_text(encoding="utf-8")
+    ad = (ROOT / "opc/agent/hermes.py").read_text(encoding="utf-8")
+    pf_path = re.search(r'TRAJECTORY = Path\(os\.environ\.get\("[^"]+", "([^"]+)"\)\)', pf).group(1)
+    ad_path = re.search(r'SESSION_LOG = "([^"]+)"', ad).group(1)
+    assert pf_path == ad_path, f"判分器找 {pf_path}，适配器导到 {ad_path}"
