@@ -96,7 +96,11 @@ agent 是 `opc`，服务是 `opcsvc`。sudoers 只放行两个目标：
 ## 怎么确认这些供数没坏
 
 - `make lint` —— 静态检查（canary、标签词表、判分工具是否烘好、拒答题是否配对）。
-- `make unit` —— 适配器单元测试。**注意：目前不覆盖三个数据源服务本身。**
+- `make unit` —— 适配器单元测试，四个数据源服务各有一份（`tests/test_*_fixture_server.py`）。
+  不起 TLS、不起容器：`dws` 那份跑真进程（它本来就是明文 18080），另外三份在进程内
+  直接驱动 `Router` / `ObjectStore` / `Edge`，只有 gam 的 `/batch` 为了拆 multipart
+  起了一个明文的本机 HTTP。测的是**判分会直接读的那几处语义**（错误形状、服务端留痕、
+  CDN 刷新范围、AK 换对了能不能过），不是「接口通不通」。
 - `make smoke` —— 宿主机上跑 oracle/nop 基线。**注意：凡是带 `entrypoint.sh` 或要真发信的题一律 SKIP，正好就是所有用到数据源服务的题。**
 - `scripts/validate.sh` —— 容器里跑，oracle 必须满分、nop 必须零分。**用到数据源服务的题只有这一关能兜住。**
 
