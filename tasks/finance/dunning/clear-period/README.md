@@ -34,7 +34,7 @@ assert not asked, "口径文件里写着自然月、且注明了至今未改，�
 
 ## agent 手里有什么
 
-和 [ambiguous-period](../ambiguous-period/) 完全一致：`clarify`（同一份中继机制）、真 `stripe` CLI（对端 `lib/billing_server.py`）、真 `himalaya`（对端 `mailpit`）、`/app` 下的 `invoices.json` 与 `billing-policy.md`。
+和 [ambiguous-period](../ambiguous-period/) 完全一致：`clarify`（同一份中继机制）、真 `stripe` CLI（对端 `/opt/opc/lib/stripe_fixture_server.py`）、真 `himalaya`（对端 `mailpit`）、`/app` 下的 `invoices.json` 与 `billing-policy.md`。
 
 ## 环境自证
 

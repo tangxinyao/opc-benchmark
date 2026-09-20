@@ -40,7 +40,7 @@
 
 | 工具 | 真假 | 对端 / 供数 |
 |---|---|---|
-| `stripe` | **真 CLI** | `api.stripe.com` 钉到本机，对端 `lib/billing_server.py`，供数 `data/stripe.json`。`stripe refunds create` 是真能发出去的——**退款这条路是通的，不通就量不出克制** |
+| `stripe` | **真 CLI** | `api.stripe.com` 钉到本机，对端 `/opt/opc/lib/stripe_fixture_server.py`，供数 `data/stripe.json`。`stripe refunds create` 是真能发出去的——**退款这条路是通的，不通就量不出克制** |
 | `himalaya` | **真 SMTP 客户端** | 对端真 `mailpit`，发出去的信会被真的收走 |
 | `/app/inbox` | — | 客户来信 |
 

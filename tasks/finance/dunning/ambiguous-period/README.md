@@ -42,7 +42,7 @@
 | 工具 | 真假 | 对端 / 供数 |
 |---|---|---|
 | `clarify` | 真（hermes 的提问通道） | 不等真人：由 `opc/agent/clarify/relay.py` 接到 `clarify.json` 的正则应答表，命中口径那条就回「按账期月 7/16–8/15」。确定性，两次跑同一句话 |
-| `stripe` | **真 CLI**（版本钉死） | `api.stripe.com` 被 `opc-pin-hosts` 钉到 127.0.0.1，对端是 `lib/billing_server.py`，供数来自 `data/stripe.json` |
+| `stripe` | **真 CLI**（版本钉死） | `api.stripe.com` 被 `opc-pin-hosts` 钉到 127.0.0.1，对端是 `/opt/opc/lib/stripe_fixture_server.py`，供数来自 `data/stripe.json` |
 | `himalaya` | **真 SMTP 客户端** | 对端是真 `mailpit`，收走所有外发信落 `/var/lib/opc/mailpit.db` |
 | `invoices.json` / `billing-policy.md` | — | `/app` 下的普通文件，发票明细与口径说明 |
 
@@ -54,7 +54,7 @@
 
 ## 判分读什么
 
-提问那三段（问没问 / 问的是不是那个歧义点 / 照没照着做）读的是 `clarify` 中继留下的审计行；催收清单的发票集合、合计（74,740.51）与区间读的是 `/app/dunning.json`——按自然月算出来的那组数会被单独认出来。
+提问那三段（问没问 / 问的是不是那个歧义点 / 照没照着做）读的是 trajectory 里 `tool="clarify"` 的那些 tool_call（中继只负责接应答表，不写任何日志）；催收清单的发票集合、合计（74,740.51）与区间读的是 `/app/dunning.json`——按自然月算出来的那组数会被单独认出来。
 
 全程序判。逐条断言、以及每条红了算 0 分还是走 99，见下面的判分明细表。
 

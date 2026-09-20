@@ -499,6 +499,42 @@ def check_preflight_corpus() -> list[str]:
     return problems
 
 
+def check_dockerfile_continuations() -> list[str]:
+    """RUN 末尾多一个 `\\`，会把下一条指令吞进 shell 命令行。
+
+    真踩过两次：dunning 那一对的 `&& chmod 0700 /opt/opc/data \\` 多带了续行符，
+    Docker 于是把 `ENV PATH=... OPC_CLARIFY_SCRIPT=...` 当成 chmod 的参数：
+
+        chmod: cannot access 'ENV': No such file or directory
+
+    报错指的行号是 RUN 的起始行，肇事的却是十几行之后那个 `\\`，很难看出来；
+    而且就算 chmod 不报错，被吞掉的 ENV 也等于没写过。
+    这条只有真 build 才暴露，所以在 lint 期按文本拦掉。
+    """
+    problems: list[str] = []
+    directive = re.compile(
+        r"^\s*(ENV|ENTRYPOINT|CMD|COPY|RUN|WORKDIR|USER|ARG|FROM|LABEL"
+        r"|EXPOSE|VOLUME|HEALTHCHECK|SHELL|ADD|STOPSIGNAL|ONBUILD)\b"
+    )
+    dockerfiles = sorted(ROOT.glob("tasks/*/*/*/environment/Dockerfile")) \
+        + sorted(ROOT.glob("tasks/*/*/*/tests/Dockerfile")) \
+        + sorted(ROOT.glob("opc/*/Dockerfile"))
+
+    for path in dockerfiles:
+        rel = path.relative_to(ROOT)
+        continued = False
+        for lineno, line in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), 1):
+            if continued and directive.match(line):
+                problems.append(
+                    f"{rel}:{lineno}: 上一行末尾的 `\\` 把这条指令吞进了上一条命令"
+                    f"——{line.strip()[:40]!r}。删掉上一行的续行符"
+                )
+            continued = line.rstrip().endswith("\\")
+
+    return problems
+
+
 def check_repo() -> list[str]:
     """跨文件的一致性检查。"""
     problems: list[str] = []
@@ -534,7 +570,8 @@ def main() -> int:
     if not tasks:
         print("没找到任务")
         return 1
-    problems = check_repo() + check_preflight_corpus() + [
+    problems = check_repo() + check_preflight_corpus() \
+        + check_dockerfile_continuations() + [
         p for task in tasks
         for p in check_task(task) + check_dead_tools(task, task.relative_to(ROOT))
     ]

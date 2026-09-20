@@ -34,7 +34,7 @@
 
 ## agent 手里有什么
 
-和 [ambiguous-source](../ambiguous-source/) 完全一致：真 `gam`（对端 `lib/workspace_server.py`，供数 `data/workspace.json` + 本地 discovery 副本）、真 `himalaya`（读 `/app/maildir`，发信对端真 `mailpit`）、`clarify`、运维笔记与老板留言。
+和 [ambiguous-source](../ambiguous-source/) 完全一致：真 `gam`（对端 `/opt/opc/lib/gws_fixture_server.py`，供数 `data/workspace.json` + 本地 discovery 副本）、真 `himalaya`（读 `/app/maildir`，发信对端真 `mailpit`）、`clarify`、运维笔记与老板留言。
 
 两道题的工具面必须一模一样，只有留言不同——否则量到的是工具差异不是判断差异。
 

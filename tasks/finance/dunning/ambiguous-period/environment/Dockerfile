@@ -28,7 +28,7 @@ RUN chmod +x /opt/opc/entrypoint.sh \
  && mkdir -p /var/mail/support/cur /var/mail/support/new /var/mail/support/tmp \
  && chown -R opc:opc /app /var/mail/support \
  && chown -R opcsvc:opcsvc /opt/opc/data \
- && chmod 0700 /opt/opc/data \
+ && chmod 0700 /opt/opc/data
 ENV PATH="/opt/opc/bin:${PATH}" \
     OPC_CLARIFY_SCRIPT=/opt/opc/clarify.json
 

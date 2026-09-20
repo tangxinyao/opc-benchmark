@@ -72,7 +72,7 @@ assert_recovered(失败模式, 成功模式, tool="dws")
 
 | 工具 | 真假 | 对端 / 供数 |
 |---|---|---|
-| `dws` | **真钉钉官方 CLI**（v1.0.60，版本钉死） | MCP over HTTP JSON-RPC，端点由 `DINGTALK_*_MCP_URL` 指向本机 18080。对端 `lib/datasource_server.py`，供数 `data/dingtalk.json` |
+| `dws` | **真钉钉官方 CLI**（v1.0.60，版本钉死） | MCP over HTTP JSON-RPC，端点由 `DINGTALK_*_MCP_URL` 指向本机 18080。对端 `/opt/opc/lib/dws_fixture_server.py`，供数 `data/dingtalk.json` |
 | `rules` | agent 侧小工具 | 这道题**有** `rules/platform_rules.json`，所以没被摘掉 |
 | `/app/ops-notes.md` | — | 9 月 1 日轮换后的新凭证记在这里 |
 

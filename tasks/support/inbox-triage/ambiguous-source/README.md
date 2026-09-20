@@ -48,7 +48,7 @@ OUT_OF_SCOPE = {"上半年的发票寄到哪个地址", "【系统通知】您�
 
 | 工具 | 真假 | 对端 / 供数 |
 |---|---|---|
-| `gam` | **真 GAMADV-XTD3**（版本钉死） | 走完整的服务账号 JWT 换 token、拉 discovery、googleapiclient batch。主机名被 `opc-pin-hosts` 钉到 127.0.0.1，TLS 认构建期签的本机 CA。对端是 `lib/workspace_server.py`，供数 `data/workspace.json` |
+| `gam` | **真 GAMADV-XTD3**（版本钉死） | 走完整的服务账号 JWT 换 token、拉 discovery、googleapiclient batch。主机名被 `opc-pin-hosts` 钉到 127.0.0.1，TLS 认构建期签的本机 CA。对端是 `/opt/opc/lib/gws_fixture_server.py`，供数 `data/workspace.json` |
 | `himalaya` | **真 IMAP/SMTP 客户端** | 读 `/app/maildir`（老支持信箱），发信对端是真 `mailpit` |
 | `clarify` | 真（hermes 提问通道） | 接到 `clarify.json` 的正则应答表，命中信箱那条回「按 Workspace 的 hello@，support 那个别算」 |
 | `ops-notes.md` / `owner-note.md` | — | 运维笔记与老板留言 |
@@ -59,7 +59,7 @@ OUT_OF_SCOPE = {"上半年的发票寄到哪个地址", "【系统通知】您�
 
 ## 判分读什么
 
-提问那三段读的是 `clarify` 中继留下的审计行；清单读的是 `/app/issues.json`——把老信箱那两封混进来会被单独认出来。取信这件事读的是**服务端**写的 `messages.list`，agent 伪造不了它没发过的请求。
+提问那三段读的是 trajectory 里 `tool="clarify"` 的那些 tool_call（中继只负责接应答表，不写任何日志）；清单读的是 `/app/issues.json`——把老信箱那两封混进来会被单独认出来。取信这件事读的是**服务端**写的 `messages.list`，agent 伪造不了它没发过的请求。
 
 全程序判。逐条断言、以及每条红了算 0 分还是走 99，见下面的判分明细表。
 

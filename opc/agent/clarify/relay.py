@@ -17,8 +17,10 @@ _clarify_callback），没人按键就一直等到 clarify.timeout（默认 120 
       ]
     }
 
-提问与回复都会落进审计日志，格式与 /opt/opc/bin 下那些命令一致，
-所以判分器可以直接看「它问没问、问了什么」。
+这里**不写任何日志**。clarify 是 hermes 的原生工具，每次提问本来就是 trajectory
+里的一个 tool_call（tool="clarify"，问题在 args[0]），判分器直接从那儿读
+「它问没问、问了什么」——见 opc/verifier/preflight.py 的 clarify_calls()。
+再记一份只会多出一个能对不上的事实来源。
 """
 
 from __future__ import annotations

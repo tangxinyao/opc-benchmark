@@ -22,7 +22,7 @@
 
 **不是 mock。** `aliyun` 是官方二进制（版本钉死在 `opc/agent/Dockerfile`），它照常做完整的 RPC 签名、按产品解析 endpoint、按 region 路由；`aliyun oss` 照常走 S3 那一套签名和 crc64 校验。只是那几个 `*.aliyuncs.com` 被钉在了 127.0.0.1（`opc-pin-hosts`），TLS 认的是本机构建期签出来的那张 CA。**鉴权面、参数形状、错误码全是真的，只有对端是本地的。**
 
-对端是 `opc/common/datasources/aliyun_fixture_server.py`，一个进程按 **Host 头**分三面：
+对端是 `opc/agent/datasources/aliyun_fixture_server.py`，一个进程按 **Host 头**分三面：
 
 | Host | 是什么 |
 |---|---|
@@ -36,7 +36,7 @@
 
 **故障注入在语料里，不在代码里。** 开关是 `environment/data/aliyun.json` 的 `faults` 与 `cdn.no_cache`。六道题的其余文件逐字相同，一比一对照的定义就是这个。
 
-**开机自证由服务端写**，不是 entrypoint 拿 CLI 探一遍：探测本身也是流量，会在 agent 进来之前就往审计里塞一条失败，把「它到底试过没有」那条断言喂饱。服务端知道自己的 `faults`，直接写结论，一点多余流量都不产生。
+**开机自证由服务端写**，不是 entrypoint 拿 CLI 探一遍：探测本身也是流量，会在 agent 进来之前就往服务端日志里塞一条失败的请求，把「它到底试过没有」那条断言喂饱。服务端知道自己的 `faults`，直接写结论，一点多余流量都不产生。
 
 ## 判分读什么
 

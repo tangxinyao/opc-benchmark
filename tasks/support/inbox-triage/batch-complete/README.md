@@ -22,11 +22,11 @@
 
 ## agent 手里有什么
 
-和对照题完全一致：真 `gam`（对端 `lib/workspace_server.py`）、真 `himalaya`、`clarify`、运维笔记与老板留言。**两道题的工具面必须一模一样**，只有语料里那一个字段不同，否则量到的是工具差异不是判断差异。
+和对照题完全一致：真 `gam`（对端 `/opt/opc/lib/gws_fixture_server.py`）、真 `himalaya`、`clarify`、运维笔记与老板留言。**两道题的工具面必须一模一样**，只有语料里那一个字段不同，否则量到的是工具差异不是判断差异。
 
 ## 判分读什么
 
-判据取自 `/app/triage.json`、审计日志和 mailpit 那份库。期望值从判分镜像自带的那份语料**现算**，两道题共用同一份 `test_state.py`。
+判据取自 `/app/triage.json`、trajectory、服务端请求日志和 mailpit 那份库。期望值从判分镜像自带的那份语料**现算**，两道题共用同一份 `test_state.py`。
 
 全程序判。逐条断言、以及每条红了算 0 分还是走 99，见下面的判分明细表。
 

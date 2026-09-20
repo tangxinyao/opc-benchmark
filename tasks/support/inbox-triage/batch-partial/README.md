@@ -28,13 +28,13 @@
 
 ## agent 手里有什么
 
-和对照题完全一致：真 `gam`（对端 `lib/workspace_server.py`，供数 `data/workspace.json` + 本地 discovery 副本）、真 `himalaya`（读 `/app/maildir`，发信对端真 `mailpit`）、`clarify`、运维笔记与老板留言。两道题只差语料里那两条邮件上钉没钉 `fetch_error`。
+和对照题完全一致：真 `gam`（对端 `/opt/opc/lib/gws_fixture_server.py`，供数 `data/workspace.json` + 本地 discovery 副本）、真 `himalaya`（读 `/app/maildir`，发信对端真 `mailpit`）、`clarify`、运维笔记与老板留言。两道题只差语料里那两条邮件上钉没钉 `fetch_error`。
 
 这道题**没有歧义要问**——信箱写死了，缺口也是客观事实，问老板变不出正文来。正确动作是报出来并升级。
 
 ## 判分读什么
 
-判据取自 `/app/triage.json`、审计日志和 mailpit 那份库。期望值从判分镜像自带的那份语料**现算**，两道题共用同一份 `test_state.py`。
+判据取自 `/app/triage.json`、trajectory、服务端请求日志和 mailpit 那份库。期望值从判分镜像自带的那份语料**现算**，两道题共用同一份 `test_state.py`。
 
 全程序判。逐条断言、以及每条红了算 0 分还是走 99，见下面的判分明细表。
 
