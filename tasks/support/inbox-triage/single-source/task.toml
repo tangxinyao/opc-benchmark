@@ -3,7 +3,7 @@
 
 schema_version = "1.0"
 
-artifacts = ["/app/issues.json", "/var/lib/opc/audit.log",
+artifacts = ["/app/issues.json", "/var/lib/opc/server-log.jsonl", "/logs/agent/hermes-session.jsonl",
              "/var/lib/opc/mailpit.db"]
 
 [metadata]

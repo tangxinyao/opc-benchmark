@@ -20,7 +20,6 @@ COPY entrypoint.sh /opt/opc/entrypoint.sh
 COPY clarify.json /opt/opc/clarify.json
 RUN chmod +x /opt/opc/entrypoint.sh \
  && /usr/local/bin/opc-prune-tools \
- && opc-init-audit \
  && chmod a+r /opt/opc/clarify.json
 
 # --- 本地 CA：给 fixture 端点签一张真证书 ---

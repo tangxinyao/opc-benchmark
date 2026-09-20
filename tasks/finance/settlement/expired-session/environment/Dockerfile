@@ -19,7 +19,6 @@ COPY entrypoint.sh /opt/opc/entrypoint.sh
 RUN chmod +x /opt/opc/entrypoint.sh \
  && /usr/local/bin/opc-prune-tools \
  && mkdir -p /opt/opc/skills /opt/opc/dws \
- && opc-init-audit \
  && cp -r /opt/dws/skills/multi/dingtalk-chat /opt/dws/skills/multi/dingtalk-shared \
       /opt/opc/skills/ \
  && chmod -R a+rX /opt/opc/skills \

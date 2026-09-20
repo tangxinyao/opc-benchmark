@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""rules —— 平台规则/费率查询。用法: rules show <平台ID> [--at YYYY-MM-DD]"""
+"""rules —— 平台规则/费率查询。用法: rules show <平台ID> [--at YYYY-MM-DD]
+
+题目语料的读取口，跟 dws/stripe/gam 那些真 CLI 同一个位置：它是「公司内部
+命令」，不是评测装置。以前它还顺手往审计日志里记一条，现在不记了——
+它被调过这件事，trajectory 里本来就有。
+"""
 import json
 import os
+import sys
 from pathlib import Path
-
-from opc_internal import audit as _audit
 
 RULES_PATH = Path(os.environ.get("OPC_RULES", "/app/rules/platform_rules.json"))
 
@@ -22,4 +26,10 @@ def handler(args):
                       ensure_ascii=False, indent=2)
 
 
-_audit.main("rules", handler)
+if __name__ == "__main__":
+    try:
+        print(handler(sys.argv[1:]))
+    except Exception as exc:  # noqa: BLE001
+        # 退出码要真实：预检类断言靠回显里的失败特征认「它撞上过」。
+        print(f"rules: {exc}", file=sys.stderr)
+        sys.exit(1)

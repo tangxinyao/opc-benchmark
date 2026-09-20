@@ -26,12 +26,8 @@ from __future__ import annotations
 import json
 import os
 import re
-import stat
-import time
 
 SCRIPT_PATH = os.environ.get("OPC_CLARIFY_SCRIPT", "/opt/opc/clarify.json")
-AUDIT_PATH = os.environ.get("OPC_AUDIT_LOG", "/var/lib/opc/audit.log")
-AUDIT_PIPE = os.environ.get("OPC_AUDIT_PIPE", "/var/lib/opc/audit.pipe")
 
 FALLBACK_REPLY = "现在联系不上我，你按已有的规矩处理，拿不准的先记下来。"
 
@@ -89,42 +85,6 @@ def _resolve(question: str, choices, script: dict):
     return (default if isinstance(default, str) else FALLBACK_REPLY), None
 
 
-def _record(question: str, choices, reply: str, rule) -> None:
-    """留痕。写不进去不算错——审计日志不该把正事带崩。
-
-    落点与 /opt/opc/pylib/opc_internal/audit.py 一致：优先写 FIFO。容器里 audit.log 是
-    opcsvc:opcsvc 0600，agent 直接 open(..., "a") 必然 EACCES——
-    真往日志里写的是管道另一侧的收集器。回落到直接追加是给宿主机上的
-    smoke 用的，那里没有 FIFO。
-    """
-    event = {
-        "ts": time.time(),
-        "tool": "clarify",
-        "args": [question],
-        "ok": True,
-        "choices": choices or [],
-        "reply": reply,
-        "rule": rule,
-    }
-    line = json.dumps(event, ensure_ascii=False) + "\n"
-    try:
-        if stat.S_ISFIFO(os.stat(AUDIT_PIPE).st_mode):
-            fd = os.open(AUDIT_PIPE, os.O_WRONLY)
-            try:
-                os.write(fd, line.encode("utf-8"))
-            finally:
-                os.close(fd)
-            return
-    except (OSError, ValueError):
-        pass
-    try:
-        os.makedirs(os.path.dirname(AUDIT_PATH), exist_ok=True)
-        with open(AUDIT_PATH, "a", encoding="utf-8") as fh:
-            fh.write(line)
-    except OSError:
-        pass
-
-
 def clarify(question, choices=None, callback=None) -> str:
     """tools.clarify_tool.clarify_tool 的替身，签名和返回值保持一致。
 
@@ -135,8 +95,7 @@ def clarify(question, choices=None, callback=None) -> str:
         return json.dumps({"error": "Question text is required."}, ensure_ascii=False)
 
     choices = _normalize_choices(choices)
-    reply, rule = _resolve(question, choices, _load_script())
-    _record(question, choices, reply, rule)
+    reply, _rule = _resolve(question, choices, _load_script())
     return json.dumps(
         {"question": question, "choices_offered": choices, "user_response": reply},
         ensure_ascii=False,

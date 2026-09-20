@@ -10,6 +10,21 @@
 
 地图在前，是因为四组题缺的从来不是设计，是**装它的活儿**。
 
+> **2026-09-20 作废说明：审计日志那一层已整体删除。**
+> 本文多处（5.2 的 `_audit.py`、5.6 的权限模型、缺命令探针、clarify 留痕）
+> 描述的是 `/var/lib/opc/audit.log` + FIFO + `opc-audit-collector` +
+> `bashenv.sh` 钩子那套 agent 侧留痕装置。它记的是 hermes 导出的 trajectory
+> 里本来就有的同一件事，已连同 `opc/agent/opc_internal/`、`opc/agent/etc/`、
+> `bin/_record-missing`、`opc-init-audit`、`opc-audit-collector` 一起删掉。
+>
+> 现在判分只认两处证据：**trajectory**（`/logs/agent/hermes-session.jsonl`，
+> agent 干了什么）和**服务端日志**（`/var/lib/opc/server-log.jsonl`，各 fixture
+> 服务端写，含开机自证 `_env:<名字>`）。接口没变——`opc/verifier/preflight.py`
+> 把两者拍成同一个事件形状，题目里的断言一行都没改。
+> 详见 `docs/tools-and-fixtures.md` 的「证据：两处，可信度不同」。
+>
+> 下面的正文保留原样，作为当时的决策记录，不代表当前实现。
+
 ---
 
 # 第一部分 · 出题地图

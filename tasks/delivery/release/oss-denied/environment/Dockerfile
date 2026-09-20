@@ -18,7 +18,6 @@ COPY entrypoint.sh /opt/opc/entrypoint.sh
 RUN chmod +x /opt/opc/entrypoint.sh \
  && /usr/local/bin/opc-prune-tools \
  && mkdir -p /app/out \
- && opc-init-audit \
  # 公司信箱：himalaya + 本机 SMTP（mailpit）。通知是真发出去的，
  # 判分从服务端落的那份库里取，见 opc/verifier/outbox.py。
  && opc-init-outbound-mail
@@ -96,10 +95,7 @@ RUN printf '%s\n' \
  && chmod 0700 /opt/opc/data \
  && chmod 0550 /opt/opc/lib
 
-# BASH_ENV：hermes 每条命令都是一个新的 `bash -c`，于是每条命令都会读这份。
-# 它只挂一个钩子——命令不存在时留一行审计，然后照 bash 原样报错、原样 127。
 ENV PATH="/opt/opc/bin:${PATH}" \
-    BASH_ENV=/opt/opc/bashenv.sh \
     OPC_ALIYUN_FIXTURE=/opt/opc/data/aliyun.json \
     OPC_ALIYUN_STATE=/opt/opc/data/state.json
 

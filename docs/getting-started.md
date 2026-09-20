@@ -62,7 +62,7 @@ scripts/validate.sh                                        # 7 道全跑
 - **nop 必须 0 分**——nop 能拿分的题量不出任何东西，这条比分数本身重要
 
 **这一步不要跳。** 它验的正是第 1 级验不到的东西：Dockerfile 能不能构建、
-工具在容器里有没有执行权限、审计日志写不写得进去、判分容器读不读得到 agent 的产物。
+工具在容器里有没有执行权限、服务端日志写不写得进去、判分容器读不读得到 agent 的产物。
 第一次进真容器大概率有路径或权限的小毛病要修，那是正常的，就是来抓这个的。
 
 ### 第 3 级：真模型（开始烧 API）
@@ -99,8 +99,9 @@ make run CONFIG=configs/jobs/job-deepseek-x5.yaml    # 4 道题 × 5 遍 = 20 �
 
 - **最小权限。** 差分判分意味着一个任意模型拿着你的凭证联网（那些题的
   `network_mode` 必须是 `"public"`）。只读、只给必要的那一个服务。
-- **审计日志会脱敏。** `/var/lib/opc/audit.log` 记录完整 argv 且会被当 artifact 收走，
-  `opc/agent/opc_internal/audit.py` 把 argv 和异常文本里的 key/secret/token 打码。
+- **两份证据都会被当 artifact 收走。** `/logs/agent/hermes-session.jsonl`（agent 干了什么）
+  和 `/var/lib/opc/server-log.jsonl`（服务端真收到什么）。前者是 hermes 原样导出的会话，
+  **不脱敏**——命令行里出现过的凭证会原样留在里面，别拿真账号跑公开可分享的 trial。
 
 凭证怎么从 shell 进到容器里，见[项目结构](project-structure.md#凭证怎么进到容器里)。
 
@@ -110,7 +111,7 @@ make run CONFIG=configs/jobs/job-deepseek-x5.yaml    # 4 道题 × 5 遍 = 20 �
 |---|---|
 | harbor 抛 `RewardFileNotFoundError` | 判分器自己挂了（退 99），**不是 agent 答错**，这次 trial 作废 |
 | 想知道哪条断言挂了 | `/logs/verifier/ctrf.json`，pytest 每条断言分开报告 |
-| 想知道 agent 到底调没调工具 | 容器里的 `/var/lib/opc/audit.log` |
+| 想知道 agent 到底调没调工具 | `/logs/agent/hermes-session.jsonl`（它敲了什么）与 `/var/lib/opc/server-log.jsonl`（服务端真收到什么） |
 | 差分判分假阴性 | `/logs/verifier/oracle.json`，判分器当时取到的真值 |
 | hermes 报 `can't reach the model provider` | `base_url` 指到了别处。题目现在是 `network_mode = "public"`，适配器不再需要临时放行模型端点；改回 `no-network` 的话，放行失败也会报这个 |
 | harbor 抛 `network_mode='no-network' is not supported by EnvironmentType.DOCKER` | 宿主内核没有 `nftables fib inet`，harbor 的出网管控起不来，于是拒绝任何非 public 的策略。它靠跑一个写死的 alpine 容器读 `/proc/config.gz` 来探测，**拉不到那个镜像也会报同样的错**。题目默认已经是 `public`，只有你手动改回 `no-network` 才会撞上 |

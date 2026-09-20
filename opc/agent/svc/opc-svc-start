@@ -1,7 +1,6 @@
 #!/bin/sh
 # sudoers 里唯一放行的目标。agent（opc）只能以 opcsvc 跑这一个脚本，
-# 不能借 sudo 读语料、改审计、或提权做别的事。
-#   collector  —— 起审计收集器
+# 不能借 sudo 读语料或提权做别的事。
 #   datasource —— 起企业数据源服务（要读只有 opcsvc 能读的语料）
 #   workspace  —— 起 Google Workspace 数据源服务（给真 gam 供数）
 #   mailpit    —— 起本地 SMTP 服务端，给真 himalaya 当对端，收走所有外发信
@@ -9,9 +8,6 @@
 #   cloud      —— 起阿里云数据源服务（给真 aliyun CLI 供数，兼做 CDN 边缘）
 set -eu
 case "${1:-}" in
-  collector)
-    exec /usr/local/bin/opc-audit-collector
-    ;;
   datasource)
     exec python3 /opt/opc/lib/datasource_server.py
     ;;
@@ -47,7 +43,7 @@ case "${1:-}" in
     exec /usr/local/lib/opc/python3-net /opt/opc/lib/workspace_server.py
     ;;
   *)
-    echo "usage: opc-svc-start {collector|datasource|workspace|mailpit|billing|cloud}" >&2
+    echo "usage: opc-svc-start {datasource|workspace|mailpit|billing|cloud}" >&2
     exit 2
     ;;
 esac

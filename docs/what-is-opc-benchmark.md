@@ -87,10 +87,10 @@
 
 - 进得了 agent 容器的东西一律不许带 canary、`BENCHMARK DATA`、「模拟工具」这类字样，
   `make lint` 会反向扫描；canary 只放在 agent 看不见的 `task.toml` / `tests/` / `solution/` 里
-- 工具调用留痕伪装成普通的企业审计日志（`/var/lib/opc/audit.log`），而不是 `trace.jsonl`
+- 服务端请求日志落在 `/var/lib/opc/server-log.jsonl`，agent 够不着；它自己那一侧不再有任何留痕脚手架
 
 注意这只是**不再主动广而告之**，不是藏住：agent 在容器里是 root，
-审计日志它读得到也删得掉。真要藏住得让 agent 跑在非 root 下，那是另一笔改动。
+服务端日志由 `opcsvc` 持有，agent 读不到也删不掉。它自己的轨迹由 hermes 导出，那一份同身份，理论上可伪造——所以负断言一律往服务端写。
 
 ## 四元标签
 

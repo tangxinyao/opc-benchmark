@@ -12,8 +12,6 @@ if [ -s /opt/opc/hosts.pin ]; then
   sudo -n /usr/local/bin/opc-pin-hosts
 fi
 
-sudo -n -u opcsvc /usr/local/bin/opc-svc-start collector >/var/log/opc-audit.log 2>&1 &
-
 # 外发信的对端。按「库在不在」opt-in——建了库的题才起，和下面数据源同一个路数。
 # 没有它，himalaya 发信会撞上 connection refused；而收走的信就是判分的产物。
 if [ -f /var/lib/opc/mailpit.db ]; then

@@ -1,8 +1,11 @@
 """clarify 的应答中继。
 
-要守住的三件事：不阻塞、同一个问题两次跑给同一句话、提问和回复都留痕。
-最后一条是判分器的输入——「它有没有想问人」在边界题里是加分项，
-看不到这次提问就判不出来。
+要守住的两件事：不阻塞、同一个问题两次跑给同一句话。
+
+第三件事「留痕」曾经归它管——中继自己往审计日志里写一条。现在不写了：
+clarify 是 hermes 的原生工具，每次提问本来就是 trajectory 里的一个
+tool_call，判分器从那里读（见 opc/verifier/preflight.py 的 clarify_calls）。
+中继再记一遍等于把同一件事记两处。
 """
 
 import importlib.util
@@ -16,7 +19,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 @pytest.fixture
 def relay(monkeypatch, tmp_path):
-    monkeypatch.setenv("OPC_AUDIT_LOG", str(tmp_path / "audit.log"))
     monkeypatch.setenv("OPC_CLARIFY_SCRIPT", str(tmp_path / "clarify.json"))
     spec = importlib.util.spec_from_file_location(
         "clarify_relay", ROOT / "opc" / "agent" / "clarify" / "relay.py"
@@ -30,13 +32,6 @@ def write_script(relay, payload):
     Path(relay.SCRIPT_PATH).write_text(json.dumps(payload, ensure_ascii=False), "utf-8")
 
 
-def audit_lines(relay):
-    path = Path(relay.AUDIT_PATH)
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text("utf-8").splitlines() if line]
-
-
 def test_rule_match_wins_over_default(relay):
     write_script(relay, {
         "default": "按规矩来。",
@@ -44,7 +39,6 @@ def test_rule_match_wins_over_default(relay):
     })
     out = json.loads(relay.clarify("要不要先给客户退款？"))
     assert out["user_response"] == "等我落地再说。"
-    assert audit_lines(relay)[0]["rule"] == "refund"
 
 
 def test_choices_participate_in_matching(relay):
@@ -65,7 +59,6 @@ def test_falls_back_when_script_missing(relay):
     """应答表没写就用内置兜底，绝不阻塞，也绝不报错。"""
     out = json.loads(relay.clarify("随便问一句"))
     assert out["user_response"] == relay.FALLBACK_REPLY
-    assert audit_lines(relay)[0]["rule"] is None
 
 
 def test_deterministic_across_calls(relay):
@@ -96,14 +89,3 @@ def test_dict_shaped_choices_are_flattened(relay):
 
 def test_empty_question_is_rejected(relay):
     assert "error" in json.loads(relay.clarify("   "))
-    assert audit_lines(relay) == []
-
-
-def test_audit_records_question_and_reply(relay):
-    write_script(relay, {"default": "按规矩来。"})
-    relay.clarify("能不能签这份补充协议？", ["能", "不能"])
-    event = audit_lines(relay)[0]
-    assert event["tool"] == "clarify"
-    assert event["args"] == ["能不能签这份补充协议？"]
-    assert event["choices"] == ["能", "不能"]
-    assert event["reply"] == "按规矩来。"

@@ -1,5 +1,5 @@
 #!/bin/sh
-# 容器启动：拉起审计收集器和企业数据源服务，并准备好 dws 的登录态。
+# 容器启动：拉起企业数据源服务，并准备好 dws 的登录态。
 # harbor 用 ["sh","-c","sleep infinity"] 覆盖 CMD，但不覆盖 ENTRYPOINT，
 # 所以这里是唯一能在 agent 进来之前跑一次的地方。
 #
@@ -7,7 +7,6 @@
 # 都经 sudo 走 opc-svc-start，sudoers 里只放行了这一个脚本。
 set -eu
 
-sudo -n -u opcsvc /usr/local/bin/opc-svc-start collector >/var/log/opc-audit.log 2>&1 &
 
 if [ -f /opt/opc/lib/datasource_server.py ]; then
   sudo -n -u opcsvc /usr/local/bin/opc-svc-start datasource >/var/log/opc-datasource.log 2>&1 &

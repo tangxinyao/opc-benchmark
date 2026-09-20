@@ -15,7 +15,6 @@ COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agent/svc/opc-prune-tools。
 RUN /usr/local/bin/opc-prune-tools \
- && opc-init-audit \
  # 公司信箱：himalaya + 本机 SMTP（mailpit）。外发动作不再是哑命令，
  # 判分从服务端落的那份库里取，见 opc/verifier/outbox.py。
  && opc-init-outbound-mail \

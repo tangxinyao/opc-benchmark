@@ -8,7 +8,7 @@
 #   - 收件人、抄送、主题、正文、附件全部可判，且由 mailpit 服务端写盘，agent 改不了
 #   - 发信这件事本身有真实的失败面（连不上、证书不认、被拒收），跟 dws/gam 一致
 #
-# 权限模型照 opc-init-audit：
+# 权限模型：
 #   mailpit.db   opcsvc:opcsvc 0600 —— agent 读不到也改不掉，判分从产物里取
 #   TLS 私钥     opcsvc:opcsvc 0600 —— 在 /opt/opc/data 下，agent 进不去
 #   himalaya 配置 opc 可读 —— 那本来就该是「这台机器上配好的信箱」
@@ -75,4 +75,4 @@ chown -R opcsvc:opcsvc "$TLS_DIR"
 chmod 0700 "$TLS_DIR"
 chmod 0644 "$TLS_DIR/ca.crt" "$TLS_DIR/smtp.crt" 2>/dev/null || true
 
-# /var/lib/opc 的属主与模式由 opc-init-audit 定，这里不动。
+# /var/lib/opc 的属主与模式由基础镜像定（opcsvc:opc 0750），这里不动。

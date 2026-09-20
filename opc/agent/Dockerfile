@@ -84,7 +84,9 @@ WORKDIR /app
 # hermes 的 CLI 把 clarify 接在 prompt_toolkit 的 modal 上，容器里没人按键，
 # 于是每问一次白等 clarify.timeout（默认 120 秒），超时后还会回一句
 # 「用你自己的判断继续」——既烧任务预算，又往「别问了自己拍板」的方向推。
-# 这里把它改接到一份可配置的应答表上：确定、即时、提问和回复都留痕。
+# 这里把它改接到一份可配置的应答表上：确定、即时。
+# 提问本身不用中继记——clarify 是 hermes 的原生工具，每次提问就是 trajectory
+# 里的一个 tool_call，判分器从那里读。
 # 应答表由每道题用 OPC_CLARIFY_SCRIPT 指定，缺省是下面这份。
 COPY clarify/relay.py /opt/opc/lib/clarify_relay.py
 COPY clarify/default.json /opt/opc/clarify.json
@@ -92,14 +94,13 @@ COPY clarify/override.py /tmp/clarify_override.py
 RUN cat /tmp/clarify_override.py >> /usr/local/lib/hermes-agent/tools/clarify_tool.py \
  && rm /tmp/clarify_override.py \
  && chmod a+r /opt/opc/lib/clarify_relay.py /opt/opc/clarify.json \
- && OPC_AUDIT_LOG=/tmp/clarify-selfcheck.log \
-    /usr/local/lib/hermes-agent/venv/bin/python -c "\
+ && /usr/local/lib/hermes-agent/venv/bin/python -c "\
 import sys, json; sys.path.insert(0, '/usr/local/lib/hermes-agent'); \
 from tools.clarify_tool import clarify_tool; \
 out = json.loads(clarify_tool('走一下通路')); \
 assert out['user_response'], out; \
-print('clarify relay ok:', out['user_response'])" \
- && rm -rf /tmp/clarify-selfcheck.log /var/lib/opc
+print('clarify relay ok:', out['user_response'])"
+
 
 # --- 钉钉官方 CLI（dws）及其 skills ---
 # 题目的材料从真实连接器里来，而不是预先摆好的文件。这里烘的是官方发布的
@@ -244,7 +245,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends sudo \
 # opc-entrypoint.sh 与 opc-prune-tools 也在这里：它们是流程脚本（容器启动、
 # 题目构建期裁剪），agent 永远不该调，所以跟其余 svc 脚本一样落 /usr/local/bin，
 # 不进 /opt/opc/bin —— 那个目录在 agent 的 PATH 上、`ls` 就看得见。
-COPY svc/opc-init-audit svc/opc-audit-collector svc/opc-svc-start \
+COPY svc/opc-svc-start \
      svc/opc-pin-hosts svc/opc-init-outbound-mail svc/opc-init-billing \
      svc/opc-entrypoint.sh svc/opc-prune-tools \
      /usr/local/bin/
@@ -255,8 +256,7 @@ RUN mkdir -p /usr/local/lib/opc \
  && cp /usr/local/bin/python3.12 /usr/local/lib/opc/python3-net \
  && setcap cap_net_bind_service=+ep /usr/local/lib/opc/python3-net \
  && chmod 0755 /usr/local/lib/opc/python3-net
-RUN chmod 0755 /usr/local/bin/opc-init-audit /usr/local/bin/opc-audit-collector \
-      /usr/local/bin/opc-svc-start /usr/local/bin/opc-pin-hosts \
+RUN chmod 0755 /usr/local/bin/opc-svc-start /usr/local/bin/opc-pin-hosts \
       /usr/local/bin/opc-init-outbound-mail /usr/local/bin/opc-init-billing \
       /usr/local/bin/opc-entrypoint.sh /usr/local/bin/opc-prune-tools \
  && printf '%s\n' 'opc ALL=(opcsvc) NOPASSWD: /usr/local/bin/opc-svc-start' \
@@ -264,11 +264,14 @@ RUN chmod 0755 /usr/local/bin/opc-init-audit /usr/local/bin/opc-audit-collector 
       > /etc/sudoers.d/opc-svc \
  && chmod 0440 /etc/sudoers.d/opc-svc \
  && visudo -c -f /etc/sudoers.d/opc-svc \
- && touch /var/log/opc-audit.log /var/log/opc-datasource.log \
+ && mkdir -p /var/lib/opc \
+ && chown opcsvc:opc /var/lib/opc \
+ && chmod 0750 /var/lib/opc \
+ && touch /var/log/opc-datasource.log \
       /var/log/opc-mailpit.log /var/log/opc-billing.log \
- && chown opcsvc:opc /var/log/opc-audit.log /var/log/opc-datasource.log \
+ && chown opcsvc:opc /var/log/opc-datasource.log \
       /var/log/opc-mailpit.log /var/log/opc-billing.log \
- && chmod 0660 /var/log/opc-audit.log /var/log/opc-datasource.log \
+ && chmod 0660 /var/log/opc-datasource.log \
       /var/log/opc-mailpit.log /var/log/opc-billing.log \
  && chown -R opc:opc /app "${HERMES_HOME}"
 
@@ -278,41 +281,29 @@ RUN chmod 0755 /usr/local/bin/opc-init-audit /usr/local/bin/opc-audit-collector 
 # 相同的拷贝，且拷贝在题目录里和手写文件长得一模一样，改错了没人拦。
 # 烘进基底之后题目录里不再有这个目录，来源只剩这一处。
 #
-# 源目录分三个，一一对应镜像里三个不同的落点——放进哪个目录就决定了落到哪，
-# 没有隐式规则。依据是「它是不是一条命令」，不是它用什么语言写的
-# （rules 是 Python 写的命令，所以它没有 .py 后缀）：
-#   bin/     有 shebang、可执行、被当命令调  -> /opt/opc/bin（在 PATH 上）
-#   opc_internal/  被 import 的包           -> /opt/opc/pylib/（PYTHONPATH）
-#   etc/     被 source 的                   -> /opt/opc/bashenv.sh（BASH_ENV）
+# bin/ 里放的是**题目语料的读取口**——跟 dws/stripe/gam/aliyun 那些真 CLI
+# 同一个位置：在 agent 眼里它是一条公司内部命令，不是评测装置。
+# 落 /opt/opc/bin，在 PATH 上。
 #
-# 实现收在 opc_internal/ 包里而不是摊在 bin/：/opt/opc/bin 在 agent 的
-# PATH 上、`ls` 就看得见，一个带 .py 后缀的模块摆在一堆公司内部命令中间，
-# 不像内部工具，像评测脚手架（设计立场 3）。
-# 做成包而不是裸模块，是因为 PYTHONPATH 对容器里每个 python 进程都生效。
+# 这里曾经还有 opc_internal/（审计实现，PYTHONPATH）和 etc/bashenv.sh
+# （command_not_found 钩子，BASH_ENV）。两者都删了：它们把「agent 调了什么、
+# 撞上过什么」记了第二遍，而这件事 trajectory 里本来就有。评价只认
+# trajectory 加服务端状态两处证据，见 opc/verifier/preflight.py 的开头。
 #
-# 流程脚本（opc-entrypoint.sh / opc-prune-tools）不在这三个里，它们跟其余
+# 流程脚本（opc-entrypoint.sh / opc-prune-tools）不在这里，它们跟其余
 # svc 脚本一起落 /usr/local/bin——agent 永远不该调，也就不该在它的 PATH 上。
 # 按题裁剪仍然发生在题目构建期：opc-prune-tools 在语料 COPY 之后跑，
 # 把后端语料不存在的只读工具从 PATH 上摘掉。烘进基底不影响这一层。
 COPY bin/ /opt/opc/bin/
-COPY opc_internal/ /opt/opc/pylib/opc_internal/
-COPY etc/bashenv.sh /opt/opc/bashenv.sh
 RUN chmod 0755 /opt/opc/bin/* \
- && chmod -R a+rX /opt/opc/pylib /opt/opc/bashenv.sh \
- && test -x /opt/opc/bin/rules \
- && test -f /opt/opc/pylib/opc_internal/audit.py
+ && test -x /opt/opc/bin/rules
 
-# PATH 与 PYTHONPATH 在这里就位，题目 Dockerfile 不必再各自声明。
-# BASH_ENV：hermes 每条命令都是一个新的 `bash -c`，于是每条命令都会读这份。
-ENV PATH="/opt/opc/bin:${PATH}" \
-    PYTHONPATH="/opt/opc/pylib" \
-    BASH_ENV=/opt/opc/bashenv.sh
+# PATH 在这里就位，题目 Dockerfile 不必再各自声明。
+ENV PATH="/opt/opc/bin:${PATH}"
 
-# 构建期自检：rules 要能在 PATH 上被找到，并且 import 得到 opc_internal。
-# 只改了目录布局没改 PYTHONPATH 的话，这里当场炸，而不是等到评测中途。
-RUN python3 -c "from opc_internal import audit" \
- && command -v rules >/dev/null
+# 构建期自检：rules 要能在 PATH 上被找到。
+RUN command -v rules >/dev/null
 
 # agent 从这里起不再是 root。题目镜像里凡是 agent 要写的目录，
-# 都要在 environment/Dockerfile 里 chown 给 opc（`opc-init-audit` 之后那行）。
+# 都要在 environment/Dockerfile 里 chown 给 opc。
 USER opc

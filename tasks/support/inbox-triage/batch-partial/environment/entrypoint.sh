@@ -1,5 +1,5 @@
 #!/bin/sh
-# 容器启动：拉起审计收集器、Google Workspace 数据源和外发信对端。
+# 容器启动：拉起 Google Workspace 数据源和外发信对端。
 #
 # 这道题的前置条件（信箱有没有歧义 / 批量取信掉不掉条）不在这里验——
 # 掉条是语料里的 fetch_error 字段钉死的，信箱歧义看 owner-note.md，
@@ -9,7 +9,6 @@ set -eu
 # Docker 运行期会把自己那份 /etc/hosts 挂进来，构建期写的看不见，只能现在写。
 sudo -n /usr/local/bin/opc-pin-hosts
 
-sudo -n -u opcsvc /usr/local/bin/opc-svc-start collector >/var/log/opc-audit.log 2>&1 &
 
 # 外发信的对端。库在就起——判分要的那份产物由它写。
 if [ -f /var/lib/opc/mailpit.db ]; then

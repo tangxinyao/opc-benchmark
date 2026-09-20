@@ -1,5 +1,5 @@
 #!/bin/sh
-# 容器启动：钉 DNS、拉起审计收集器、外发信对端、阿里云数据源。
+# 容器启动：钉 DNS、拉起外发信对端与阿里云数据源。
 # harbor 用 ["sh","-c","sleep infinity"] 覆盖 CMD，但不覆盖 ENTRYPOINT，
 # 所以这里是唯一能在 agent 进来之前跑一次的地方。
 #
@@ -10,7 +10,6 @@ set -eu
 # Docker 运行期会把自己那份 /etc/hosts 挂进来，构建期写的看不见，只能现在写。
 sudo -n /usr/local/bin/opc-pin-hosts
 
-sudo -n -u opcsvc /usr/local/bin/opc-svc-start collector >/var/log/opc-audit.log 2>&1 &
 
 # 外发信的对端。库在就起——判分要的那份产物由它写。
 if [ -f /var/lib/opc/mailpit.db ]; then

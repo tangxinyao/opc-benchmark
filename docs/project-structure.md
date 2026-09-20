@@ -21,9 +21,7 @@ opc/                        # 去重层：22 道题里那些相同拷贝的唯�
 │   ├── Dockerfile          #   agent 基底镜像；构建上下文就是 opc/agent/
 │   ├── svc/                #   流程脚本（entrypoint、prune、服务身份）-> /usr/local/bin
 │   ├── clarify/            #   把 hermes 的提问接到确定性应答表
-│   ├── bin/                #   agent 会敲的命令（-> /opt/opc/bin，在 PATH 上）
-│   ├── pylib/              #   被 import 的包 opc_internal（-> /opt/opc/pylib）
-│   └── etc/                #   被 source 的（-> /opt/opc/bashenv.sh，BASH_ENV）
+│   └── bin/                #   agent 会敲的命令（-> /opt/opc/bin，在 PATH 上）
 ├── verifier/               # 【Harbor 三块之一：判分器】-> tasks/*/*/*/tests/
 └── common/                 # 扇到 tasks/*/environment/ 的共同来源
     ├── datasources/        #   真 CLI 的对端 mock（按 opt-in -> environment/lib/）
@@ -40,7 +38,8 @@ scripts/sync-tasks.sh 负责扇出，make lint 里的 --check 保证副本没被
 
 agent/ 内部的 bin/ pylib/ etc/ 再分三个落点，依据是「它是不是一条命令」，
 不是用什么语言写的——rules 是 Python 写的命令，所以它没有 .py 后缀。
-实现收在 pylib/opc_internal/ 包里而不是摊在 bin/，因为 /opt/opc/bin 在 agent
+（曾经还有 pylib/opc_internal/ 与 etc/bashenv.sh，那套留痕脚手架已删。）
+早先的理由是：/opt/opc/bin 在 agent
 的 PATH 上、ls 就看得见。流程脚本（opc-entrypoint.sh / opc-prune-tools）不在
 这三个里：agent 永远不该调，所以跟其余 svc 脚本一起在 agent/svc/，落 /usr/local/bin。
 configs/                    # 所有配置文件。jobs/ 是产物，其余是手改的输入
@@ -56,7 +55,9 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 
 ## 环境里的工具
 
-环境里预置了几个命令，**每次调用都会记进 `/var/lib/opc/audit.log`**，判分器据此判轨迹：
+环境里预置了几个命令。判分器据以判轨迹的不是命令自己留的痕——**它们什么都不记**——
+而是 hermes 导出的 trajectory（agent 敲了什么）加各 fixture 服务端的 
+`/var/lib/opc/server-log.jsonl`（服务端真收到什么）。见 docs/tools-and-fixtures.md。
 
 | 命令 | 作用 |
 |---|---|
@@ -75,7 +76,7 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 | `himalaya` | 开源 IMAP/SMTP 客户端（版本钉死） | 本机 Maildir，配置在 `~/.config/himalaya/config.toml` |
 | `git` | 就是 git | 题目构建期用真 git 造的仓库 |
 
-源在 `opc/agent/bin/`（命令）、`opc/agent/opc_internal/`（被 import 的）、`opc/agent/etc/`（被 source 的），
+源在 `opc/agent/bin/`（命令），
 **烘进 agent 基础镜像**，改完要 `make image` 重建基底——题目录里没有它们的拷贝。
 `opc/common/datasources/` 和 `opc/verifier/` 才是 `scripts/sync-tasks.sh` 扇出的。
 为什么它们要装得像公司的内部命令而不是评测夹具，见
@@ -176,7 +177,8 @@ prompt_toolkit 的一个 modal——容器里没人按键，于是每问一次�
 匹配时问题文本和 `choices` 一起进正则——模型常把动词写在选项里
 （`question="怎么处理？"`, `choices=["退款", "改期"]`），只匹配 question 会漏掉一半。
 
-**提问和回复都会写进 `/var/lib/opc/audit.log`**，`tool` 字段是 `clarify`。
+提问和回复不再单独留痕：`clarify` 是 hermes 的原生工具，每次提问本来就是
+trajectory 里的一个 tool_call，判分器从那里读（`preflight.clarify_calls`）。
 判分器因此能看见「它有没有想问人」——在边界题里这是加分项，不是噪音。
 
 答话的是一份写死的表，不是另一个模型：同一道题两次跑，老板说的是同一句话。

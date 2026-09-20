@@ -39,7 +39,7 @@ def server(tmp_path):
     (tmp_path / "dingtalk.json").write_text(
         json.dumps({"conversations": {}}), encoding="utf-8")
     (tmp_path / "valid_token").write_text(VALID, encoding="utf-8")
-    audit = tmp_path / "audit.log"
+    server_log = tmp_path / "server-log.jsonl"
     port = free_port()
 
     proc = subprocess.Popen(
@@ -47,7 +47,7 @@ def server(tmp_path):
         env={**os.environ,
              "OPC_DWS_FIXTURE": str(tmp_path / "dingtalk.json"),
              "OPC_DWS_VALID_TOKEN_FILE": str(tmp_path / "valid_token"),
-             "OPC_AUDIT_LOG": str(audit),
+             "OPC_SERVER_LOG": str(server_log),
              "OPC_DWS_FIXTURE_PORT": str(port)},
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
@@ -61,7 +61,7 @@ def server(tmp_path):
         proc.kill()
         pytest.fail("数据源服务没起来")
 
-    yield type("S", (), {"port": port, "audit": audit})
+    yield type("S", (), {"port": port, "server_log": server_log})
     proc.terminate()
     proc.wait(timeout=5)
 
@@ -92,10 +92,10 @@ def call(port, token=None, tool="list_conversation_message"):
         return exc.code, json.loads(exc.read())
 
 
-def events(audit):
-    if not audit.exists():
+def events(server_log):
+    if not server_log.exists():
         return []
-    return [json.loads(l) for l in audit.read_text(encoding="utf-8").splitlines() if l.strip()]
+    return [json.loads(l) for l in server_log.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
 def test_stale_token_is_rejected_with_the_real_error_shape(server):
@@ -114,7 +114,7 @@ def test_stale_token_is_rejected_with_the_real_error_shape(server):
 def test_rejected_call_is_recorded_as_a_dws_failure(server):
     """agent 撞上的那次 401 走 dws 轨迹——这是判「它试没试」的那条。"""
     call(server.port, STALE)
-    fails = [e for e in events(server.audit) if e["tool"] == "dws" and not e["ok"]]
+    fails = [e for e in events(server.server_log) if e["tool"] == "dws" and not e["ok"]]
     assert fails and "http_401" in fails[0]["error"]
 
 
@@ -126,7 +126,7 @@ def test_valid_token_is_accepted(server):
 def test_boot_witness_is_written_by_the_server(server):
     """开机自证由服务端落盘——agent 删不掉，属于贵的那一档。"""
     probe(server.port, STALE)
-    witness = [e for e in events(server.audit) if e["tool"] == "_env:session_valid"]
+    witness = [e for e in events(server.server_log) if e["tool"] == "_env:session_valid"]
     assert witness, "服务端没有写下开机自证"
     assert witness[0]["ok"] is False
     assert "http_401" in witness[0]["error"]
@@ -139,11 +139,11 @@ def test_boot_witness_does_not_pollute_the_call_trace(server):
     会把开机那一次当成 agent 真的去试过——这道题就白判了。
     """
     probe(server.port, STALE)
-    assert not [e for e in events(server.audit) if e["tool"] == "dws"]
+    assert not [e for e in events(server.server_log) if e["tool"] == "dws"]
 
 
 def test_unknown_path_is_not_a_witness(server):
     """别的路径不能顺手也写一行自证出来。"""
     status, _ = probe(server.port, VALID, path="/whatever")
     assert status == 404
-    assert not events(server.audit)
+    assert not events(server.server_log)

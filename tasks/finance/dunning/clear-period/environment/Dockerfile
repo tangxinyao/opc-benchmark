@@ -21,7 +21,6 @@ COPY clarify.json /opt/opc/clarify.json
 RUN chmod +x /opt/opc/entrypoint.sh \
  && /usr/local/bin/opc-prune-tools \
  && chmod a+r /opt/opc/clarify.json \
- && opc-init-audit \
  # 公司信箱：himalaya + 本机 SMTP（mailpit）。外发动作不再是哑命令，
  # 判分从服务端落的那份库里取，见 opc/verifier/outbox.py。
  && opc-init-outbound-mail \

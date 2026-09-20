@@ -39,7 +39,11 @@ FIXTURE_PATH = os.environ.get("OPC_GWS_FIXTURE", "/opt/opc/data/workspace.json")
 DISCOVERY_DIR = os.environ.get("OPC_GWS_DISCOVERY", "/opt/opc/data/discovery")
 CERT_FILE = os.environ.get("OPC_GWS_CERT", "/opt/opc/data/tls/fixture.crt")
 KEY_FILE = os.environ.get("OPC_GWS_KEY", "/opt/opc/data/tls/fixture.key")
-AUDIT_PATH = os.environ.get("OPC_AUDIT_LOG", "/var/lib/opc/audit.log")
+# 服务端自己写的一份：它真收到了哪些请求，外加开机自证。
+# agent 是 opc，这个目录是 opcsvc:opc 0750，它读不到也改不了。
+# 以前这里写的是那份要靠 FIFO + 收集器才落得下去的 audit.log——
+# 那套机器连同 agent 侧的命令包装一起删了，服务端直接追加就行。
+SERVER_LOG = os.environ.get("OPC_SERVER_LOG", "/var/lib/opc/server-log.jsonl")
 PORT = int(os.environ.get("OPC_GWS_PORT", "443"))
 
 DISCOVERY_FILES = {
@@ -59,8 +63,8 @@ def record(op: str, arguments: dict, ok: bool = True, extra: dict = None) -> Non
     if extra:
         event.update(extra)
     try:
-        os.makedirs(os.path.dirname(AUDIT_PATH), exist_ok=True)
-        with open(AUDIT_PATH, "a", encoding="utf-8") as fh:
+        os.makedirs(os.path.dirname(SERVER_LOG), exist_ok=True)
+        with open(SERVER_LOG, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(event, ensure_ascii=False) + "\n")
     except OSError:
         pass

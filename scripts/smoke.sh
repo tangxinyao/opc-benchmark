@@ -31,7 +31,7 @@ for task in "$ROOT"/tasks/*/*/*/; do
     esac
     cp -r "$item" "$app/"
   done
-  : > "$work/audit.log"
+  : > "$work/server-log.jsonl"
 
   # 判分器自带的固定语料（比如原始流水）跟着测试走，也要一起搬过来，
   # 并且 /tests 这个前缀同样要重写——只重写 /app 的话，判分器会去宿主机的
@@ -53,18 +53,17 @@ for task in "$ROOT"/tasks/*/*/*/; do
   fi
 
   # 基线：什么都不做（nop）必须拿 0 分，否则这道题量不出东西
-  if OPC_AUDIT_LOG="$work/audit.log" OPC_ORACLE_FAKE="$fake" OPC_VERIFIER_LOG_DIR="$work/logs" \
+  if OPC_SERVER_LOG="$work/server-log.jsonl" OPC_ORACLE_FAKE="$fake" OPC_VERIFIER_LOG_DIR="$work/logs" \
        "$PYTHON" -m pytest -q "$work/tests/test_state.py" > "$work/nop.log" 2>&1; then
     echo "FAIL  $name (nop 就能通过，题目量不出东西)"; FAILED=1
   fi
 
   # 内部命令不再随题下发（烘进基础镜像了），这里直接指向仓库里的源目录。
-  # PYTHONPATH 指向 opc_internal 的**上级**，对应容器里的 /opt/opc/pylib。
-  if OPC_AUDIT_LOG="$work/audit.log" OPC_RULES="$app/rules/platform_rules.json" \
-     PATH="$ROOT/opc/agent/bin:$PATH" PYTHONPATH="$ROOT/opc/agent${PYTHONPATH:+:$PYTHONPATH}" \
+  if OPC_SERVER_LOG="$work/server-log.jsonl" OPC_RULES="$app/rules/platform_rules.json" \
+     PATH="$ROOT/opc/agent/bin:$PATH" \
      bash "$work/solve.sh" \
        > "$work/solve.log" 2>&1; then
-    if OPC_AUDIT_LOG="$work/audit.log" OPC_ORACLE_FAKE="$fake" OPC_VERIFIER_LOG_DIR="$work/logs" \
+    if OPC_SERVER_LOG="$work/server-log.jsonl" OPC_ORACLE_FAKE="$fake" OPC_VERIFIER_LOG_DIR="$work/logs" \
          "$PYTHON" -m pytest -q "$work/tests/test_state.py" > "$work/test.log" 2>&1; then
       echo "PASS  $name"
     else

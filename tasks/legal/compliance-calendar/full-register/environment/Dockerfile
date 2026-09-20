@@ -16,7 +16,6 @@ COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agent/svc/opc-prune-tools。
 RUN chmod +x /opt/opc/entrypoint.sh \
  && /usr/local/bin/opc-prune-tools \
- && opc-init-audit \
  && mkdir -p /app/out \
  && chown -R opc:opc /app
 ENV PATH="/opt/opc/bin:${PATH}"
