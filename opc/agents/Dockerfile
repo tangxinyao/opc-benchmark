@@ -267,6 +267,41 @@ RUN chmod 0755 /usr/local/bin/opc-init-audit /usr/local/bin/opc-audit-collector 
       /var/log/opc-mailpit.log /var/log/opc-billing.log \
  && chown -R opc:opc /app "${HERMES_HOME}"
 
+# --- 环境里的内部命令 ---
+# 以前这些是由 scripts/sync-tasks.sh 扇出到每道题的 environment/tools/、
+# 再由题目 Dockerfile `COPY tools/ /opt/opc/bin/` 进去的：22 道题 22 份逐字节
+# 相同的拷贝，且拷贝在题目录里和手写文件长得一模一样，改错了没人拦。
+# 烘进基底之后题目录里不再有这个目录，来源只剩这一处。
+#
+# 分三个落点，依据是「它是不是一条命令」，不是它用什么语言写的：
+#   bin/   有 shebang、可执行、被当命令调  -> /opt/opc/bin（在 PATH 上）
+#   lib/   被 import 的模块               -> /opt/opc/pylib（PYTHONPATH）
+#   etc/   被 source 的                   -> /opt/opc/bashenv.sh（BASH_ENV）
+# _audit.py 挪出 bin/ 还有第二个理由：/opt/opc/bin 在 agent 的 PATH 上、
+# `ls` 就看得见，一个下划线开头带 .py 后缀的文件摆在一堆公司内部命令中间，
+# 不像内部工具，像评测脚手架（设计立场 3）。
+#
+# 按题裁剪仍然发生在题目构建期：opc-prune-tools 在语料 COPY 之后跑，
+# 把后端语料不存在的只读工具从 PATH 上摘掉。烘进基底不影响这一层。
+COPY bin/ /opt/opc/bin/
+COPY lib/ /opt/opc/pylib/
+COPY etc/bashenv.sh /opt/opc/bashenv.sh
+RUN chmod 0755 /opt/opc/bin/* \
+ && chmod -R a+rX /opt/opc/pylib /opt/opc/bashenv.sh \
+ && test -x /opt/opc/bin/rules \
+ && test -f /opt/opc/pylib/_audit.py
+
+# PATH 与 PYTHONPATH 在这里就位，题目 Dockerfile 不必再各自声明。
+# BASH_ENV：hermes 每条命令都是一个新的 `bash -c`，于是每条命令都会读这份。
+ENV PATH="/opt/opc/bin:${PATH}" \
+    PYTHONPATH="/opt/opc/pylib" \
+    BASH_ENV=/opt/opc/bashenv.sh
+
+# 构建期自检：rules 要能在 PATH 上被找到，并且 import 得到 _audit。
+# 只改了目录布局没改 PYTHONPATH 的话，这里当场炸，而不是等到评测中途。
+RUN python3 -c "import _audit" \
+ && command -v rules >/dev/null
+
 # agent 从这里起不再是 root。题目镜像里凡是 agent 要写的目录，
 # 都要在 environment/Dockerfile 里 chown 给 opc（`opc-init-audit` 之后那行）。
 USER opc

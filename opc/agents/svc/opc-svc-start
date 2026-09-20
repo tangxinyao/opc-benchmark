@@ -38,7 +38,7 @@ case "${1:-}" in
   cloud)
     # 443 同样改不了：aliyun CLI 按产品拼 https://<product>.aliyuncs.com，
     # 而 CDN 边缘那一面要的是 https://cdn.<域名>/——两面都在 443，
-    # 所以是同一个进程按 Host 头分流，见 opc/tools/aliyun_fixture_server.py。
+    # 所以是同一个进程按 Host 头分流，见 opc/datasources/aliyun_fixture_server.py。
     exec /usr/local/lib/opc/python3-net /opt/opc/lib/cloud_server.py
     ;;
   workspace)

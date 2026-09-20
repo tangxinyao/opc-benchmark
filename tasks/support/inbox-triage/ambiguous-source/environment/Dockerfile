@@ -10,7 +10,6 @@ USER root
 
 WORKDIR /app
 COPY owner-note.md ops-notes.md /app/
-COPY tools/ /opt/opc/bin/
 # 企业邮箱的语料归 opcsvc：agent 读不到，只能经 gam 走真接口拿。
 # support 那个老信箱是本机 Maildir，它本来就该是 agent 读得到的——
 # himalaya 读的就是本地文件，把它藏起来反而不真实。
@@ -19,8 +18,7 @@ COPY lib/ /opt/opc/lib/
 COPY maildir/ /var/mail/support/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 COPY clarify.json /opt/opc/clarify.json
-RUN chmod +x /opt/opc/bin/rules \
-      /opt/opc/bin/_record-env /opt/opc/bin/_record-missing /opt/opc/entrypoint.sh \
+RUN chmod +x /opt/opc/entrypoint.sh \
  && /opt/opc/bin/opc-prune-tools \
  && opc-init-audit \
  && chmod a+r /opt/opc/clarify.json

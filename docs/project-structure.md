@@ -7,7 +7,6 @@ tasks/<职能>/<活>/<案例>/   # 题目。职能=六个之一，活=一件差�
 ├── environment/            #   agent 容器
 │   ├── Dockerfile          #     容器初始状态（FROM agent 基础镜像）
 │   ├── entrypoint.sh       #     可选。agent 进来之前把环境立起来（预检题几乎都有）
-│   ├── tools/              #     环境里的命令（由 opc/tools/ 同步而来）
 │   └── ...                 #     该题的语料：vault/、rules/、inbox/、data/、records/
 ├── solution/solve.sh       #   oracle 解法，必须满分
 └── tests/                  #   判分容器
@@ -17,8 +16,16 @@ tasks/<职能>/<活>/<案例>/   # 题目。职能=六个之一，活=一件差�
     └── test_state.py       #     判分器，真正的尺子
 opc/                        # 本仓库自己的代码（题目在 tasks/，不在这里）
 ├── agents/                 #   Harbor 适配器 + agent 基础镜像
-├── tools/                  #   进 agent 容器的命令（同步到 tasks/*/*/*/environment/tools/）
+├── bin/                    #   环境里的命令（烘进基础镜像 -> /opt/opc/bin，在 PATH 上）
+├── lib/                    #   被 import 的模块（烘进基底 -> /opt/opc/pylib，PYTHONPATH）
+├── etc/                    #   被 source 的（烘进基底 -> /opt/opc/bashenv.sh，BASH_ENV）
+├── datasources/            #   真 CLI 的对端 fixture（按 opt-in 同步到 environment/lib/）
+├── skills/                 #   vendor 来的 agent skills（按 skills.manifest 点名下发）
 └── verifier/               #   进判分容器的东西（同步到 tasks/*/*/*/tests/）
+
+bin/lib/etc 三分的依据是「它是不是一条命令」，不是用什么语言写的——
+rules 是 Python 写的命令，所以它没有 .py 后缀，和 shell 写的 opc-prune-tools
+同在 bin/；_audit.py 是被 import 的库，所以不在 bin/。
 configs/                    # 所有配置文件。jobs/ 是产物，其余是手改的输入
 ├── policy.toml             #   全仓库默认跑法，gen_job_configs.py 读
 ├── task-template.toml      #   新建题的元数据模板，harbor tasks init 读
@@ -38,7 +45,7 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 |---|---|
 | `rules show <平台> [--at 日期]` | 平台分成规则（带版本，可按日期取） |
 | `opc-prune-tools` | 构建期脚本，不进 agent 的 PATH。语料不存在的只读工具（现在只剩 `rules`）在这里被摘掉，免得留一条一跑就炸的死命令 |
-| `stripe` | Stripe 官方 CLI（版本钉死）。退款是不可逆动作，边界题里是陷阱 | `opc/tools/stripe_fixture_server.py`，`api.stripe.com` 钉到本机 |
+| `stripe` | Stripe 官方 CLI（版本钉死）。退款是不可逆动作，边界题里是陷阱 | `opc/datasources/stripe_fixture_server.py`，`api.stripe.com` 钉到本机 |
 | `himalaya` | 真 IMAP/SMTP 客户端。读本机 Maildir，发本机 SMTP | 对端是 mailpit，外发的信落在 `/var/lib/opc/mailpit.db`，判分读它 |
 
 只读检索这一侧尽量用**真二进制**，不自己造壳（选型见
@@ -46,12 +53,14 @@ docs/                       # 本文档 + 母题的出处、案例集、讲稿
 
 | 命令 | 真实身份 | 对端 |
 |---|---|---|
-| `dws` | 钉钉官方 workspace CLI（版本钉死） | `opc/tools/dws_fixture_server.py`，MCP over HTTP |
-| `gam` | GAMADV-XTD3（Google Workspace 的事实标准 CLI） | `opc/tools/gws_fixture_server.py`：真 TLS、真服务账号 JWT、真 discovery 与 batch，只是 `*.googleapis.com` 被 `opc-pin-hosts` 钉到本机 |
+| `dws` | 钉钉官方 workspace CLI（版本钉死） | `opc/datasources/dws_fixture_server.py`，MCP over HTTP |
+| `gam` | GAMADV-XTD3（Google Workspace 的事实标准 CLI） | `opc/datasources/gws_fixture_server.py`：真 TLS、真服务账号 JWT、真 discovery 与 batch，只是 `*.googleapis.com` 被 `opc-pin-hosts` 钉到本机 |
 | `himalaya` | 开源 IMAP/SMTP 客户端（版本钉死） | 本机 Maildir，配置在 `~/.config/himalaya/config.toml` |
 | `git` | 就是 git | 题目构建期用真 git 造的仓库 |
 
-源在 `opc/tools/`，改完跑 `scripts/sync-tasks.sh` 同步到各任务目录。
+源在 `opc/bin/`（命令）、`opc/lib/`（被 import 的）、`opc/etc/`（被 source 的），
+**烘进 agent 基础镜像**，改完要 `make image` 重建基底——题目录里没有它们的拷贝。
+`opc/datasources/` 和 `opc/verifier/` 才是 `scripts/sync-tasks.sh` 扇出的。
 为什么它们要装得像公司的内部命令而不是评测夹具，见
 [设计立场 3](what-is-opc-benchmark.md#3-不让-agent-察觉自己在被考)。
 

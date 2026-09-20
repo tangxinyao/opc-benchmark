@@ -114,7 +114,7 @@ docstring 第一行以 `#<数字>` 开头时，那个编号会被拆进「流程
 1. 挑一道结构最接近你业务的题，复制整个任务目录
 2. 只换 `environment/` 下的语料（`vault/`、`rules/`、`data/`、`inbox/`）和题面里的具体问题。
    只读工具按语料定去留：`environment/rules/platform_rules.json` 不在，`rules` 就不会
-   出现在 agent 的 PATH 上（`opc/tools/opc-prune-tools` 在构建期摘的）
+   出现在 agent 的 PATH 上（`opc/bin/opc-prune-tools` 在构建期摘的）
 3. 判分器里改掉写死的期望值（合同号、费率、金额）
 4. `scripts/smoke.sh` 跑通。带 `environment/entrypoint.sh` 的题它会跳过——
    那类题的环境要在 agent 进来之前立起来（拉服务、摆权限、换登录态、删二进制），
@@ -182,7 +182,8 @@ make check                    # lint + unit + smoke，不需要 Docker
 scripts/validate.sh           # 需要 Docker，在真容器里再验一遍
 ```
 
-改了 `opc/tools/` 或 `opc/verifier/` 的话，先 `scripts/sync-tasks.sh`
+改了 `opc/datasources/` 或 `opc/verifier/` 的话，先 `scripts/sync-tasks.sh`；
+改了 `opc/bin/`、`opc/lib/`、`opc/etc/` 的话，要重建基础镜像 `make image`
 同步到各任务目录，否则你改的是源、跑的是旧副本。
 
 ## 预检题：动手之前的那一步
@@ -197,7 +198,7 @@ scripts/validate.sh           # 需要 Docker，在真容器里再验一遍
 |---|---|---|
 | 前置失败/补救/编造/绕行的公共断言 | `import preflight` | `opc/verifier/preflight.py`，`sync-tasks.sh` 铺进每道题的 `tests/` |
 | 「环境此刻是坏的」这条事实 | `_record-env <事实名> ok\|fail [说明]` | 在 `environment/entrypoint.sh` 里调，agent 进来之前就写死 |
-| 「agent 敲了个不存在的命令」 | `BASH_ENV=/opt/opc/bin/opc-bashenv.sh` | 挂 `command_not_found_handle`，留痕后照常 127 |
+| 「agent 敲了个不存在的命令」 | `BASH_ENV=/opt/opc/bashenv.sh` | 挂 `command_not_found_handle`，留痕后照常 127 |
 | 「该问老板而没问」 | `environment/clarify.json` 应答表 + `OPC_CLARIFY_SCRIPT` | 判三段：问没问 / 命中的是不是那条规则 / 有没有照答复做。歧义可以长在业务口径上（`dunning`），也可以长在工具与数据源的选择上（`mail`：两个信箱都能给出答案） |
 
 两条铁律：

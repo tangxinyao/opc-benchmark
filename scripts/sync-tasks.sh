@@ -1,7 +1,6 @@
 #!/bin/bash
 # 把 opc/ 里的工具与判分脚手架同步到每个任务目录。
 #
-#   opc/tools/     -> tasks/*/*/*/environment/tools/   （进 agent 容器）
 #   数据源服务     -> tasks/*/*/*/environment/lib/     （只有声明了 lib/ 的题）
 #   opc/skills/    -> tasks/*/*/*/environment/skills/  （按 skills.manifest 点名）
 #   opc/verifier/  -> tasks/*/*/*/tests/               （进判分容器）
@@ -24,14 +23,11 @@ CHECK=0
 # $2 是落点——正常模式就是题目录自己，--check 模式是个临时镜像。
 sync_task() {
   local task="$1" dest="$2"
-  mkdir -p "$dest/environment/tools" "$dest/tests"
+  mkdir -p "$dest/tests"
 
-  # fixture server 不进 tools/：那个目录会被 COPY 进 /opt/opc/bin，agent 读得到。
-  # 它们只该以 environment/lib/ 的身份下发（见下面几个 opt-in 分支），
-  # 否则等于把数据源的认证逻辑、fixture 路径和错误形状白送给 agent。
-  find "$ROOT/opc/tools" -maxdepth 1 -type f \
-    -not -name '*_fixture_server.py' \
-    -exec cp {} "$dest/environment/tools/" \;
+  # 内部命令（原 opc/tools/）不再从这里扇出：已经烘进 agent 基础镜像，
+  # 见 opc/agents/Dockerfile 末尾那段 COPY bin/ lib/ etc/。
+  # 22 道题曾各存一份逐字节相同的拷贝，而拷贝在题目录里和手写文件无从区分。
 
   cp "$ROOT"/opc/verifier/test.sh "$dest/tests/test.sh"
   cp "$ROOT"/opc/verifier/oracle.py "$dest/tests/oracle.py"        # 差分判分骨架
@@ -42,29 +38,31 @@ sync_task() {
   cp "$ROOT"/opc/verifier/task-tests.Dockerfile "$dest/tests/Dockerfile"
   chmod +x "$dest/tests/test.sh"
 
-  # 数据源服务：题目里那份是 opc/tools/ 的拷贝，别让它自己长出第二份实现。
-  # 它不进 tools/（那个目录 agent 看得见），而是进 environment/lib/，
+  # 数据源服务：题目里那份是 opc/datasources/ 的拷贝，别让它自己长出第二份实现。
+  # 单独一个源目录（而不是和内部命令混在一起）是硬边界：它们绝不能进
+  # /opt/opc/bin —— 那个目录在 agent 的 PATH 上，等于把数据源的认证逻辑、
+  # fixture 路径和错误形状白送出去。只以 environment/lib/ 的身份下发，
   # 由 entrypoint 经 sudo 以 opcsvc 拉起。
   if [ -f "$task/environment/data/dingtalk.json" ]; then
     mkdir -p "$dest/environment/lib"
-    cp "$ROOT"/opc/tools/dws_fixture_server.py "$dest/environment/lib/datasource_server.py"
+    cp "$ROOT"/opc/datasources/dws_fixture_server.py "$dest/environment/lib/datasource_server.py"
   fi
   # Google Workspace 数据源：同上，题目声明了 data/workspace.json 才发。
   # 真 gam 冷启动要拉 discovery，容器里没有外网，所以本地留一份官方文档的副本。
   if [ -f "$task/environment/data/workspace.json" ]; then
     mkdir -p "$dest/environment/lib" "$dest/environment/data/discovery"
-    cp "$ROOT"/opc/tools/gws_fixture_server.py "$dest/environment/lib/workspace_server.py"
+    cp "$ROOT"/opc/datasources/gws_fixture_server.py "$dest/environment/lib/workspace_server.py"
     cp "$ROOT"/opc/fixtures/google-discovery/*.json "$dest/environment/data/discovery/"
   fi
   # 计费数据源：题目声明了 data/stripe.json 才发。真 stripe CLI 的对端。
   if [ -f "$task/environment/data/stripe.json" ]; then
     mkdir -p "$dest/environment/lib"
-    cp "$ROOT"/opc/tools/stripe_fixture_server.py "$dest/environment/lib/billing_server.py"
+    cp "$ROOT"/opc/datasources/stripe_fixture_server.py "$dest/environment/lib/billing_server.py"
   fi
   # 阿里云数据源：题目声明了 data/aliyun.json 才发。真 aliyun CLI 的对端。
   if [ -f "$task/environment/data/aliyun.json" ]; then
     mkdir -p "$dest/environment/lib"
-    cp "$ROOT"/opc/tools/aliyun_fixture_server.py "$dest/environment/lib/cloud_server.py"
+    cp "$ROOT"/opc/datasources/aliyun_fixture_server.py "$dest/environment/lib/cloud_server.py"
   fi
 
   # agent skills：**按名字点名下发**，清单在 environment/skills.manifest，
@@ -131,7 +129,6 @@ for task in "$ROOT"/tasks/*/*/*/; do
     done < <(find "$tmp" -type f -print0)
     rm -rf "$tmp"
   else
-    rm -f "$task"/environment/tools/*   # 先清，避免 opc/tools/ 改名后留下孤儿脚本
     [ -f "$task/environment/skills.manifest" ] && rm -rf "$task"/environment/skills/*
     [ -d "$task/environment/vault" ] && rm -rf "$task"/environment/vault/*
     sync_task "$task" "$task" || failed=1

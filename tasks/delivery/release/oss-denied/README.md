@@ -24,7 +24,7 @@
 
 **不是 mock。** `aliyun` 是官方二进制（版本钉死在 `opc/agents/Dockerfile`），它照常做完整的 RPC 签名、按产品解析 endpoint、按 region 路由；`aliyun oss` 照常走 S3 那一套签名和 crc64 校验。只是那几个 `*.aliyuncs.com` 被钉在了 127.0.0.1（`opc-pin-hosts`），TLS 认的是本机构建期签出来的那张 CA。**鉴权面、参数形状、错误码全是真的，只有对端是本地的。**
 
-对端是 `opc/tools/aliyun_fixture_server.py`，一个进程按 **Host 头**分三面：
+对端是 `opc/datasources/aliyun_fixture_server.py`，一个进程按 **Host 头**分三面：
 
 | Host | 是什么 |
 |---|---|

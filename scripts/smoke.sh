@@ -24,14 +24,13 @@ for task in "$ROOT"/tasks/*/*/*/; do
   app="$work/app"
   mkdir -p "$app" "$work/tests"
 
-  # environment/ 里除 tools 外的内容就是容器 /app 的初始状态
+  # environment/ 的内容就是容器 /app 的初始状态
   for item in "$task"environment/*; do
     case "$(basename "$item")" in
-      Dockerfile|tools) continue ;;
+      Dockerfile) continue ;;
     esac
     cp -r "$item" "$app/"
   done
-  cp -r "$task"environment/tools "$work/tools"
   : > "$work/audit.log"
 
   # 判分器自带的固定语料（比如原始流水）跟着测试走，也要一起搬过来，
@@ -59,7 +58,11 @@ for task in "$ROOT"/tasks/*/*/*/; do
     echo "FAIL  $name (nop 就能通过，题目量不出东西)"; FAILED=1
   fi
 
-  if OPC_AUDIT_LOG="$work/audit.log" OPC_RULES="$app/rules/platform_rules.json" PATH="$work/tools:$PATH" bash "$work/solve.sh" \
+  # 内部命令不再随题下发（烘进基础镜像了），这里直接指向仓库里的源目录。
+  # PYTHONPATH 对应容器里的 /opt/opc/pylib——rules 靠它 import _audit。
+  if OPC_AUDIT_LOG="$work/audit.log" OPC_RULES="$app/rules/platform_rules.json" \
+     PATH="$ROOT/opc/bin:$PATH" PYTHONPATH="$ROOT/opc/lib${PYTHONPATH:+:$PYTHONPATH}" \
+     bash "$work/solve.sh" \
        > "$work/solve.log" 2>&1; then
     if OPC_AUDIT_LOG="$work/audit.log" OPC_ORACLE_FAKE="$fake" OPC_VERIFIER_LOG_DIR="$work/logs" \
          "$PYTHON" -m pytest -q "$work/tests/test_state.py" > "$work/test.log" 2>&1; then

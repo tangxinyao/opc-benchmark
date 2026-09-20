@@ -152,7 +152,7 @@
 题目落地前先看这张表：**载体选定了，工具和判分断言也就定了**；
 如果某条 SOP 对应的工具和断言都还不存在，那道题的真实成本是造工具，不是写题面。
 
-### 5.1 现有工具盘点（`opc/tools/`，镜像里落在 `/opt/opc/bin`）
+### 5.1 现有工具盘点（`opc/bin/`，镜像里落在 `/opt/opc/bin`）
 
 | 工具 | 干什么 | 关键契约 | 性质 |
 |---|---|---|---|
@@ -463,7 +463,7 @@ agent 顺顺当当做完会被判成「做了预检」——拿的是假分。
       （补救且有先后次序）、`assert_no_fabricated_numbers`、`assert_no_bypass`
 - [x] **环境自证** `_record-env`：entrypoint 在 agent 进来之前把「此刻环境是坏的」
       写死进审计。它和 agent 自己探出来的失败是两回事，判分要分开断言
-- [x] **缺命令探针**：`BASH_ENV=/opt/opc/bin/opc-bashenv.sh` 挂
+- [x] **缺命令探针**：`BASH_ENV=/opt/opc/bashenv.sh` 挂
       `command_not_found_handle`，留痕后照常报 127。没有它，
       「敲了 git 撞上 127」和「压根没试就开始编」在日志上一模一样
 - [~] **权限垫片** `opc-guard-{chmod,chown,setfacl}`：已随 C 组那对题一并删除。

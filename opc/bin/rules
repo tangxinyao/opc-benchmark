@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""rules —— 平台规则/费率查询。用法: rules show <平台ID> [--at YYYY-MM-DD]"""
+import json
+import os
+from pathlib import Path
+
+import _audit
+
+RULES_PATH = Path(os.environ.get("OPC_RULES", "/app/rules/platform_rules.json"))
+
+
+def handler(args):
+    if not args or args[0] != "show":
+        return "用法: rules show <平台ID> [--at YYYY-MM-DD]"
+    data = json.loads(RULES_PATH.read_text(encoding="utf-8"))
+    platform = args[1]
+    at = args[args.index("--at") + 1] if "--at" in args else None
+    versions = [v for v in data[platform] if at is None or v["effective_from"] <= at]
+    if not versions:
+        raise KeyError(f"no rule version for {platform} at {at}")
+    return json.dumps(max(versions, key=lambda v: v["effective_from"]),
+                      ensure_ascii=False, indent=2)
+
+
+_audit.main("rules", handler)

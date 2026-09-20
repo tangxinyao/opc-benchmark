@@ -24,7 +24,7 @@
 
 ## 三个数据源服务
 
-唯一事实来源在 `opc/tools/`，由 `scripts/sync-tasks.sh` 按 opt-in 条件下发到题目的 `environment/lib/`，**改名**下发：
+唯一事实来源在 `opc/datasources/`，由 `scripts/sync-tasks.sh` 按 opt-in 条件下发到题目的 `environment/lib/`，**改名**下发：
 
 | 事实来源 | 下发后 | 触发条件 | 对端 | 端口 |
 |---|---|---|---|---|
@@ -32,7 +32,7 @@
 | `gws_fixture_server.py` | `lib/workspace_server.py` | 有 `data/workspace.json` | `gam` | 443（discovery 的 rootUrl 写死） |
 | `stripe_fixture_server.py` | `lib/billing_server.py` | 有 `data/stripe.json` | `stripe` CLI | 443（CLI 认 `api.stripe.com`） |
 
-它们**不进 `environment/tools/`**——那个目录会 `COPY` 进 `/opt/opc/bin`，agent 读得到，等于把认证逻辑、fixture 路径和错误形状白送出去。
+它们**单独一个源目录**，和烘进基础镜像的 `opc/bin/` 分开——`/opt/opc/bin` 在 agent 的 PATH 上，混进去等于把认证逻辑、fixture 路径和错误形状白送出去。目录边界就是这条硬约束，不靠文件名约定。
 
 外发邮件那一路不是自研服务：对端是真 `mailpit`，由 `opc-svc-start mailpit` 拉起，收走所有外发信，落 `/var/lib/opc/mailpit.db`。
 
@@ -56,12 +56,13 @@ agent 是 `opc`，服务是 `opcsvc`。sudoers 只放行两个目标：
 
 ## agent 侧的小工具
 
-`environment/tools/` 是 `opc/tools/` 的镜像，14 份完全一致，但**只有 `rules` 是 agent 会敲的命令**，其余是留痕脚手架：
+源在 `opc/bin/` / `opc/lib/` / `opc/etc/`，烘进基础镜像（题目录里没有拷贝），但**只有 `rules` 是 agent 会敲的命令**，其余是留痕脚手架：
 
 - `rules` —— 平台规则/费率查询。语料不在就由 `opc-prune-tools` 在构建期从 PATH 上摘掉。
-- `_audit.py` —— 写审计的公共模块，带脱敏。
-- `_record-env` / `_record-missing` —— 由 `opc-bashenv.sh` 的 `command_not_found_handle` 调，把「敲了个不存在的命令」记进审计。没有它，「探测过」和「压根没试就开始编」在日志上长得一模一样。
-- `opc-entrypoint.sh` / `opc-bashenv.sh` / `opc-prune-tools` —— 启动与构建期脚手架。
+- `_audit.py` —— 写审计的公共模块，带脱敏。它是被 `import` 的库不是命令，所以在 `opc/lib/`、落 `/opt/opc/pylib`（`PYTHONPATH`），不在 `bin/`。
+- `_record-env` / `_record-missing` —— 由 `bashenv.sh` 的 `command_not_found_handle` 调，把「敲了个不存在的命令」记进审计。没有它，「探测过」和「压根没试就开始编」在日志上长得一模一样。
+- `opc-entrypoint.sh` / `opc-prune-tools` —— 启动与构建期脚手架（在 `opc/bin/`）。
+- `bashenv.sh` —— 被 `BASH_ENV` source 的，不是命令，所以在 `opc/etc/`、落 `/opt/opc/bashenv.sh`。
 
 另有 `clarify`：hermes 的提问通道，由 `opc/agents/clarify/relay.py` 接到一份按正则应答的留言表（`OPC_CLARIFY_SCRIPT`，题目的 `clarify.json`），不等真人、结果确定。
 

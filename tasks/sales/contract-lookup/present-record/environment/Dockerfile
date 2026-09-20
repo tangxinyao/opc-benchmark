@@ -21,11 +21,9 @@ COPY vault/ /app/vault/
 # 收了哪三个、为什么排除 obsidian-cli/defuddle/knap，见 opc/skills/README.md。
 COPY skills/ /opt/hermes/skills/
 
-COPY tools/ /opt/opc/bin/
 
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/tools/opc-prune-tools。
-RUN chmod +x /opt/opc/bin/rules \
- && /opt/opc/bin/opc-prune-tools \
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
+RUN /opt/opc/bin/opc-prune-tools \
  && chmod -R a+rX /opt/hermes/skills \
  && opc-init-audit \
  && chown -R opc:opc /app

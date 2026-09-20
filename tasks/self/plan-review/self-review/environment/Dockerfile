@@ -10,10 +10,8 @@ USER root
 
 WORKDIR /app
 COPY plan.md /app/plan.md
-COPY tools/ /opt/opc/bin/
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/tools/opc-prune-tools。
-RUN chmod +x /opt/opc/bin/rules \
- && /opt/opc/bin/opc-prune-tools \
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
+RUN /opt/opc/bin/opc-prune-tools \
  && opc-init-audit \
  && chown -R opc:opc /app
 ENV PATH="/opt/opc/bin:${PATH}"

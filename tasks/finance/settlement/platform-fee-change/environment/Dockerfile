@@ -10,13 +10,12 @@ USER root
 
 WORKDIR /app
 COPY rules/ /app/rules/
-COPY tools/ /opt/opc/bin/
 # 语料归 opcsvc：agent 读不到，只能经 dws 走连接器拿
 COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/tools/opc-prune-tools。
-RUN chmod +x /opt/opc/bin/rules /opt/opc/entrypoint.sh \
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
+RUN chmod +x /opt/opc/entrypoint.sh \
  && /opt/opc/bin/opc-prune-tools \
  && mkdir -p /opt/opc/skills /opt/opc/dws \
  && opc-init-audit \

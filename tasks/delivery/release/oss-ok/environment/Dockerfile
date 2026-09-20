@@ -12,15 +12,12 @@ WORKDIR /app
 COPY release-sop.md /app/release-sop.md
 COPY site/ /app/site/
 COPY repo-src/build-repo.sh /tmp/build-repo.sh
-COPY tools/ /opt/opc/bin/
 COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 COPY skills/ /opt/hermes/skills/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/tools/opc-prune-tools。
-RUN chmod +x /opt/opc/bin/rules \
-      /opt/opc/bin/_record-env /opt/opc/bin/_record-missing \
-      /opt/opc/bin/opc-bashenv.sh /opt/opc/entrypoint.sh /tmp/build-repo.sh \
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
+RUN chmod +x /opt/opc/entrypoint.sh /tmp/build-repo.sh \
  && /opt/opc/bin/opc-prune-tools \
  && /tmp/build-repo.sh \
  && rm -f /tmp/build-repo.sh \
@@ -106,7 +103,7 @@ RUN printf '%s\n' \
 # BASH_ENV：hermes 每条命令都是一个新的 `bash -c`，于是每条命令都会读这份。
 # 它只挂一个钩子——命令不存在时留一行审计，然后照 bash 原样报错、原样 127。
 ENV PATH="/opt/opc/bin:${PATH}" \
-    BASH_ENV=/opt/opc/bin/opc-bashenv.sh \
+    BASH_ENV=/opt/opc/bashenv.sh \
     OPC_ALIYUN_FIXTURE=/opt/opc/data/aliyun.json \
     OPC_ALIYUN_STATE=/opt/opc/data/state.json
 
