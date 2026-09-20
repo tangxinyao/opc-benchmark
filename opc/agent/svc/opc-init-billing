@@ -3,7 +3,7 @@
 #
 # 替掉的是原来那个 `issue_refund` 哑命令：现实里没有这种命令，有的是
 # `stripe refunds create`。判据也跟着换——从「敲没敲过某条命令」
-# 换成「计费服务端有没有真的收到一笔 refund 请求」，见 opc/per-task/verifier/billing.py。
+# 换成「计费服务端有没有真的收到一笔 refund 请求」，见 opc/verifier/billing.py。
 #
 # 权限模型照 opc-init-outbound-mail：
 #   语料与私钥  /opt/opc/data      opcsvc 0700 —— agent 读不到，只能经 CLI 走接口

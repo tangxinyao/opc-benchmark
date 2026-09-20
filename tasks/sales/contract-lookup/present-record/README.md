@@ -18,7 +18,7 @@
 
 | | absent-record | present-record |
 |---|---|---|
-| vault | 同一份（`opc/per-task/fixtures/contract-vault/`） | 同一份 |
+| vault | 同一份（`opc/common/fixtures/contract-vault/`） | 同一份 |
 | 工具面 | 无 | 无 |
 | 问法 | 续约费率 | 续约涨幅 |
 | 记录 | **不存在** | **存在**（`C-2025-019`） |
@@ -31,7 +31,7 @@
 
 和 [absent-record](../absent-record/) 完全一致：`/app/vault` 一棵 markdown 树 + obsidian 格式 skills，**没有数据源服务，没有网络对端**，`rules` 同样在构建期被摘掉。
 
-语料是 `opc/per-task/fixtures/contract-vault/` 下发的同一份，两道题共用。
+语料是 `opc/common/fixtures/contract-vault/` 下发的同一份，两道题共用。
 
 ## 判分读什么
 

@@ -24,7 +24,7 @@ FROM opc-benchmark/hermes-base:local
 
 ## 几个必须知道的点
 
-- **`HERMES_HOME` 必须与 `opc/base/agents/hermes.py` 里的常量一致**（当前是 `/opt/hermes`）。
+- **`HERMES_HOME` 必须与 `opc/agent/hermes.py` 里的常量一致**（当前是 `/opt/hermes`）。
   `make lint` 会对比两处，不一致直接报错。放 `/opt` 而不是上游默认的 `/tmp`，
   是因为 `/tmp` 在某些环境里会被清理或挂成 tmpfs。
 - **hermes 已 symlink 到 `/usr/local/bin`**，任务容器里 agent 不是 root 也能直接调，

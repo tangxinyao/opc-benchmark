@@ -17,12 +17,12 @@ WORKDIR /app
 COPY vault/ /app/vault/
 
 # --- agent skills：只有格式知识，没有运行时依赖 ---
-# 落点必须是 HERMES_HOME/skills（见 opc/base/agents/hermes.py 的 HERMES_HOME）。
-# 收了哪三个、为什么排除 obsidian-cli/defuddle/knap，见 opc/per-task/skills/README.md。
+# 落点必须是 HERMES_HOME/skills（见 opc/agent/hermes.py 的 HERMES_HOME）。
+# 收了哪三个、为什么排除 obsidian-cli/defuddle/knap，见 opc/common/skills/README.md。
 COPY skills/ /opt/hermes/skills/
 
 
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/base/agents/svc/opc-prune-tools。
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agent/svc/opc-prune-tools。
 RUN /usr/local/bin/opc-prune-tools \
  && chmod -R a+rX /opt/hermes/skills \
  && opc-init-audit \

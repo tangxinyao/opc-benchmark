@@ -1,5 +1,0 @@
-# 构建上下文就是 opc/base/ 本身（见 Makefile 的 image 目标）。
-# opc/per-task/ 整个在上下文之外，不必也无法在这里排除——
-# 这正是 base / per-task 分开的好处：判分器和语料进不了 agent 镜像，
-# 靠的是目录边界，而不是一条改了目录就会静默失配的忽略规则。
-**/__pycache__

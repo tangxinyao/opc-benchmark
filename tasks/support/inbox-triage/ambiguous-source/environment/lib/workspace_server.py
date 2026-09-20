@@ -1,6 +1,6 @@
 """Google Workspace 数据源服务：给真实的 GAMADV-XTD3 供数。
 
-`gam` 是真二进制（版本钉死在 opc/base/agents/Dockerfile），它照常做完整的
+`gam` 是真二进制（版本钉死在 opc/agent/Dockerfile），它照常做完整的
 服务账号 JWT 换 token、拉 discovery、走 googleapiclient 的 batch ——
 只是这几个主机名被钉在了 127.0.0.1（见 opc-pin-hosts），TLS 认的是本机
 构建期签出来的那张 CA。也就是说：**认证面、API 形状、batch 协议全是真的，

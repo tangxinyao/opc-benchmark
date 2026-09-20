@@ -124,7 +124,7 @@ RUN rm -f /tmp/sa.key && chown -R opc:opc "${GAMCFGDIR}" && chmod -R u+rwX,go+rX
  && mkdir -p /tmp/gamcache && chmod 1777 /tmp/gamcache
 
 # --- himalaya 的本机配置：老的 support 信箱，本地 Maildir，外发走公司 SMTP ---
-# 配置与证书都由 opc-init-outbound-mail 摆好（见 opc/base/agents/svc/），
+# 配置与证书都由 opc-init-outbound-mail 摆好（见 opc/agent/svc/），
 # 那份脚本是所有要发信的题共用的，别在这里长出第二份手写配置。
 #
 # 原来这里手写的 `message.send.backend.type = "sendmail"` 其实是条死配置：

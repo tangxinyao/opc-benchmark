@@ -4,17 +4,17 @@
 
 1. **install() 不再装东西。** 官方安装脚本
    （https://hermes-agent.nousresearch.com/install.sh）在构建基础镜像时就跑完了
-   （opc/base/agents/Dockerfile），版本由构建参数钉死。install() 只做一次存在性校验，
+   （opc/agent/Dockerfile），版本由构建参数钉死。install() 只做一次存在性校验，
    镜像不对时立刻报错，而不是等到 run 中途给一段看不懂的堆栈。
    校验可以用 ``--ak assume_installed=true`` 关掉。
 2. **provider 只有三个**：deepseek / antchat / local，没有 OpenRouter 兜底。
-   不在表里的 provider 直接报错。见 opc/base/agents/providers.py。
+   不在表里的 provider 直接报错。见 opc/agent/providers.py。
 3. **base_url 显式管理**，并且会把 localhost 改写成 host.docker.internal——
    容器里的 localhost 指向容器自己，不改写连不上宿主机的推理服务。
 
 用法：
 
-    harbor run -p tasks --agent opc.base.agents.hermes:Hermes \
+    harbor run -p tasks --agent opc.agent.hermes:Hermes \
       -m deepseek/deepseek-flash
 """
 
@@ -49,7 +49,7 @@ from harbor.models.trajectories import (
     Trajectory,
 )
 
-from opc.base.agents.providers import (
+from opc.agent.providers import (
     SUPPORTED_PROVIDERS,
     NativeProvider,
     get_provider,
@@ -58,7 +58,7 @@ from opc.base.agents.providers import (
 )
 
 HERMES_HOME = "/opt/hermes"
-"""基础镜像里 hermes 的家目录。必须与 opc/base/agents/Dockerfile 一致。"""
+"""基础镜像里 hermes 的家目录。必须与 opc/agent/Dockerfile 一致。"""
 
 SESSION_LOG = "/logs/agent/hermes-session.jsonl"
 
@@ -136,7 +136,7 @@ class Hermes(BaseInstalledAgent):
             raise RuntimeError(
                 "环境里没有 hermes，或 HERMES_HOME 不存在。"
                 "任务镜像必须 FROM opc-benchmark/hermes-base"
-                "（见 opc/base/agents/Dockerfile，make image 构建）。"
+                "（见 opc/agent/Dockerfile，make image 构建）。"
                 " 确认镜像没问题、只想省掉这次校验，可加 --ak assume_installed=true。"
             )
 

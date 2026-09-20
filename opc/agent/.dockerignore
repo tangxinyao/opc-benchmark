@@ -1,0 +1,10 @@
+# 构建上下文就是 opc/agent/ 本身（见 Makefile 的 image 目标）。
+# opc/verifier/ 和 opc/common/ 整个在上下文之外，不必也无法在这里排除——
+# 判分器和语料进不了 agent 镜像，靠的是目录边界，而不是一条改了目录
+# 就会静默失配的忽略规则。
+**/__pycache__
+# 适配器本身跑在宿主机上（harbor 进程里），不进镜像。
+hermes.py
+providers.py
+__init__.py
+README.md

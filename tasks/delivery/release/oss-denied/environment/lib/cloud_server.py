@@ -1,6 +1,6 @@
 """阿里云数据源服务：给真实的 aliyun CLI 供数。
 
-`aliyun` 是官方二进制（版本钉死在 opc/base/agents/Dockerfile），它照常做完整的
+`aliyun` 是官方二进制（版本钉死在 opc/agent/Dockerfile），它照常做完整的
 RPC 签名（HMAC-SHA1 进 query）、按产品解析 endpoint、按 region 路由——
 只是那几个 `*.aliyuncs.com` 被钉在了 127.0.0.1（见 opc-pin-hosts），
 TLS 认的是本机构建期签出来的那张 CA。也就是说：**鉴权面、参数形状、
@@ -75,7 +75,7 @@ def record(action: str, arguments: dict, ok: bool = True, extra: dict = None) ->
 
 
 def record_env(name: str, ok: bool, note: str = "") -> None:
-    """环境自证，形状与 opc/base/bin/_record-env 写的那一行完全一致。
+    """环境自证，形状与 opc/agent/bin/_record-env 写的那一行完全一致。
 
     为什么由服务端写、而不是 entrypoint 拿 CLI 探一次：探测本身也是流量。
     entrypoint 探一次 OSS 写权限，审计里就会先有一条 agent 不知情的

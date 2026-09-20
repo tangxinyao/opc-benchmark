@@ -64,13 +64,23 @@ make run CONFIG=configs/jobs/job-deepseek-x3.yaml   # 5. 跑
 
 ## 环境里的内部命令
 
-`opc/` 按**交付路径**分两半：`opc/base/` 全仓一份、构建期烘进基底镜像（改了跑
-`make image`）；`opc/per-task/` 由 `scripts/sync-tasks.sh` 按题扇出到 `tasks/`
-（改了跑 `make lint`）。docker 构建上下文就是 `opc/base/` 本身，所以判分器和语料
-进不了 agent 镜像靠的是目录边界。
+`opc/` 是**去重层，不是第四块架构**。Harbor 的三块——适配器、题目、判分器——
+在这个仓库里是 `opc/agent/`、`tasks/`、`opc/verifier/`，每道题都自包含
+（`environment/` 有 Dockerfile、mock 服务和语料，`tests/` 有判分器）。
+但 22 道题里那些逐字节相同的拷贝需要一个唯一的源，`opc/` 存的就是它，
+由 `scripts/sync-tasks.sh` 扇出、`make lint` 校验副本没被偷改。
 
-源在 `opc/base/bin/`、`opc/base/pylib/`、`opc/base/etc/`，**烘进 agent 基础镜像**
-（`opc/base/agents/Dockerfile` 末尾），题目录里没有它们的拷贝。
+| `opc/` 下 | 是什么 | 改了要跑 |
+|---|---|---|
+| `agent/` | 适配器 + agent 基底镜像（`bin/` `pylib/` `etc/` 是烘进它的） | `make image` |
+| `verifier/` | 判分器的源 → `tasks/*/*/*/tests/` | `make lint` |
+| `common/` | 扇到 `tasks/*/environment/` 的：mock 服务、语料、skills | `make lint` |
+
+docker 构建上下文就是 `opc/agent/` 本身，所以判分器和语料进不了 agent 镜像
+靠的是目录边界，不是一条会静默失配的忽略规则。
+
+源在 `opc/agent/bin/`、`opc/agent/pylib/`、`opc/agent/etc/`，**烘进 agent 基础镜像**
+（`opc/agent/Dockerfile` 末尾），题目录里没有它们的拷贝。
 改完要 `make image` 重建基底。
 
 以前这些是由 `scripts/sync-tasks.sh` 扇出到每道题的 `environment/tools/` 的：
@@ -82,26 +92,26 @@ make run CONFIG=configs/jobs/job-deepseek-x3.yaml   # 5. 跑
 
 | 源 | 落点 | 凭什么 |
 |---|---|---|
-| `opc/base/bin/` | `/opt/opc/bin`（`PATH`） | 有 shebang、可执行、被当命令调 |
-| `opc/base/pylib/` | `/opt/opc/pylib`（`PYTHONPATH`） | 被 `import` 的包 `opc_internal`，不是命令 |
-| `opc/base/etc/bashenv.sh` | `/opt/opc/bashenv.sh`（`BASH_ENV`） | 被 source 的，不是命令 |
+| `opc/agent/bin/` | `/opt/opc/bin`（`PATH`） | 有 shebang、可执行、被当命令调 |
+| `opc/agent/pylib/` | `/opt/opc/pylib`（`PYTHONPATH`） | 被 `import` 的包 `opc_internal`，不是命令 |
+| `opc/agent/etc/bashenv.sh` | `/opt/opc/bashenv.sh`（`BASH_ENV`） | 被 source 的，不是命令 |
 
 5 个文件，但不是 5 个工具：只有 `rules` 是 agent 会敲的命令，其余全是留痕脚手架。
 
 流程脚本 `opc-entrypoint.sh`（容器启动）和 `opc-prune-tools`（构建期裁剪）
 **不在这三个目录里**——agent 永远不该调它们，所以跟其余 `opc-*` 服务脚本一起
-放 `opc/base/agents/svc/`、落 `/usr/local/bin`，不占 agent 的 PATH。
+放 `opc/agent/svc/`、落 `/usr/local/bin`，不占 agent 的 PATH。
 
 | 文件 | 什么时候跑 | 干嘛的 |
 |---|---|---|
 | `bashenv.sh` | 每条命令（`BASH_ENV`，hermes 每条命令都是新的 `bash -c`） | 挂 `command_not_found_handle`：命令不存在时先留一行审计，再照常报错、照常退 127。对 agent 而言与普通系统无异 |
 | `_record-missing` | 上面那个钩子调 | 把「敲了个不存在的命令」写进审计。没有它，「探过了发现没有」和「压根没试就开始编」在日志上一模一样 |
 | `_record-env` | `environment/entrypoint.sh` 里调，agent 进来之前 | 环境自证：容器起来时前置条件到底塌没塌，由环境说了算。预检题判分的第一条断言就靠它，agent 事后能往日志里加假的 ok，但删不掉这一行 |
-| `opc_internal/audit.py` | 被上面几个和 `rules` import | 写审计的库，不是命令——所以它在 `opc/base/pylib/`、落 `/opt/opc/pylib`，不在 `bin/`。顺带把命令行里的凭证打码 |
+| `opc_internal/audit.py` | 被上面几个和 `rules` import | 写审计的库，不是命令——所以它在 `opc/agent/pylib/`、落 `/opt/opc/pylib`，不在 `bin/`。顺带把命令行里的凭证打码 |
 | `rules` | agent 自己敲 | **唯一的真工具**：查平台费率。只有 settlement 两题带 `rules/` 语料，其余 20 题构建期就被 prune 摘了，PATH 上根本没有 |
 
 `dws` / `gam` / `himalaya` / `stripe` 这些不在这里——它们是真 CLI，装在基础镜像，
-审计由各自的 fixture 服务端写。fixture 服务端刻意单独放 `opc/per-task/datasources/`：
+审计由各自的 fixture 服务端写。fixture 服务端刻意单独放 `opc/common/datasources/`：
 `/opt/opc/bin` 在 agent 的 PATH 上，混进去等于把认证逻辑和错误形状白送。它们走 `environment/lib/`，
 由 entrypoint 经 `sudo -u opcsvc` 拉起，agent 够不着。
 

@@ -19,7 +19,7 @@ def relay(monkeypatch, tmp_path):
     monkeypatch.setenv("OPC_AUDIT_LOG", str(tmp_path / "audit.log"))
     monkeypatch.setenv("OPC_CLARIFY_SCRIPT", str(tmp_path / "clarify.json"))
     spec = importlib.util.spec_from_file_location(
-        "clarify_relay", ROOT / "opc" / "base" / "agents" / "clarify" / "relay.py"
+        "clarify_relay", ROOT / "opc" / "agent" / "clarify" / "relay.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

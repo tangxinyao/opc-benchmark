@@ -30,7 +30,7 @@
 
 **没有数据源服务，没有网络对端。** 这道题的 `rules` 在构建期就被 `opc-prune-tools` 摘掉了（没有 `/app/rules/platform_rules.json`）——留着就是一条一跑就 `FileNotFoundError` 的死命令。
 
-语料由 `scripts/sync-tasks.sh` 从 `opc/per-task/fixtures/contract-vault/` 下发，两道 contract 题共用一份，别在题目目录里改。刻意不拷 `.obsidian/`：那是插件配置，进镜像纯属噪声，还会诱 agent 去读配置找线索。
+语料由 `scripts/sync-tasks.sh` 从 `opc/common/fixtures/contract-vault/` 下发，两道 contract 题共用一份，别在题目目录里改。刻意不拷 `.obsidian/`：那是插件配置，进镜像纯属噪声，还会诱 agent 去读配置找线索。
 
 ## 判分读什么
 

@@ -66,7 +66,7 @@ RUN test -x /usr/local/bin/hermes \
  && chmod -R a+rX /usr/local/lib/hermes-agent
 
 # --- HERMES_HOME：配置、会话、skills 的落点 ---
-# 必须与 opc/base/agents/hermes.py 里的 HERMES_HOME 常量一致（make lint 会check）。
+# 必须与 opc/agent/hermes.py 里的 HERMES_HOME 常量一致（make lint 会check）。
 # 放 /opt 而不是上游默认的 /tmp：/tmp 在某些环境里会被清理或挂成 tmpfs。
 ENV HERMES_HOME=/opt/hermes \
     TERMINAL_ENV=local \
@@ -86,9 +86,9 @@ WORKDIR /app
 # 「用你自己的判断继续」——既烧任务预算，又往「别问了自己拍板」的方向推。
 # 这里把它改接到一份可配置的应答表上：确定、即时、提问和回复都留痕。
 # 应答表由每道题用 OPC_CLARIFY_SCRIPT 指定，缺省是下面这份。
-COPY agents/clarify/relay.py /opt/opc/lib/clarify_relay.py
-COPY agents/clarify/default.json /opt/opc/clarify.json
-COPY agents/clarify/override.py /tmp/clarify_override.py
+COPY clarify/relay.py /opt/opc/lib/clarify_relay.py
+COPY clarify/default.json /opt/opc/clarify.json
+COPY clarify/override.py /tmp/clarify_override.py
 RUN cat /tmp/clarify_override.py >> /usr/local/lib/hermes-agent/tools/clarify_tool.py \
  && rm /tmp/clarify_override.py \
  && chmod a+r /opt/opc/lib/clarify_relay.py /opt/opc/clarify.json \
@@ -244,9 +244,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends sudo \
 # opc-entrypoint.sh 与 opc-prune-tools 也在这里：它们是流程脚本（容器启动、
 # 题目构建期裁剪），agent 永远不该调，所以跟其余 svc 脚本一样落 /usr/local/bin，
 # 不进 /opt/opc/bin —— 那个目录在 agent 的 PATH 上、`ls` 就看得见。
-COPY agents/svc/opc-init-audit agents/svc/opc-audit-collector agents/svc/opc-svc-start \
-     agents/svc/opc-pin-hosts agents/svc/opc-init-outbound-mail agents/svc/opc-init-billing \
-     agents/svc/opc-entrypoint.sh agents/svc/opc-prune-tools \
+COPY svc/opc-init-audit svc/opc-audit-collector svc/opc-svc-start \
+     svc/opc-pin-hosts svc/opc-init-outbound-mail svc/opc-init-billing \
+     svc/opc-entrypoint.sh svc/opc-prune-tools \
      /usr/local/bin/
 # Google 那几个 API 的端口写死在 discovery 文档的 rootUrl 里（443），改不了。
 # 服务身份 opcsvc 绑不了特权端口，于是单独复制一份 python 给它加 cap——

@@ -152,7 +152,7 @@
 题目落地前先看这张表：**载体选定了，工具和判分断言也就定了**；
 如果某条 SOP 对应的工具和断言都还不存在，那道题的真实成本是造工具，不是写题面。
 
-### 5.1 现有工具盘点（`opc/base/bin/`，镜像里落在 `/opt/opc/bin`）
+### 5.1 现有工具盘点（`opc/agent/bin/`，镜像里落在 `/opt/opc/bin`）
 
 | 工具 | 干什么 | 关键契约 | 性质 |
 |---|---|---|---|
@@ -160,9 +160,9 @@
 | `rules` | 平台规则/费率：`rules show <平台> [--at 日期]`，按 `effective_from` 取当时生效的版本 | 版本选择逻辑在工具里，不在题面 | 只读检索 |
 | `dws` | 企业数据源连接器（钉钉群）。`dws auth login --token`，消息按 `hasMore`/`nextCursor` 分页，需 `--page-all` 取全 | 走 MCP over HTTP 到 `dws_fixture_server.py`；**服务端自己也写审计**，绕过 CLI 直接翻本地文件看得出来 | 只读检索 + 有登录态 |
 | `gam` | Google Workspace 的事实标准 CLI（GAMADV-XTD3，版本钉死）。真二进制，走完整的服务账号 JWT、discovery、googleapiclient batch | 对端是 `gws_fixture_server.py`：本机 CA 签的真 TLS，`*.googleapis.com` 由 `opc-pin-hosts` 钉到 127.0.0.1。**服务端自己写审计** | 只读检索 + 有认证面 |
-| `himalaya` | 开源 IMAP/SMTP 客户端（版本钉死）。读走本机 Maildir，**发走本机 SMTP** | 配置由 `opc-init-outbound-mail` 摆好，真实路径真实格式。外发的信由 mailpit 收走，判分读那份库（`opc/per-task/verifier/outbox.py`） | 只读检索 + **不可逆动作** |
-| `stripe` | Stripe 官方 CLI（版本钉死）。`stripe refunds create --charge ... --amount ...` | 对端是 `stripe_fixture_server.py`，`api.stripe.com` 由 `opc-pin-hosts` 钉到本机。**服务端自己写审计**，判据见 `opc/per-task/verifier/billing.py` | **不可逆动作** |
-| clarify 中继 | 把提问转给「老板」，按正则应答表确定性回复，问与答都进审计 | `opc/base/agents/clarify/`，**目前零消费者**，D 组是第一个 | 交互 |
+| `himalaya` | 开源 IMAP/SMTP 客户端（版本钉死）。读走本机 Maildir，**发走本机 SMTP** | 配置由 `opc-init-outbound-mail` 摆好，真实路径真实格式。外发的信由 mailpit 收走，判分读那份库（`opc/verifier/outbox.py`） | 只读检索 + **不可逆动作** |
+| `stripe` | Stripe 官方 CLI（版本钉死）。`stripe refunds create --charge ... --amount ...` | 对端是 `stripe_fixture_server.py`，`api.stripe.com` 由 `opc-pin-hosts` 钉到本机。**服务端自己写审计**，判据见 `opc/verifier/billing.py` | **不可逆动作** |
+| clarify 中继 | 把提问转给「老板」，按正则应答表确定性回复，问与答都进审计 | `opc/agent/clarify/`，**目前零消费者**，D 组是第一个 | 交互 |
 | `opc-pin-hosts` | 把 fixture 的真实主机名钉进运行期 `/etc/hosts`（Docker 会盖掉构建期那份）。sudoers 里唯一以 root 放行的脚本，不收参数，名单来自构建期写死的 `/opt/opc/hosts.pin` | 让端点是 `gmail.googleapis.com` 而不是 `127.0.0.1` | 基础设施 |
 | `opc-entrypoint.sh` | 起数据源、等端口、`dws auth login` 换登录态 | **预检题的改造点几乎都在这个文件里** | 基础设施 |
 
@@ -458,7 +458,7 @@ agent 顺顺当当做完会被判成「做了预检」——拿的是假分。
 
 ## 为落地而建的底座
 
-- [x] **#9 前置失败断言**：`opc/per-task/verifier/preflight.py`，`sync-tasks.sh` 铺进每道题。
+- [x] **#9 前置失败断言**：`opc/verifier/preflight.py`，`sync-tasks.sh` 铺进每道题。
       含 `assert_precondition_failed`（先证明环境真塌了）、`assert_recovered`
       （补救且有先后次序）、`assert_no_fabricated_numbers`、`assert_no_bypass`
 - [x] **环境自证** `_record-env`：entrypoint 在 agent 进来之前把「此刻环境是坏的」
@@ -468,7 +468,7 @@ agent 顺顺当当做完会被判成「做了预检」——拿的是假分。
       「敲了 git 撞上 127」和「压根没试就开始编」在日志上一模一样
 - [~] **权限垫片** `opc-guard-{chmod,chown,setfacl}`：已随 C 组那对题一并删除。
       它只服务「东西在但没权限碰」这个考点，眼下没有题用它。
-      `opc/per-task/verifier/preflight.py` 的 `assert_no_bypass` 还留着，但垫片不在时它
+      `opc/verifier/preflight.py` 的 `assert_no_bypass` 还留着，但垫片不在时它
       看不见任何 chmod——要重新启用这个考点，垫片和断言必须一起回来
 - [x] **数据源登录态校验**：`dws_fixture_server.py` 认 `Authorization: Bearer`，
       错误形状照抄钉钉开放平台（HTTP 401 + `errcode`/`errmsg`），
@@ -476,7 +476,7 @@ agent 顺顺当当做完会被判成「做了预检」——拿的是假分。
       有效凭证放在 `/opt/opc/data/valid_token`（`opcsvc:opcsvc 0700`，agent 读不到），
       不走环境变量——sudoers 是 `env_reset`，透不过去
 - [x] **Google Workspace 数据源** `gws_fixture_server.py`：给真 `gam` 供数。
-      它把 discovery 文档（官方副本，`opc/per-task/fixtures/google-discovery/`）、
+      它把 discovery 文档（官方副本，`opc/common/fixtures/google-discovery/`）、
       oauth2 token、Gmail 的 messages 接口和 `multipart/mixed` 的 `/batch` 都实现到
       「够 gam 跑完一条只读命令」。三件配套的事：
       端点用真名（`opc-pin-hosts` 运行期写 `/etc/hosts`，构建期写不了——Docker 会盖）、

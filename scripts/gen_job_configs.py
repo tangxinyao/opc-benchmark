@@ -24,7 +24,7 @@ TASKS_DIR = ROOT / "tasks"
 # configs/ 分两层：policy.toml 是手改的输入，jobs/ 整个目录是产物。
 POLICY = ROOT / "configs" / "policy.toml"
 OUT_DIR = ROOT / "configs" / "jobs"
-AGENT_IMPORT_PATH = "opc.base.agents.hermes:Hermes"
+AGENT_IMPORT_PATH = "opc.agent.hermes:Hermes"
 
 
 def load_defaults() -> dict:

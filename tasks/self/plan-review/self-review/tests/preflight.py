@@ -180,7 +180,7 @@ def assert_no_bypass(paths, patterns=("chmod", "chown", "sudo", "setfacl")) -> N
 
 # --- clarify：它问没问、问了几次、问的是不是正事 ---
 #
-# clarify 的提问与回复由 opc/base/agents/clarify/relay.py 写进审计，格式与
+# clarify 的提问与回复由 opc/agent/clarify/relay.py 写进审计，格式与
 # /opt/opc/bin 下那些命令一致（tool="clarify"，args[0] 是问题，reply 是回复）。
 #
 # 这一档属于「便宜的一档」——事件是 agent 侧的工具写的，理论上能伪造。

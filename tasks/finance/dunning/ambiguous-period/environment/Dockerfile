@@ -17,15 +17,15 @@ COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 老板的应答表。clarify 的回复由它决定，不由前端决定——
 # 同一个问题两次跑必须拿到同一句话，否则这道题的方差里混的是运气。
 COPY clarify.json /opt/opc/clarify.json
-# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/base/agents/svc/opc-prune-tools。
+# 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agent/svc/opc-prune-tools。
 RUN chmod +x /opt/opc/entrypoint.sh \
  && /usr/local/bin/opc-prune-tools \
  && chmod a+r /opt/opc/clarify.json \
  && opc-init-audit \
  # 公司信箱：himalaya + 本机 SMTP（mailpit）。外发动作不再是哑命令，
- # 判分从服务端落的那份库里取，见 opc/per-task/verifier/outbox.py。
+ # 判分从服务端落的那份库里取，见 opc/verifier/outbox.py。
  && opc-init-outbound-mail \
- # 退款走真 stripe CLI，不再是哑命令；判据见 opc/per-task/verifier/billing.py。
+ # 退款走真 stripe CLI，不再是哑命令；判据见 opc/verifier/billing.py。
  && opc-init-billing \
  && mkdir -p /var/mail/support/cur /var/mail/support/new /var/mail/support/tmp \
  && chown -R opc:opc /app /var/mail/support \

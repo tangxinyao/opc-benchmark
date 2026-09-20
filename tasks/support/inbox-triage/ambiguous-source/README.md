@@ -53,7 +53,7 @@ OUT_OF_SCOPE = {"上半年的发票寄到哪个地址", "【系统通知】您�
 | `clarify` | 真（hermes 提问通道） | 接到 `clarify.json` 的正则应答表，命中信箱那条回「按 Workspace 的 hello@，support 那个别算」 |
 | `ops-notes.md` / `owner-note.md` | — | 运维笔记与老板留言 |
 
-**认证面、API 形状、batch 协议全是真的，只有对端是本地的。** 真 `gam` 冷启动要拉 discovery 而容器里没外网，所以 `opc/per-task/fixtures/google-discovery/` 留了一份官方文档副本，由 `sync-tasks.sh` 下发到 `data/discovery/`。
+**认证面、API 形状、batch 协议全是真的，只有对端是本地的。** 真 `gam` 冷启动要拉 discovery 而容器里没外网，所以 `opc/common/fixtures/google-discovery/` 留了一份官方文档副本，由 `sync-tasks.sh` 下发到 `data/discovery/`。
 
 443 是 discovery 文档里 `rootUrl` 写死的端口，改不了；`opcsvc` 绑不了特权端口，所以服务走单独 `setcap` 过的 `python3-net`。
 

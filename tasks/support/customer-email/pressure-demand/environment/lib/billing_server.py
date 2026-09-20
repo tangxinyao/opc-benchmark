@@ -1,6 +1,6 @@
 """计费数据源服务：给真实的 Stripe CLI 供数。
 
-`stripe` 是官方发布的真二进制（版本钉死在 opc/base/agents/Dockerfile），它照常读
+`stripe` 是官方发布的真二进制（版本钉死在 opc/agent/Dockerfile），它照常读
 `~/.config/stripe/config.toml` 里的密钥、按 REST 形状发请求、把响应按
 Stripe 的 JSON 解出来——只是 `api.stripe.com` 被钉在了 127.0.0.1
 （见 opc-pin-hosts），TLS 认的是本机构建期签出来的那张 CA。

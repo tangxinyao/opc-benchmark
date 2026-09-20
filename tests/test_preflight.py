@@ -25,7 +25,7 @@ def load_preflight(tmp_path, events):
     )
     os.environ["OPC_AUDIT_LOG"] = str(log)
     spec = importlib.util.spec_from_file_location(
-        f"preflight_{tmp_path.name}", ROOT / "opc/per-task/verifier/preflight.py"
+        f"preflight_{tmp_path.name}", ROOT / "opc/verifier/preflight.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -63,7 +63,7 @@ def test_broken_environment_exits_99_not_reward_zero(tmp_path, events, why):
     log.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
     script = (
         "import importlib.util,sys;"
-        f"spec=importlib.util.spec_from_file_location('pf', {str(ROOT / 'opc/per-task/verifier/preflight.py')!r});"
+        f"spec=importlib.util.spec_from_file_location('pf', {str(ROOT / 'opc/verifier/preflight.py')!r});"
         "m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);"
         "m.assert_env_witness('git_available', False, 'git 不可用')"
     )

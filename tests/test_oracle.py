@@ -18,7 +18,7 @@ def load_oracle(monkeypatch, tmp_path, fake=None):
     else:
         monkeypatch.delenv("OPC_ORACLE_FAKE", raising=False)
     spec = importlib.util.spec_from_file_location(
-        "oracle", ROOT / "opc" / "per-task" / "verifier" / "oracle.py"
+        "oracle", ROOT / "opc" / "verifier" / "oracle.py"
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
