@@ -21,7 +21,7 @@ image:  ## agent 基础镜像（hermes 预烘）
 	docker build \
 	  --build-arg HERMES_VERSION=$(HERMES_VERSION) \
 	  --build-arg PIP_INDEX_URL=$(PIP_INDEX_URL) \
-	  -f opc/agents/Dockerfile -t $(IMAGE) opc/agents
+	  -f opc/agents/Dockerfile -t $(IMAGE) opc
 
 verifier-image:  ## 判分基础镜像（pytest 预烘）
 	docker build -f opc/verifier/Dockerfile -t $(VERIFIER_IMAGE) opc/verifier

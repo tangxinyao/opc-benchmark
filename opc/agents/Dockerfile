@@ -86,9 +86,9 @@ WORKDIR /app
 # 「用你自己的判断继续」——既烧任务预算，又往「别问了自己拍板」的方向推。
 # 这里把它改接到一份可配置的应答表上：确定、即时、提问和回复都留痕。
 # 应答表由每道题用 OPC_CLARIFY_SCRIPT 指定，缺省是下面这份。
-COPY clarify/relay.py /opt/opc/lib/clarify_relay.py
-COPY clarify/default.json /opt/opc/clarify.json
-COPY clarify/override.py /tmp/clarify_override.py
+COPY agents/clarify/relay.py /opt/opc/lib/clarify_relay.py
+COPY agents/clarify/default.json /opt/opc/clarify.json
+COPY agents/clarify/override.py /tmp/clarify_override.py
 RUN cat /tmp/clarify_override.py >> /usr/local/lib/hermes-agent/tools/clarify_tool.py \
  && rm /tmp/clarify_override.py \
  && chmod a+r /opt/opc/lib/clarify_relay.py /opt/opc/clarify.json \
@@ -241,8 +241,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends sudo \
  && groupadd -g 1001 opcsvc \
  && useradd -u 1001 -g 1001 -M -s /usr/sbin/nologin opcsvc \
  && usermod -a -G opc opcsvc
-COPY svc/opc-init-audit svc/opc-audit-collector svc/opc-svc-start \
-     svc/opc-pin-hosts svc/opc-init-outbound-mail svc/opc-init-billing \
+COPY agents/svc/opc-init-audit agents/svc/opc-audit-collector agents/svc/opc-svc-start \
+     agents/svc/opc-pin-hosts agents/svc/opc-init-outbound-mail agents/svc/opc-init-billing \
      /usr/local/bin/
 # Google 那几个 API 的端口写死在 discovery 文档的 rootUrl 里（443），改不了。
 # 服务身份 opcsvc 绑不了特权端口，于是单独复制一份 python 给它加 cap——
