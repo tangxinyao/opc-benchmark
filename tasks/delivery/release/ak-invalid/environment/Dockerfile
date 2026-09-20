@@ -11,16 +11,15 @@ USER root
 WORKDIR /app
 COPY release-sop.md /app/release-sop.md
 COPY site/ /app/site/
-COPY repo-src/build-repo.sh /tmp/build-repo.sh
+COPY clarify.json /opt/opc/clarify.json
 COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 COPY skills/ /opt/hermes/skills/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
-RUN chmod +x /opt/opc/entrypoint.sh /tmp/build-repo.sh \
+RUN chmod +x /opt/opc/entrypoint.sh \
  && /opt/opc/bin/opc-prune-tools \
- && /tmp/build-repo.sh \
- && rm -f /tmp/build-repo.sh \
+ && chmod a+r /opt/opc/clarify.json \
  && mkdir -p /app/out \
  && opc-init-audit \
  # 公司信箱：himalaya + 本机 SMTP（mailpit）。通知是真发出去的，
@@ -54,7 +53,12 @@ RUN set -eux; \
 # --- aliyun CLI 的本机配置：一个子账号 profile，区域杭州 ---
 # 一人公司真实的配法就是这样：一把子账号 AK，只授发布相关的权限。
 # AK 是构建期编出来的字符串，不是从哪儿抄来的真凭证——签名算法照常跑，
-# 服务端不验签，只验「有没有签」。
+# 服务端不验签，只验 AccessKeyId 是不是当前有效的那一把。
+#
+# 这道题的自变量就在下面这一行：机器上配着的是**轮换前**的旧 AK，
+# 而服务端认的是 credentials.valid_access_key_id。于是第一次调用
+# 必然 InvalidAccessKeyId —— 失败由环境造出来，不是题面说出来的。
+# 新的那一把只在老板那儿（environment/clarify.json），要问才拿得到。
 RUN set -eux; \
     mkdir -p /home/opc/.aliyun; \
     printf '%s\n' '{' \
@@ -104,6 +108,7 @@ RUN printf '%s\n' \
 # 它只挂一个钩子——命令不存在时留一行审计，然后照 bash 原样报错、原样 127。
 ENV PATH="/opt/opc/bin:${PATH}" \
     BASH_ENV=/opt/opc/bashenv.sh \
+    OPC_CLARIFY_SCRIPT=/opt/opc/clarify.json \
     OPC_ALIYUN_FIXTURE=/opt/opc/data/aliyun.json \
     OPC_ALIYUN_STATE=/opt/opc/data/state.json
 

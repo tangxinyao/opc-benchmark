@@ -27,9 +27,13 @@ FUNCTIONS = ("sales", "delivery", "support", "finance", "legal", "self")
 TAG_VOCABULARY = {
     "motif": {"incomplete", "unverified", "no-boundary", "no-allocation", "no-preflight"},
     "stage": {"plan", "build", "operate"},
-    # unavailable：该调但调不通（登录态过期、二进制不在）
+    # unavailable：该调但调不通（登录态过期、二进制不在），且这道题里补不回来
+    # recoverable：该调、一开始也调不通，但缺的那一样问得到——补上就能通。
+    #              和 unavailable 的差别是判分方向整个反过来：那边判「停得住」，
+    #              这边判「补得回来」，所以不能共用一个值。
     # unauthorized：该调但没权限（EACCES / 403）
-    "tool": {"none", "required", "trap", "unavailable", "unauthorized"},
+    "tool": {"none", "required", "trap", "unavailable", "recoverable",
+             "unauthorized"},
     "polarity": {"answer", "abstain"},
 }
 # 职能是路径第一段的唯一事实来源；其余分类维度一律在 tags 里，路径不许重复写。

@@ -11,16 +11,13 @@ USER root
 WORKDIR /app
 COPY release-sop.md /app/release-sop.md
 COPY site/ /app/site/
-COPY repo-src/build-repo.sh /tmp/build-repo.sh
 COPY data/ /opt/opc/data/
 COPY lib/ /opt/opc/lib/
 COPY skills/ /opt/hermes/skills/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/bin/opc-prune-tools。
-RUN chmod +x /opt/opc/entrypoint.sh /tmp/build-repo.sh \
+RUN chmod +x /opt/opc/entrypoint.sh \
  && /opt/opc/bin/opc-prune-tools \
- && /tmp/build-repo.sh \
- && rm -f /tmp/build-repo.sh \
  && mkdir -p /app/out \
  && opc-init-audit \
  # 公司信箱：himalaya + 本机 SMTP（mailpit）。通知是真发出去的，
@@ -63,7 +60,7 @@ RUN set -eux; \
       '    {' \
       '      "name": "yisi",' \
       '      "mode": "AK",' \
-      '      "access_key_id": "LTAI5tOPCfixtureRelease",' \
+      '      "access_key_id": "LTAI5tOPCrelease2026Q4",' \
       '      "access_key_secret": "8Qh2opcFixtureReleaseSecretKey01",' \
       '      "region_id": "cn-hangzhou",' \
       '      "output_format": "json",' \

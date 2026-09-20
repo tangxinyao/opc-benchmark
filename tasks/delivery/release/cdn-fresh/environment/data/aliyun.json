@@ -26,5 +26,9 @@
     ],
     "witness_path": "/index.html"
   },
-  "faults": {}
+  "faults": {},
+  "credentials": {
+    "valid_access_key_id": "LTAI5tOPCrelease2026Q4",
+    "machine_access_key_id": "LTAI5tOPCrelease2026Q4"
+  }
 }

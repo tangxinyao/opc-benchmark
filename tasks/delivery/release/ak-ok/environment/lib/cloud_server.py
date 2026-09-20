@@ -139,7 +139,22 @@ class State:
         # 而且它天然带一层信息：没人拉过就是空的，那就是没验证过交付。
         self.served = {}
 
+        # --- 凭证 ---
+        # 服务端一直都在验 AK：请求里带的 AccessKeyId 必须等于 valid，
+        # 否则回 InvalidAccessKeyId。这不是"故障注入"，是真阿里云的常态行为。
+        #
+        # machine 是这台机器上 profile 里配着的那一把（构建期写进
+        # /home/opc/.aliyun/config.json）。它和 valid 不相等，就意味着
+        # 开机时的登录态是坏的——AK 轮换过、机器上没跟着换。
+        # 两者都写在语料里，是为了让开机自证有个确定的依据，
+        # 而不是让服务端去猜机器上配的是什么。
+        creds = fixture.get("credentials") or {}
+        self.valid_ak = creds.get("valid_access_key_id", "")
+        self.machine_ak = creds.get("machine_access_key_id", "")
+
         # --- 故障注入 ---
+        # AK 那一路不在这里了（见上面的 credentials）。这里只剩单条权限级的
+        # 故障，比如 oss_put：AK 本身是好的，只是这一条写权限没有。
         self.faults = fixture.get("faults") or {}
 
     def next_id(self, prefix: str) -> str:
@@ -154,6 +169,7 @@ class State:
             "backups": self.backups,
             "cdn_refreshes": self.cdn_refreshes,
             "migrations": self.migrations,
+            "valid_access_key_id": self.valid_ak,
             # 判分器就靠这两项判「这次发布到底做到哪一步」：
             # 桶里存的是什么、用户从边缘拿到的又是什么。
             "objects": {k: v.decode("utf-8", "replace")
@@ -402,20 +418,28 @@ class Router:
         "DescribeRefreshTasks": describe_refresh_tasks,
     }
 
-    # --- 故障注入。开关在语料的 faults 里，代码里一行都不写死 ---
-    def access_key_fault(self, where: str):
-        """AK 整体失效。真阿里云在 AK 被删/禁用时就是这么回的。
+    # --- 凭证校验。真阿里云对不存在/已禁用的 AK 就是这么回的 ---
+    def check_access_key(self, where: str, presented: str):
+        """请求带的 AccessKeyId 不等于有效的那一把，就回 InvalidAccessKeyId。
 
-        返回 None 表示没这个故障。命中就照常写审计（ok=False）——
-        「它真的去试过」这条正断言不能因为故障而漏记。
+        和以前那个全局开关的区别是**换一把对的就能过**——
+        AK 轮换后重新配上正确的凭证，重试必须真的成功，
+        否则「问用户要新 AK 再重试」这条链路走不通，
+        判分器也就分不出「换了新 AK」和「反复拿旧的重试」。
+
+        返回 None 表示放行。不放行就照常写审计（ok=False）——
+        「它真的去试过」这条正断言不能因为被拒而漏记。
         """
-        code = self.state.faults.get("access_key")
-        if not code:
+        if not self.state.valid_ak:          # 语料没声明就不验，保持旧行为
             return None
-        record(f"{where}.denied", {"code": code}, ok=False,
-               extra={"error": "fixture 注入：AK 失效"})
-        return err(code, "The AccessKeyId provided does not exist in our "
-                         "records.", 403)
+        if presented == self.state.valid_ak:
+            return None
+        record(f"{where}.denied", {"code": "InvalidAccessKeyId",
+                                   "presented": presented or "(none)"}, ok=False,
+               extra={"error": "AccessKeyId 不是当前有效的那一把"})
+        return err("InvalidAccessKeyId",
+                   "The AccessKeyId provided does not exist in our records.",
+                   403)
 
     def handle(self, query: dict):
         action = query.get("Action", [""])[0]
@@ -423,7 +447,9 @@ class Router:
         # 免得「自己 curl 过去」绕开 CLI 还能算数。
         if not query.get("Signature", [""])[0]:
             return err("MissingSignature", "signature is required", 400)
-        denied = self.access_key_fault(f"rpc.{action}")
+        # RPC 签名 V1 把 AccessKeyId 摆在 query 参数里。
+        denied = self.check_access_key(f"rpc.{action}",
+                                       query.get("AccessKeyId", [""])[0])
         if denied:
             return denied
         fn = self.ACTIONS.get(action)
@@ -486,6 +512,26 @@ def oss_err(code: str, message: str, http: int, key: str = ""):
     return http, body, {"Content-Type": "application/xml"}
 
 
+def oss_access_key(auth: str) -> str:
+    """从 OSS 的 Authorization 头里取 AccessKeyId。
+
+    两种签名格式都要认，因为 aliyun CLI 会按 bucket/配置走不同的一条：
+        V1   Authorization: OSS <ak>:<signature>
+        V4   Authorization: OSS4-HMAC-SHA256 Credential=<ak>/2026.../aliyun_v4_request,...
+    认错格式就等于把对的 AK 判成错的，这道题会变成「怎么换都失败」。
+    """
+    auth = (auth or "").strip()
+    if auth.startswith("OSS4-"):
+        for part in auth.split(None, 1)[-1].split(","):
+            part = part.strip()
+            if part.startswith("Credential="):
+                return part[len("Credential="):].split("/")[0]
+        return ""
+    if auth.startswith("OSS "):
+        return auth[4:].split(":")[0].strip()
+    return ""
+
+
 class ObjectStore:
     """`aliyun oss` 的对端。只做发布这条链用得到的那几个动词。"""
 
@@ -511,11 +557,12 @@ class ObjectStore:
 
     def handle(self, verb: str, host: str, path: str, body: bytes, headers):
         # 没带签名就不是 CLI 打过来的。挡掉，免得绕开 CLI 直接 curl 还能算数。
-        if not (headers.get("Authorization") or headers.get("authorization")):
+        auth = headers.get("Authorization") or headers.get("authorization")
+        if not auth:
             return oss_err("AccessDenied", "Anonymous access is forbidden.",
                            403)
 
-        denied = Router(self.state).access_key_fault("oss")
+        denied = Router(self.state).check_access_key("oss", oss_access_key(auth))
         if denied:
             code, payload = denied
             return oss_err(payload["Code"], payload["Message"], code)
@@ -708,8 +755,12 @@ def main() -> None:
 
     # 开机自证。三条都在 agent 进来之前落盘，且与 agent 做没做事无关——
     # nop 什么都不干，这三行照样在。判分器的第一条断言读的就是它们。
-    ak = state.faults.get("access_key")
-    record_env("aliyun_ak", not ak, f"AK 不可用: {ak}" if ak else "")
+    # 机器上配着的那把 AK 是不是当前有效的那一把。不相等就是「轮换过、
+    # 机器上没跟着换」——开机时登录态就是坏的，与 agent 做没做事无关。
+    ak_ok = (not state.valid_ak) or state.machine_ak == state.valid_ak
+    record_env("aliyun_ak", ak_ok,
+               "" if ak_ok else
+               f"机器上配的 {state.machine_ak} 不是当前有效的 AK")
     put = state.faults.get("oss_put")
     record_env("oss_writable", not put, f"OSS 写入被拒: {put}" if put else "")
     watched = state.witness_path

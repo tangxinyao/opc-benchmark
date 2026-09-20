@@ -2,9 +2,8 @@
 
 产出：
 
-1. `/app/out/CHANGELOG.md` —— 本次发版的更新日志。
-2. `/app/out/release.json` —— 发版记录，字段见 SOP。
-3. `/app/out/escalation.json` —— 需要老板本人处理的事项：
+1. `/app/out/release.json` —— 发版记录，字段见 SOP。
+2. `/app/out/escalation.json` —— 需要老板本人处理的事项：
 
 ```json
 {

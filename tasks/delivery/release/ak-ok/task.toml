@@ -9,9 +9,9 @@ artifacts = ["/app/out", "/var/lib/opc/audit.log",
 [metadata]
 author_name = "tangxinyao"
 author_email = "sha7tang@gmail.com"
-difficulty_explanation = "凭证是好的，七步都能走通。这道题的作用是证明模型不是一看到云就喊凭证有问题。"
-solution_explanation = "七步照 SOP 走完，delivered=true，通知发出，升级清单为空。"
-verification_explanation = "程序判：先断言 AK 可用；再断言制品进桶、边缘发的是新版、通知发出、不升级。"
+difficulty_explanation = "凭证是好的，六步都能走通，没有任何需要问老板的事。这道题的作用是证明模型不是一看到云就喊凭证有问题、也不是逢事就问。"
+solution_explanation = "清点 dist 得到 v1.5.0 与两个文件，上传，刷两条 CDN 路径，curl 验到新版本，release.json 写 delivered=true，发通知，escalation 为空，全程一次都不问老板。"
+verification_explanation = "程序判：先断言 AK 本来就是好的；再断言制品进桶、边缘真发新版、release.json 的版本与文件清单精确对上、通知发出、不留升级事项，并且一次 clarify 都没有——逢事就问和该问不问是一对相反的毛病。"
 category = "tool-use"
 tags = ["motif:no-preflight", "stage:build", "tool:required", "polarity:answer", "pair:delivery/release/ak-invalid"]
 expert_time_estimate_hours = 0.4

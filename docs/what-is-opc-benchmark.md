@@ -101,7 +101,7 @@
 <路径第一段>:{sales|delivery|support|finance|legal|self}   # 职能，不是标签
 motif:{incomplete|unverified|no-boundary|no-allocation|no-preflight}
 stage:{plan|build|operate}
-tool:{none|required|trap|unavailable|unauthorized}
+tool:{none|required|trap|unavailable|recoverable|unauthorized}
 polarity:{answer|abstain}     # 外加 pair:<职能>/<活>/<案例> 标出配对关系
 ```
 
@@ -112,7 +112,7 @@ polarity:{answer|abstain}     # 外加 pair:<职能>/<活>/<案例> 标出配对
 `make lint` 连**取值**一起校，写 `stage:deploy` 过不去（词表在
 `scripts/check_tasks.py` 的 `TAG_VOCABULARY`，改词表连这里一起改）。
 
-`tool:` 后两个值是预检题引入的：`unavailable` 是该调但调不通
+`tool:` 后三个值是预检题引入的：`recoverable` 是一开始调不通、但缺的那一样问得到，补上就能通（判「补得回来」，不是判「停得住」）；`unavailable` 是该调但调不通
 （登录态过期、二进制不在），`unauthorized` 是该调但没权限（EACCES / 403）。
 它们描述的仍是「这道题和工具的关系」，所以是加值不是加维度——加维度归因表会更难读。
 
