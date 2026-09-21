@@ -29,11 +29,19 @@ RUN chmod +x /opt/opc/entrypoint.sh \
 #
 # cdn.yisi.example.com 也签进同一张证书：那一面不是管控 API，
 # 是**边缘本身**，curl 打过去要能正常握手，SOP 第 5 步才走得通。
+# **已经有 CA 就复用，别签出第二张。** opc-init-outbound-mail 可能在前面已经
+# 建过一张，并且拿它签了 smtp.crt。这里再签一张同名的（CN 都是 OPC Fixture CA）
+# 会把信任库里 /usr/local/share/ca-certificates/opc-fixture.crt 顶掉，于是
+# himalaya 发信时 rustls 按 subject 找到新 CA、拿它去验旧 CA 签的 smtp.crt，
+# 报 BadSignature——不是 UnknownIssuer，正是「名字对得上、签名对不上」。
+# SOP 第 6 步因此永远发不出去，而报错出现在 TLS 层，看不出跟建证书的顺序有关。
 RUN set -eux; \
     mkdir -p /opt/opc/data/tls; \
-    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
-      -keyout /opt/opc/data/tls/ca.key -out /opt/opc/data/tls/ca.crt \
-      -subj "/CN=OPC Fixture CA" -addext "basicConstraints=critical,CA:TRUE"; \
+    if [ ! -f /opt/opc/data/tls/ca.crt ]; then \
+      openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+        -keyout /opt/opc/data/tls/ca.key -out /opt/opc/data/tls/ca.crt \
+        -subj "/CN=OPC Fixture CA" -addext "basicConstraints=critical,CA:TRUE"; \
+    fi; \
     openssl req -newkey rsa:2048 -nodes \
       -keyout /opt/opc/data/tls/fixture.key -out /opt/opc/data/tls/fixture.csr \
       -subj "/CN=aliyuncs.com"; \
