@@ -13,6 +13,11 @@ COPY inbox/ /app/inbox/
 COPY ops-notes.md /app/ops-notes.md
 # 计费语料归 opcsvc：agent 读不到，只能经真 stripe CLI 走接口
 COPY data/ /opt/opc/data/
+# agent skills：按 environment/skills.manifest 点名下发，清单由 sync-tasks.sh 生成。
+# hermes: 条目指向基底里自带的那份，装法见 opc/agent/svc/opc-install-skills。
+COPY skills.bundled /tmp/skills.bundled
+RUN /usr/local/bin/opc-install-skills /tmp/skills.bundled && rm /tmp/skills.bundled
+
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agent/svc/opc-prune-tools。
 RUN /usr/local/bin/opc-prune-tools \
  # 公司信箱：himalaya 配好，本机 SMTP（mailpit）当对端。

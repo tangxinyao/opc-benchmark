@@ -49,10 +49,15 @@ while IFS= read -r line || [ -n "$line" ]; do
     exit 1
   }
 
-  name="$(basename "$rel")"
-  rm -rf "$DEST/$name"
-  cp -r "$src" "$DEST/$name"
-  echo "install-skills: 装上 $rel -> $DEST/$name"
+  # 落点保留相对路径（productivity/google-workspace 而不是 google-workspace）。
+  # 不能拍平：google-workspace 的 SKILL.md 里写死了它自己的执行后端在
+  # $HERMES_HOME/skills/productivity/google-workspace/scripts/google_api.py，
+  # 拍平之后那条路径就是错的，skill 自带的用法示例全部作废。
+  # hermes 那边不受影响：iter_skill_index_files() 是 os.walk，任意深度都扫得到。
+  rm -rf "${DEST:?}/$rel"
+  mkdir -p "$(dirname "$DEST/$rel")"
+  cp -r "$src" "$DEST/$rel"
+  echo "install-skills: 装上 $rel -> $DEST/$rel"
 done < "$MANIFEST"
 
 chmod -R a+rX "$DEST"

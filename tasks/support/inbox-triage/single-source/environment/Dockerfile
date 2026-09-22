@@ -17,6 +17,11 @@ COPY data/ /opt/opc/data/
 COPY maildir/ /var/mail/support/
 COPY entrypoint.sh /opt/opc/entrypoint.sh
 COPY clarify.json /opt/opc/clarify.json
+# agent skills：按 environment/skills.manifest 点名下发，清单由 sync-tasks.sh 生成。
+# hermes: 条目指向基底里自带的那份，装法见 opc/agent/svc/opc-install-skills。
+COPY skills.bundled /tmp/skills.bundled
+RUN /usr/local/bin/opc-install-skills /tmp/skills.bundled && rm /tmp/skills.bundled
+
 RUN chmod +x /opt/opc/entrypoint.sh \
  && /usr/local/bin/opc-prune-tools \
  && chmod a+r /opt/opc/clarify.json

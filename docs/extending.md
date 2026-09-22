@@ -116,6 +116,12 @@ RUN /usr/local/bin/opc-install-skills /tmp/skills.bundled && rm /tmp/skills.bund
 `skills.bundled` 是生成物，别手改；改完 `skills.manifest` 跑 `scripts/sync-tasks.sh`，
 `make lint` 会用 `--check` 比对。
 
+落点**保留相对路径**（`productivity/google-workspace`，不是拍平成
+`google-workspace`）。不能拍平：`google-workspace` 的 SKILL.md 里写死了自己的
+执行后端在 `$HERMES_HOME/skills/productivity/google-workspace/scripts/google_api.py`，
+拍平之后那条路径就是错的，skill 自带的用法示例全部作废。hermes 那边不受影响——
+`iter_skill_index_files()` 是 `os.walk`，任意深度都扫得到。
+
 ## 判分明细表
 
 每份任务 README 的「判分读什么」一节里有一张**逐条判分表**：哪条断言、判什么、
