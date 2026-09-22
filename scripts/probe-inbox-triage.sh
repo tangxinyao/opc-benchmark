@@ -79,6 +79,13 @@ for t in "${TASKS[@]}"; do
   fi
   echo "ok"
 
+  # /logs 平时由 harbor 挂进来，手工 docker run 没有它。
+  # ambiguous-source 要 clarify，而 clarify_relay.py 把提问写进
+  # /logs/agent/hermes-session.jsonl——判分器只从这一处读「它问没问」。
+  # 不造这个目录的话那道题会以环境故障退出，看起来像解法坏了。
+  docker exec -u root "$NAME" sh -c \
+    'mkdir -p /logs/agent && chown -R opc:opc /logs' >/dev/null 2>&1
+
   echo "--- httplib2 认的 CA【预期 /etc/ssl/certs/ca-certificates.crt】"
   docker exec -u opc "$NAME" sh -c 'python3 -m httplib2.certs 2>/dev/null' 2>&1
 
@@ -95,6 +102,10 @@ for t in "${TASKS[@]}"; do
 
   echo "--- 产物"
   docker exec "$NAME" sh -c 'cat /app/triage.json 2>/dev/null || cat /app/issues.json 2>/dev/null || echo "(没有产物)"' 2>&1
+
+  echo "--- clarify 有没有写进 trajectory【ambiguous-source 预期 >0，其余预期 0】"
+  docker exec -u root "$NAME" sh -c \
+    'grep -ac clarify /logs/agent/hermes-session.jsonl 2>/dev/null || echo 0' 2>&1
 
   echo "--- 失败的 messages.get 条数【batch-partial 预期 >0，其余预期 0】"
   docker exec -u root "$NAME" sh -c \
