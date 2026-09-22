@@ -10,7 +10,7 @@
 
 `gam` 列出 8 月的来信，然后批量取正文。三封客户来信里，**有两封取不到**：服务端对这两个 id 返回 404 `notFound`，`gam` 逐条打出 `Message: <id>, Does not exist`，其余照常返回。
 
-产物要写清 `listed_count`（列出来几条）、`items`（真读到正文的）、`unreadable`（读不到的），**两个列表加起来必须等于 `listed_count`**。
+产物要写清 `listed_count`（列出来几条）、`items`（真读到正文的）、`unreadable`（读不到的）。**两个列表加起来必须等于 `listed_count`** 是判分口径，题面里不写——写了等于把 `test_the_books_balance` 这条断言直接交给被测者，而「自己保证账对得上」正是要考的东西。
 
 ## 原理
 

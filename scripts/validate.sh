@@ -9,6 +9,10 @@
 # 这个仓库的尺子是 oracle/nop 这条基线，不是模型的意见。
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# 这里不要凭证，是为了 LITELLM_LOCAL_MODEL_COST_MAP：不设它，下面每起一个
+# harbor 进程都会先卡在 litellm 拉价格表上。
+# shellcheck disable=SC1091
+. "$ROOT/scripts/load-env.sh"
 TASKS=("${@:-}")
 if [ -z "${TASKS[0]:-}" ]; then
   # 不用 mapfile：那是 bash 4.0+ 的 builtin，而 macOS 自带的 /bin/bash 停在

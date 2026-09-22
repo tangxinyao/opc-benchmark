@@ -17,5 +17,3 @@
   "rule_version_effective_from": "<你依据的规则版本生效日期>"
 }
 ```
-
-You have 900 seconds to complete this task. Do not cheat by using online solutions or hints specific to this task.

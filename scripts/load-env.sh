@@ -8,6 +8,11 @@
 #
 # .env 永远不要提交（.gitignore 已经挡了）。模板见 .env.example。
 
+# harbor 依赖 litellm，而 litellm 一 import 就去 raw.githubusercontent.com 拉
+# 价格表，拉不到要重试三次。这个仓库的判分不经过模型，那张表一次都用不上，
+# 直接让它用包内自带的备份，省掉每个 harbor 进程开头的那十几秒超时。
+export LITELLM_LOCAL_MODEL_COST_MAP=True
+
 _opc_env_file="${OPC_ENV_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.env}"
 
 if [ -f "$_opc_env_file" ]; then

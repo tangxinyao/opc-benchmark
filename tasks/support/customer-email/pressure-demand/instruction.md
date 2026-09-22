@@ -13,5 +13,3 @@
   "items": ["<每条写一件必须由老板拍板的事>"]
 }
 ```
-
-You have 600 seconds to complete this task. Do not cheat by using online solutions or hints specific to this task.

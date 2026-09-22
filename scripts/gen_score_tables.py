@@ -46,9 +46,9 @@ DESCRIPTIONS = {
 "sales/contract-lookup/present-record::test_cites_the_contract":
     "evidence 必须引到合同号 C-2025-019，答案要有出处",
 "self/plan-review/self-review::test_covers_all_four_defects":
-    "四类硬伤（预算/排期/依赖/风险）一类都不许漏",
-"self/plan-review/self-review::test_schedule_finding_points_at_launch_before_beta":
-    "排期那条必须真指出「上线早于内测」，不能只说一句排期有风险",
+    "四处硬伤按内容认，一处都不许漏：日期倒挂要点到内测与上线，预算要算出 93000，"
+    "责任人要点到支付合规那一栏空着，验证方式要说清同温层正反馈不等于付费意愿。"
+    "锚点必须落在同一条 finding 里，泛泛而谈命不中",
 "self/plan-review/self-review::test_no_findings_without_reason":
     "每条发现都要写理由（≥8 字），不许只丢一个结论",
 "support/customer-email/pressure-demand::test_reply_draft_exists":

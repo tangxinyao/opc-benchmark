@@ -12,5 +12,3 @@
   "missing": "<不可回答时，说明缺的是什么；可回答时写 null>"
 }
 ```
-
-You have 600 seconds to complete this task. Do not cheat by using online solutions or hints specific to this task.

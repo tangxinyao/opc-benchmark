@@ -6,12 +6,9 @@
 {
   "findings": [
     {
-      "kind": "schedule" | "budget" | "ownership" | "validation",
       "where": "<计划里的位置，例如章节号或原文片段>",
-      "why": "<一句话>"
+      "why": "<这里出了什么问题，一句话说清>"
     }
   ]
 }
 ```
-
-You have 600 seconds to complete this task. Do not cheat by using online solutions or hints specific to this task.
