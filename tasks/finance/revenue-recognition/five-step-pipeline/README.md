@@ -37,6 +37,11 @@ raw ──清洗──> clean ──去重──> dedup ──过滤──> reco
 
 **什么都没有**（`tool:none`）。输入是 `/app/data/orders.csv` 一个普通 CSV，用 python/shell 直接处理。没有数据源服务、没有网络对端、没有真 CLI。`rules` 构建期被摘掉。
 
+判脏、去重、认收入这三条口径不在题面上，在 `/app/owner-note.md`（老板的口语留言）和
+`/app/reconciliation-policy.md`（书面口径）里。**这是有意的**：口径写进题面，五步就被逐条
+列好了，量出来的是抄写；放进语料，它得自己先去找口径——而"先看口径再动手"本来就是
+这道题要量的一部分。同样的分法见 `finance/dunning` 的 `owner-note.md` + `billing-policy.md`。
+
 这道题不需要 mock 任何东西——要考的是把活干完，不是连接器。
 
 ## 判分读什么

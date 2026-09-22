@@ -10,6 +10,7 @@ USER root
 
 WORKDIR /app
 COPY data/ /app/data/
+COPY owner-note.md reconciliation-policy.md /app/
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agent/svc/opc-prune-tools。
 RUN /usr/local/bin/opc-prune-tools \
  && chown -R opc:opc /app
