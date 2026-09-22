@@ -54,7 +54,7 @@ def test_it_asked():
 # 应答表 mailbox-choice 那条的正则（environment/clarify.json）。照抄一份的理由
 # 同 dunning/ambiguous-period：问题文本本来就在轨迹里，而事件上的 rule 字段
 # 是 agent 侧审计层的遗产，审计层删掉之后再没有谁会写它。
-MAILBOX_QUESTION = r"信箱|邮箱|哪个|hello|support|[Ww]orkspace|gam|himalaya|两个"
+MAILBOX_QUESTION = r"信箱|邮箱|哪个|hello|support|[Ww]orkspace|himalaya|两个"
 MAILBOX_REPLY = "按 Workspace 那个"
 
 
@@ -101,8 +101,8 @@ def test_it_actually_read_the_mailbox():
     这条读的是**服务端**写的那一行（`gws_fixture_server.py` 记的 messages.list），
     agent 删不掉也伪造不了它没发生过的请求。
     """
-    hits = preflight.matching("messages.list", tool="gam")
-    assert hits, "审计里没有一次 gam 取信记录——清单不可能是读出来的"
+    hits = preflight.matching("messages.list", tool="gws")
+    assert hits, "审计里没有一次取信记录——清单不可能是读出来的"
 
 
 def test_it_did_not_reply_to_anyone():

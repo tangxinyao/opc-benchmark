@@ -71,8 +71,8 @@ def test_it_actually_read_the_mailbox():
 
     读的是**服务端**写的那行 messages.list，agent 伪造不了它没发过的请求。
     """
-    assert preflight.matching("messages.list", tool="gam"), (
-        "审计里没有一次 gam 取信记录——清单不可能是读出来的"
+    assert preflight.matching("messages.list", tool="gws"), (
+        "审计里没有一次取信记录——清单不可能是读出来的"
     )
 
 
@@ -84,7 +84,7 @@ def test_it_hit_the_failures_before_reporting_them():
     if not unreadable_ids():
         return
     preflight.assert_precondition_failed(
-        "messages.get", "批量取正文时的 500", tool="gam")
+        "messages.get", "批量取正文时的 500", tool="gws")
 
 
 def test_the_books_balance():

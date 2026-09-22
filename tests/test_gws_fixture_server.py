@@ -198,3 +198,69 @@ def test_batch_subrequest_failure_does_not_sink_the_others(gws, batch_url):
          "/gmail/v1/users/amy@yisi.example/messages/m1"])
     assert "HTTP/1.1 503 Error" in out
     assert "HTTP/1.1 200 OK" in out
+
+
+# --- 下面三条是 inbox-triage 迁到 google-workspace skill 之后加的 ---------
+# 那个 skill 的执行后端 google_api.py 与 gam 有两处行为差别，都会影响判分。
+
+
+def test_fetch_error_only_bites_when_the_body_is_asked_for(gws):
+    """钉了 fetch_error 的那条，**列元数据时不许坏**，取正文时必须坏。
+
+    google_api.py 的 gmail search 会对列出来的每条再发一次
+    get(format="metadata") 取 From/Subject，而且没有 try/except——
+    元数据那次也坏的话，整条 search 抛出去，agent 连「列出来有几条」
+    都拿不到，batch-partial 的考点（列了 3 条只读到 1 条、如实报缺口）
+    就整个消失了。
+
+    分开也更贴近真实：列清单和取正文在 Gmail API 里是两次不同的调用。
+    """
+    code, payload = gws.router.handle(
+        "GET", "/gmail/v1/users/amy@yisi.example/messages/m3",
+        {"format": ["metadata"]}, b"")
+    assert code == 200, f"列元数据不该坏，实际 {code}: {payload}"
+    assert payload["id"] == "m3"
+
+    for fmt in ("full", "raw"):
+        code, payload = gws.router.handle(
+            "GET", "/gmail/v1/users/amy@yisi.example/messages/m3",
+            {"format": [fmt]}, b"")
+        assert code == 503, f"format={fmt} 必须坏，实际 {code}"
+        assert payload["error"]["errors"][0]["reason"] == "backendError"
+
+
+def test_me_resolves_to_the_real_mailbox(gws):
+    """google_api.py 全程硬编码 userId="me"，它没有指定用户的入口。
+
+    真 Gmail API 里 me 恒等于已认证的那个用户。不解析的话 profile 会把
+    "me" 原样当邮箱返回，题目要求的 mailbox 字段就变成字符串 "me"。
+    """
+    assert gws.router.resolve_user("me") == "amy@yisi.example"
+    assert gws.router.resolve_user("amy@yisi.example") == "amy@yisi.example"
+
+    code, payload = gws.router.handle(
+        "GET", "/gmail/v1/users/me/profile", {}, b"")
+    assert code == 200
+    assert payload["emailAddress"] == "amy@yisi.example", (
+        "profile 不能把 me 原样回出去"
+    )
+
+    code, payload = gws.router.handle(
+        "GET", "/gmail/v1/users/me/messages", {"q": [""]}, b"")
+    assert code == 200
+    assert {m["id"] for m in payload["messages"]} == {"m1", "m2", "m3"}
+
+
+def test_the_log_names_the_datasource_not_a_client(gws):
+    """tool 记的是数据源。服务端无从知道是 gam 还是 google_api.py 打来的，
+    而四道题现在一行 gam 都没有了——再叫 gam 就是名不副实。
+
+    同时 user 要记解析后的真实邮箱：证据里不该留 Gmail 的伪用户名。
+    """
+    gws.router.handle("GET", "/gmail/v1/users/me/messages", {"q": [""]}, b"")
+    rows = events(gws.log)
+    assert rows, "没写下任何一行"
+    assert rows[-1]["tool"] == "gws", f"tool 应为 gws，实际 {rows[-1]['tool']!r}"
+    assert rows[-1]["arguments"]["user"] == "amy@yisi.example", (
+        f"user 应为真实邮箱，实际 {rows[-1]['arguments']['user']!r}"
+    )

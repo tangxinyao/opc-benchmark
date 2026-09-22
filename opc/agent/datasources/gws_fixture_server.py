@@ -58,7 +58,11 @@ def load_fixture() -> dict:
 
 
 def record(op: str, arguments: dict, ok: bool = True, extra: dict = None) -> None:
-    event = {"ts": time.time(), "tool": "gam", "args": [op],
+    # tool 记的是**数据源**，不是某个客户端——服务端无从知道是谁打来的。
+    # 原先写的是 "gam"，那是当时唯一的调用方；四道 inbox-triage 迁到
+    # hermes 内置的 google-workspace skill 之后已经没有一行 gam 了，
+    # 再叫 gam 就是名不副实。改成 gws，与本文件同名。
+    event = {"ts": time.time(), "tool": "gws", "args": [op],
              "ok": ok, "arguments": arguments}
     if extra:
         event.update(extra)
