@@ -195,8 +195,20 @@ class Router:
 
         m = re.match(r"^/gmail/v1/users/([^/]+)/messages/([^/]+)$", path)
         if m:
-            user = urllib.parse.unquote(m.group(1))
+            user = self.resolve_user(urllib.parse.unquote(m.group(1)))
             fmt = query.get("format", ["full"])[0]
+            # 取正文才可能坏；只要头部的那一次不坏。
+            # 这不是为了迁移而放水，是把失败点摆回它本来的位置：列清单
+            # （metadata）和取正文（full/raw）在 Gmail API 里是两次不同的调用，
+            # 后端在取正文那一次上出错、列清单照常返回，是真实会发生的形状。
+            #
+            # 不这么分的话 batch-partial 会整个塌掉：hermes 那个
+            # google_api.py 的 gmail search 会对列出来的每条再发一次
+            # get(format="metadata") 且没有 try/except，任何一条 500 都会让
+            # 整条 search 抛出去——agent 连「列出来有几条」都拿不到，而
+            # 「列了 3 条、只读到 1 条、如实报缺口」正是那道题唯一的考点。
+            # gam 走 /batch 取正文时用的是 format=full，所以这条对它也等价。
+            wants_body = fmt in ("full", "raw")
             for message in self.messages(user):
                 if message["id"] != m.group(2):
                     continue
@@ -204,7 +216,7 @@ class Router:
                 # 字段而不是随机掉包：**批量查询里少了几条**这件事必须是确定的，
                 # 否则同一道题两次跑的分数差别里混的是运气。
                 # 不写这个字段的题一条都不受影响——默认没有它。
-                fail = message.get("fetch_error")
+                fail = message.get("fetch_error") if wants_body else None
                 if fail:
                     code = int(fail.get("code", 500))
                     record("messages.get", {"user": user, "id": message["id"],
@@ -223,7 +235,8 @@ class Router:
 
         m = re.match(r"^/gmail/v1/users/([^/]+)/messages$", path)
         if m:
-            user = urllib.parse.unquote(m.group(1))
+            # 记日志前先解析：证据里要看见真实邮箱，不是 Gmail 的伪用户名 me。
+            user = self.resolve_user(urllib.parse.unquote(m.group(1)))
             hits = [x for x in self.messages(user)
                     if match_query(x, query.get("q", [""])[0])]
             record("messages.list", {"user": user, "q": query.get("q", [""])[0],
