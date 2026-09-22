@@ -28,17 +28,34 @@
 
 # 怎么发给某道题
 
-在题目里放一份 `environment/skills.manifest`，一行一个目录名：
+在题目里放一份 `environment/skills.manifest`，一行一个：
 
 ```
-obsidian
-aliyun-cli
+obsidian                        # 这个目录下的
+aliyun-cli                      # 同上
+hermes:email/himalaya           # hermes 自带的，见下
 ```
 
 `scripts/sync-tasks.sh` 照着它铺进 `environment/skills/`，**没点名的一律不发**。
 `opc/common/skills/<name>/` 有两种形状，落点都会是 `HERMES_HOME/skills/<skill>/`：
 根下有 `SKILL.md` 的（`aliyun-cli`）本身就是一个 skill；根下没有的
 （`obsidian`）是个合集，里面每个子目录才是 skill。
+
+---
+
+# 先找现成的，再考虑自己写
+
+这个目录里的每一份都要先回答一个问题：**有没有现成的？** 自己写一份等于给同一件
+事造第二份规范，而两份规范迟早会不一致。按这个顺序找：
+
+1. **hermes 自带**（`/usr/local/lib/hermes-agent/skills/`，六十来个）——
+   `email/himalaya`、`email/email-inbox-triage`、`productivity/google-workspace`、
+   `productivity/xlsx`、`note-taking/obsidian` 都在里面。用 `skills.manifest` 的
+   `hermes:` 前缀点名，版本自动跟着钉死的 `HERMES_VERSION` 走，仓库里不留拷贝。
+2. **工具厂商官方发的**——钉钉的走 `dws` 官方 `install.sh`（15 个 `dingtalk-*`，
+   烘在 `/opt/dws/skills`）；阿里云的 vendor 自 hambaobao-skills。
+3. **上游社区 vendor**——`obsidian` 三件套来自 kepano/obsidian-skills，commit 钉死。
+4. **以上都没有，才自己写**，并且要在这里写清楚为什么没有现成的。
 
 ---
 

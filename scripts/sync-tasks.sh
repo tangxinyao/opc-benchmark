@@ -59,12 +59,36 @@ sync_task() {
   # opc/common/skills/README.md 里排除 defuddle/knap 是同一个理由。
   #
   # 清单放在 skills/ 外面：题目的 Dockerfile 只 COPY skills/，所以它不进容器。
+  #
+  # 清单里有两种条目：
+  #   <目录名>              -> opc/common/skills/<目录名>，在这里拷进 environment/skills/
+  #   hermes:<相对路径>     -> hermes 自带的 skill，只有镜像里才有，拷不了
+  #
+  # 后者为什么不在这里拷：自带 skill 在 /usr/local/lib/hermes-agent/skills/ 下，
+  # 那是镜像里的东西，宿主机上根本没有；就算 vendor 一份进仓库，也会和钉死的
+  # HERMES_VERSION 各自漂，成了第二份事实。所以这里只把它们**记下来**，
+  # 生成一份 environment/skills.bundled，真正的安装交给题目构建期的
+  # opc-install-skills（它在基础镜像里，拿得到那些文件，也验得了路径还在不在）。
   local manifest="$task/environment/skills.manifest"
   if [ -f "$manifest" ]; then
     mkdir -p "$dest/environment/skills"
+    local bundled="$dest/environment/skills.bundled"
+    : > "$bundled.tmp"
     while read -r skill; do
       skill="${skill%%#*}"; skill="$(echo "$skill" | tr -d '[:space:]')"
       [ -z "$skill" ] && continue
+      if [ "${skill#hermes:}" != "$skill" ]; then
+        # 路径合法性在这里只做最粗的一层（非空、不越级），存不存在由构建期判——
+        # 宿主机上没有那棵树，在这里装作能验是自欺。
+        local rel="${skill#hermes:}"
+        case "$rel" in
+          ""|/*|*..*)
+            echo "FAIL ${task#"$ROOT/tasks/"}: skills.manifest 里 '$skill' 的路径不合法" >&2
+            return 1 ;;
+        esac
+        echo "$skill" >> "$bundled.tmp"
+        continue
+      fi
       if [ ! -d "$ROOT/opc/common/skills/$skill" ]; then
         echo "FAIL ${task#"$ROOT/tasks/"}: skills.manifest 点名了 '$skill'，" \
              "但 opc/common/skills/$skill 不存在" >&2
@@ -81,6 +105,12 @@ sync_task() {
         cp -r "$ROOT/opc/common/skills/$skill/." "$dest/environment/skills/"
       fi
     done < "$manifest"
+    # 没有 hermes: 条目就不留空文件——题目 Dockerfile 里那两行也就不该出现。
+    if [ -s "$bundled.tmp" ]; then
+      mv "$bundled.tmp" "$bundled"
+    else
+      rm -f "$bundled.tmp"
+    fi
   fi
 
   # Obsidian vault 语料：两道 contract 题共用一份，别让它长出第二份拷贝。
@@ -115,7 +145,10 @@ for task in "$ROOT"/tasks/*/*/*/; do
     done < <(find "$tmp" -type f -print0)
     rm -rf "$tmp"
   else
-    [ -f "$task/environment/skills.manifest" ] && rm -rf "$task"/environment/skills/*
+    if [ -f "$task/environment/skills.manifest" ]; then
+      rm -rf "$task"/environment/skills/*
+      rm -f "$task/environment/skills.bundled"
+    fi
     [ -d "$task/environment/vault" ] && rm -rf "$task"/environment/vault/*
     sync_task "$task" "$task" || failed=1
     echo "synced $name"

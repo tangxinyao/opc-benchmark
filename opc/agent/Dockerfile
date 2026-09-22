@@ -274,7 +274,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends sudo \
 # 不进 /opt/opc/bin —— 那个目录在 agent 的 PATH 上、`ls` 就看得见。
 COPY svc/opc-svc-start \
      svc/opc-pin-hosts svc/opc-init-outbound-mail svc/opc-init-billing \
-     svc/opc-entrypoint.sh svc/opc-prune-tools \
+     svc/opc-entrypoint.sh svc/opc-prune-tools svc/opc-install-skills \
      /usr/local/bin/
 # Google 那几个 API 的端口写死在 discovery 文档的 rootUrl 里（443），改不了。
 # 服务身份 opcsvc 绑不了特权端口，于是单独复制一份 python 给它加 cap——
@@ -286,6 +286,7 @@ RUN mkdir -p /usr/local/lib/opc \
 RUN chmod 0755 /usr/local/bin/opc-svc-start /usr/local/bin/opc-pin-hosts \
       /usr/local/bin/opc-init-outbound-mail /usr/local/bin/opc-init-billing \
       /usr/local/bin/opc-entrypoint.sh /usr/local/bin/opc-prune-tools \
+      /usr/local/bin/opc-install-skills \
  && printf '%s\n' 'opc ALL=(opcsvc) NOPASSWD: /usr/local/bin/opc-svc-start' \
       'opc ALL=(root) NOPASSWD: /usr/local/bin/opc-pin-hosts' \
       > /etc/sudoers.d/opc-svc \

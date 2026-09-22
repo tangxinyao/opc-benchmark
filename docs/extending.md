@@ -75,18 +75,46 @@ scripts/sync-tasks.sh
 ## 要用 skill 的题
 
 skills **按名字点名下发**，在题目里放一份 `environment/skills.manifest`，
-一行一个，对应 `opc/common/skills/` 下的目录名：
+一行一个。清单认两种条目：
 
 ```
-obsidian
+obsidian                        # 仓库自带：opc/common/skills/<目录名>
+hermes:email/himalaya           # hermes 自带：/usr/local/lib/hermes-agent/skills/<路径>
 ```
 
-然后 `scripts/sync-tasks.sh` 会把它铺进 `environment/skills/`。
 **不点名就不发**——用不上的 skill 是纯噪声，还会诱 agent 去试不存在的工具，
 理由见 [opc/common/skills/README.md](../opc/common/skills/README.md)。
 
 清单放在 `skills/` 外面是有意的：题目的 Dockerfile 只 `COPY skills/`，
 所以清单本身不进容器。
+
+### `hermes:` 条目
+
+hermes 随发行版烘了六十来个 skill 在 `/usr/local/lib/hermes-agent/skills/` 下
+（`email/himalaya`、`email/email-inbox-triage`、`productivity/google-workspace`、
+`productivity/xlsx` …）。**能用现成的就别自己写**——手写一份等于给同一件事造第二份
+规范，还会和钉死的 `HERMES_VERSION` 各自漂。
+
+但那个目录**不是发现根**：`agent/skill_utils.py` 的 `get_skills_dir()` 只认
+`HERMES_HOME/skills`，外加 config 的 `skills.external_dirs` 和 project skills 两处。
+自带的那些不装进来就等于没有——此前它们只能靠语料里写死一条绝对路径来曝光
+（`inbox-triage` 的 `ops-notes.md` 里那句 `GAPI=python3 /usr/local/lib/...`），
+而那正是上一节禁的「替它想好第一步」。
+
+`hermes:` 条目因此不在宿主机上拷贝（宿主机上根本没有那棵树），而是由
+`sync-tasks.sh` 生成一份 `environment/skills.bundled`，题目 Dockerfile 在构建期装：
+
+```dockerfile
+COPY skills.bundled /tmp/skills.bundled
+RUN /usr/local/bin/opc-install-skills /tmp/skills.bundled && rm /tmp/skills.bundled
+```
+
+`opc-install-skills` 在基础镜像里（`opc/agent/svc/`）。路径不存在时它**硬失败**，
+不是跳过：hermes 换版本后改了 skill 的名字，构建当场红，而不是悄悄少发一个——
+那会变成一道可供性不足的假题，量出来的是记忆力而不是判断力，且从分数上看不出来。
+
+`skills.bundled` 是生成物，别手改；改完 `skills.manifest` 跑 `scripts/sync-tasks.sh`，
+`make lint` 会用 `--check` 比对。
 
 ## 判分明细表
 

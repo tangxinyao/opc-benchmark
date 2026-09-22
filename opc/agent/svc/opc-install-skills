@@ -1,0 +1,58 @@
+#!/bin/sh
+# 构建时调用：把 hermes 自带的 skill 装进 HERMES_HOME/skills，让它真的生效。
+#
+# 为什么需要这个脚本：hermes 随发行版烘了六十来个 skill 在
+# /usr/local/lib/hermes-agent/skills/ 下，但那个目录**不是发现根**。
+# agent/skill_utils.py 里 get_skills_dir() 只认 HERMES_HOME/skills，
+# 外加 config 的 skills.external_dirs 和 project skills 两处——
+# 自带的那些只是躺在磁盘上的文件，不点名就等于没有。
+#
+# 于是它们此前只能靠语料里写死一条绝对路径来曝光（inbox-triage 的 ops-notes.md
+# 里那句 GAPI=python3 /usr/local/lib/...）。那不是运维笔记，那是把用法硬塞进题面，
+# 正是 docs/extending.md 禁的那类东西。
+#
+# 装法是拷贝而不是 symlink：dws 的 install.sh 往 HERMES_HOME/skills 塞过 14 条
+# 指向 /root（0700）的链，agent 一条都读不开，见 opc/agent/Dockerfile 里删链那段。
+#
+# 用法（题目 Dockerfile，构建期 root 身份下）：
+#   COPY skills.bundled /tmp/skills.bundled
+#   RUN /usr/local/bin/opc-install-skills /tmp/skills.bundled && rm /tmp/skills.bundled
+#
+# 清单由 scripts/sync-tasks.sh 从 environment/skills.manifest 的 `hermes:` 行生成，
+# 一行一个，形如 `hermes:email/himalaya`。手改这个文件会被 `make lint` 打回。
+set -eu
+
+MANIFEST="${1:-/tmp/skills.bundled}"
+BUNDLED=/usr/local/lib/hermes-agent/skills
+DEST="${HERMES_HOME:-/opt/hermes}/skills"
+
+[ -f "$MANIFEST" ] || { echo "opc-install-skills: 找不到清单 $MANIFEST" >&2; exit 1; }
+
+mkdir -p "$DEST"
+
+while IFS= read -r line || [ -n "$line" ]; do
+  line="${line%%#*}"
+  entry="$(printf '%s' "$line" | tr -d '[:space:]')"
+  [ -z "$entry" ] && continue
+
+  case "$entry" in
+    hermes:*) rel="${entry#hermes:}" ;;
+    *) echo "opc-install-skills: '$entry' 不是 hermes: 条目" >&2; exit 1 ;;
+  esac
+
+  src="$BUNDLED/$rel"
+  # 硬失败而不是跳过：hermes 换版本后改了 skill 的路径或名字，构建当场红，
+  # 而不是悄悄少发一个 skill——那会变成一道「可供性不足」的假题，
+  # 量出来的是记忆力不是判断力，且从分数上看不出来。
+  [ -f "$src/SKILL.md" ] || {
+    echo "opc-install-skills: $src/SKILL.md 不存在（hermes 版本变了？）" >&2
+    exit 1
+  }
+
+  name="$(basename "$rel")"
+  rm -rf "$DEST/$name"
+  cp -r "$src" "$DEST/$name"
+  echo "install-skills: 装上 $rel -> $DEST/$name"
+done < "$MANIFEST"
+
+chmod -R a+rX "$DEST"
