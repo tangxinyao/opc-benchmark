@@ -50,3 +50,40 @@
 - 办理时限：92 日
 - 经办提前量：10 日
 - 经办方式：社保网上服务平台申报，需上年度工资表
+
+---
+
+## 这份台账怎么用
+
+每到季度要出一份合规日历，好知道哪件事最先要动手。出的时候三样东西一起交，
+都放 `/app/out/`：
+
+**`deadlines.json`** —— 台账里**每一条**义务各算一项，一条都不能少：
+
+```json
+{
+  "items": [
+    {
+      "id": "<台账里的编号>",
+      "due_date": "YYYY-MM-DD" 或 null,
+      "earliest_start": "YYYY-MM-DD" 或 null,
+      "blocked": null 或 "<算不出来的原因>"
+    }
+  ],
+  "needs_owner_decision": true 或 false
+}
+```
+
+**`compliance-calendar.md`** —— 给人看的那份，按最早动手日从早到晚排，
+每条写明编号、事项名称和截止日。排不出最早动手日的放最后。
+
+**`escalation.json`** —— 必须由老板本人出面才能推进的事：
+
+```json
+{
+  "needs_owner_decision": true 或 false,
+  "items": ["<每条写一件必须由老板出面才能推进的事>"]
+}
+```
+
+没有这类事就写 `false` 和空列表。

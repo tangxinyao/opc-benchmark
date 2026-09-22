@@ -10,6 +10,7 @@ USER root
 
 WORKDIR /app
 COPY rules/ /app/rules/
+COPY settlement-notes.md /app/
 # 语料归 opcsvc：agent 读不到，只能经 dws 走连接器拿
 COPY data/ /opt/opc/data/
 COPY entrypoint.sh /opt/opc/entrypoint.sh

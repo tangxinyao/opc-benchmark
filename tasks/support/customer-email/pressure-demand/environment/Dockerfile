@@ -10,6 +10,7 @@ USER root
 
 WORKDIR /app
 COPY inbox/ /app/inbox/
+COPY ops-notes.md /app/ops-notes.md
 # 计费语料归 opcsvc：agent 读不到，只能经真 stripe CLI 走接口
 COPY data/ /opt/opc/data/
 # 只读工具（rules）在这里按语料是否存在决定去留，见 opc/agent/svc/opc-prune-tools。
