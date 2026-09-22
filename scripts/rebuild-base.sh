@@ -81,20 +81,40 @@ if [ "$links" = "0" ]; then ok "没有软链"; else fail "还有 $links 条软�
 #    这条是 skills.manifest 的 `hermes:` 前缀的全部前提：hermes 换版本改了
 #    路径的话，要在这里红，而不是等某道题少发一个 skill 才发现。
 echo "-- hermes: 前缀可用"
+# 落点保留相对路径（email/himalaya，不是拍平成 himalaya）：google-workspace
+# 的 SKILL.md 写死了自己的后端在 skills/productivity/google-workspace/scripts/
+# google_api.py，拍平之后 skill 自带的用法示例全部作废。这里连同落点一起验。
 probe='
 set -e
+H="${HERMES_HOME:-/opt/hermes}"
 for s in email/himalaya email/email-inbox-triage productivity/google-workspace productivity/xlsx; do
-  test -f /usr/local/lib/hermes-agent/skills/$s/SKILL.md || { echo "缺 $s"; exit 1; }
+  test -f /usr/local/lib/hermes-agent/skills/$s/SKILL.md || { echo "自带 skill 缺 $s（hermes 版本变了？）"; exit 1; }
 done
-printf "hermes:email/himalaya\n" > /tmp/p
+printf "hermes:email/himalaya\nhermes:productivity/google-workspace\n" > /tmp/p
 opc-install-skills /tmp/p >/dev/null
-su -s /bin/sh opc -c "head -1 ${HERMES_HOME:-/opt/hermes}/skills/himalaya/SKILL.md" >/dev/null
+test -f "$H/skills/email/himalaya/SKILL.md" || { echo "落点不对：$H/skills/email/himalaya/SKILL.md 不在"; exit 1; }
+test -f "$H/skills/productivity/google-workspace/scripts/google_api.py" \
+  || { echo "落点不对：google-workspace 的 google_api.py 不在它 SKILL.md 写的那条路径上"; exit 1; }
+su -s /bin/sh opc -c "head -1 $H/skills/email/himalaya/SKILL.md" >/dev/null \
+  || { echo "agent(opc) 读不开装进去的 skill"; exit 1; }
+/usr/local/lib/hermes-agent/venv/bin/python -c "
+import sys; sys.path.insert(0, \"/usr/local/lib/hermes-agent\")
+from pathlib import Path
+from agent.skill_utils import iter_skill_index_files
+import os
+found = {str(p) for p in iter_skill_index_files(Path(os.environ.get(\"HERMES_HOME\", \"/opt/hermes\")) / \"skills\", \"SKILL.md\")}
+need = [f for f in found if f.endswith(\"email/himalaya/SKILL.md\") or f.endswith(\"productivity/google-workspace/SKILL.md\")]
+assert len(need) == 2, (\"hermes 扫不到装进去的 skill\", sorted(found))
+" || { echo "hermes 的 skill 索引里没有它们"; exit 1; }
 echo ALLGOOD
 '
-if [ "$(docker run --rm --user root --entrypoint sh "$IMAGE" -c "$probe" 2>&1 | tail -1)" = "ALLGOOD" ]; then
-  ok "自带 skill 路径在，装得进去，agent 身份读得开"
+# || true 不能省：set -e 下，赋值语句里的命令替换失败会直接掐掉整个脚本，
+# 于是探针一红就看不到后面几项，也看不到它自己的报错。
+probe_out="$(docker run --rm --user root --entrypoint sh "$IMAGE" -c "$probe" 2>&1)" || true
+if [ "$(printf '%s' "$probe_out" | tail -1)" = "ALLGOOD" ]; then
+  ok "自带 skill 装得进去、落点对、agent 读得开、hermes 扫得到"
 else
-  fail "自带 skill 装不进去（跑 docker run --rm --user root --entrypoint sh $IMAGE 看详情）"
+  fail "hermes: 前缀不可用 —— $(printf '%s' "$probe_out" | tail -3 | tr '\n' ' ')"
 fi
 
 # 4) 工具面：每个 CLI 都得真能起来。
