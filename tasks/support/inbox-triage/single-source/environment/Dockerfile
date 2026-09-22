@@ -185,7 +185,14 @@ RUN printf '%s\n' \
  && chown -R opcsvc:opcsvc /opt/opc/data \
  && chmod 0700 /opt/opc/data
 
+# googleapiclient 走 httplib2，而 httplib2 **不认系统信任库**：它的取值顺序是
+# HTTPLIB2_CA_CERTS 环境变量 -> ca_certs_locater -> certifi -> 自带的
+# cacerts.txt。装 google-auth 会一并带进 certifi，于是上面 update-ca-certificates
+# 装进系统的那张 fixture CA 一眼都不会被看到，握手直接 CERTIFICATE_VERIFY_FAILED。
+# 指到系统那份 bundle 上，校验就走正规链路——这和 gam 那条不一样：gam 是
+# PyInstaller 冻结单文件，信任库打包在二进制里，只能关掉校验；这里是真开着的。
 ENV PATH="/opt/opc/bin:${PATH}" \
+    HTTPLIB2_CA_CERTS=/etc/ssl/certs/ca-certificates.crt \
     OPC_CLARIFY_SCRIPT=/opt/opc/clarify.json \
     OPC_GWS_FIXTURE=/opt/opc/data/workspace.json \
     OPC_GWS_DISCOVERY=/opt/opc/data/discovery
