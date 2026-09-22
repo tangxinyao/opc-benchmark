@@ -26,7 +26,7 @@ fi
 
 sudo -n -u opcsvc /usr/local/bin/opc-svc-start workspace >/var/log/opc-datasource.log 2>&1 &
 
-# 等 443 起来再放行，否则 agent 第一条 gam 命令可能撞上 connection refused。
+# 等 443 起来再放行，否则 agent 第一条取信命令可能撞上 connection refused。
 i=0
 while [ "$i" -lt 30 ]; do
   if python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.2); sys.exit(s.connect_ex(('127.0.0.1', 443)))" 2>/dev/null; then

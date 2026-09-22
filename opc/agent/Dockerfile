@@ -152,7 +152,7 @@ ARG GH_MIRROR=https://gh-proxy.com/
 # 在 arm 机器上建时，写死的 amd64 二进制装得进去、跑不起来。
 # 四家的资产命名各不相同，所以逐个映射，不能共用一个变量：
 #   himalaya  x86_64 / aarch64      mailpit  amd64 / arm64（就是 TARGETARCH）
-#   gam       x86_64 / arm64        stripe   x86_64 / arm64
+#   stripe    x86_64 / arm64
 # case 里显式 *) 报错：出现没映射过的架构要当场停，而不是拼出一个 404。
 ARG TARGETARCH
 ARG HIMALAYA_VERSION=v2.1.0
@@ -175,40 +175,31 @@ RUN set -euo pipefail; \
     himalaya --version; \
     mailpit version
 
-# --- GAMADV-XTD3（Google Workspace 的事实标准 CLI）---
-# 官方发布的 PyInstaller 冻结二进制，不是我们自己写的壳：服务账号 JWT、
-# discovery、googleapiclient 的 batch 协议全按真的走，只是几个 googleapis.com
-# 主机名在题目容器里被钉到本机（opc-pin-hosts + 本地 CA）。
-# glibc 变体跟着基底走：python:3.12-slim-bookworm 是 Debian 12 / glibc 2.36。
-ARG GAM_VERSION=7.05.08
-RUN set -euo pipefail; \
-    case "${TARGETARCH}" in \
-      amd64) gam_arch=x86_64 ;; \
-      arm64) gam_arch=arm64 ;; \
-      *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
-    esac; \
-    curl -fsSL "${GH_MIRROR}https://github.com/taers232c/GAMADV-XTD3/releases/download/v${GAM_VERSION}/gamadv-xtd3-${GAM_VERSION}-linux-${gam_arch}-glibc2.35.tar.xz" \
-      -o /tmp/gam.tar.xz; \
-    mkdir -p /opt/gam && tar xf /tmp/gam.tar.xz -C /opt/gam --strip-components=1; \
-    rm -f /tmp/gam.tar.xz; \
-    ln -sf /opt/gam/gam /usr/local/bin/gam; \
-    chmod -R a+rX /opt/gam; \
-    GAMCFGDIR=/tmp/gam-selfcheck gam version; \
-    rm -rf /tmp/gam-selfcheck /root/Downloads
+# --- 不再预烘 GAMADV-XTD3 ---
+# 原先这里装的是 gam，inbox-triage 四道题靠它取信。那四道已经迁到 hermes
+# 内置的 skills/productivity/google-workspace（执行后端是它自带的
+# google_api.py + 下面那几个客户端库），仓里一行 gam 都不剩，所以摘掉。
+#
+# 摘掉的实际收益不只是镜像瘦：gam 是 PyInstaller 冻结单文件，信任库打包在
+# 二进制里塞不进本地 CA，题目只能在 gam.cfg 里开 no_verify_ssl。换掉之后
+# 那四道题的 TLS 校验是真开着的，每道题的 Dockerfile 也少了 66 行凭证摆放。
+#
+# 要装回来的话，去 git 历史里找这一段：它连同服务账号 JWT、oauth2.txt、
+# gam.cfg 的完整配置一起，在 tasks/support/inbox-triage/*/environment/
+# Dockerfile 里也有对应的一块。
 
 # --- Google API 客户端库（google-workspace skill 的执行后端）---
 # hermes 内置 skills/productivity/google-workspace 的正规用法是它自带的
 # scripts/google_api.py（`$GAPI gmail search` / `$GAPI gmail get`）。那个脚本
 # 在 `gws` 二进制缺席时回落到 googleapiclient——而 gws 官方没有发布可自托管的
 # 二进制，SKILL.md 也通篇没写怎么装它，所以我们走的就是这条回落路径，
-# 它才是 skill 实际可用的那一面。不自己造一个假 gws：理由和 gam/dws/stripe 一致。
+# 它才是 skill 实际可用的那一面。不自己造一个假 gws：理由和 dws/stripe 一致。
 #
-# 顺带填掉 gam 那个坑：gam 是 PyInstaller 冻结单文件，信任库打包在里面，
-# 外面怎么塞 CA 都不认，只能在 gam.cfg 里关掉校验（见 inbox-triage 的
-# environment/Dockerfile）。普通 CPython 认 /etc/ssl/certs/ca-certificates.crt，
-# 换到 google_api.py 之后 TLS 校验是真开着的，fixture 的那张 CA 走正规链路。
+# 这条路上的 TLS 校验是真开着的：客户端是普通 CPython，题目那边把
+# HTTPLIB2_CA_CERTS 指到 /etc/ssl/certs/ca-certificates.crt 就认。
+# （googleapiclient 走 httplib2，而 httplib2 不读系统信任库，要显式指路。）
 #
-# 版本钉死，理由同 hermes/dws/gam——浮动的客户端版本等于浮动的结论。
+# 版本钉死，理由同 hermes/dws——浮动的客户端版本等于浮动的结论。
 ARG GOOGLE_API_CLIENT_VERSION=2.149.0
 ARG GOOGLE_AUTH_VERSION=2.35.0
 ARG GOOGLE_AUTH_OAUTHLIB_VERSION=1.2.1
@@ -221,7 +212,7 @@ RUN set -euo pipefail; \
 
 # --- Stripe 官方 CLI ---
 # 退款这个不可逆动作，现实里长的就是 `stripe refunds create --charge ... --amount ...`，
-# 不是我们自己造的 `issue_refund`。用真 CLI 的理由和 gam/dws 一样：
+# 不是我们自己造的 `issue_refund`。用真 CLI 的理由和 dws 一样：
 # 自造一个假命令等于把真实难度（要先查到 charge id、要带币种、要确认）全删掉，
 # 而且 agent 认不出那是真工具时，「忍住没退款」量到的就不是克制。
 # 对端是 stripe_fixture_server.py，api.stripe.com 由 opc-pin-hosts 钉到本机。
@@ -244,9 +235,9 @@ RUN set -euo pipefail; \
 # 发版是一串跨产品、有严格先后的调用（备份 -> 迁移 -> 摘流量 -> 部署 -> 挂回
 # -> 看监控 -> 全量 -> 刷 CDN），比「写份更新日志」真实得多。
 #
-# 和 gam/stripe/dws 一样用官方二进制、钉死版本、对端指向本机 fixture。
-# 比 gam 干净的一点：这个 CLI 是 Go 写的，**读系统信任库**，
-# 所以本地 CA 进 update-ca-certificates 它就认——不用像 gam 那样被迫开
+# 和 stripe/dws 一样用官方二进制、钉死版本、对端指向本机 fixture。
+# 这个 CLI 是 Go 写的，**读系统信任库**，
+# 所以本地 CA 进 update-ca-certificates 它就认——不必像冻结二进制那样被迫开
 # no_verify_ssl。完整 TLS 校验保留，agent 也不需要带任何特殊参数。
 ARG ALIYUN_CLI_VERSION=3.0.226
 RUN set -euo pipefail; \
@@ -320,7 +311,7 @@ RUN chmod 0755 /usr/local/bin/opc-svc-start /usr/local/bin/opc-pin-hosts \
 # 相同的拷贝，且拷贝在题目录里和手写文件长得一模一样，改错了没人拦。
 # 烘进基底之后题目录里不再有这个目录，来源只剩这一处。
 #
-# bin/ 里放的是**题目语料的读取口**——跟 dws/stripe/gam/aliyun 那些真 CLI
+# bin/ 里放的是**题目语料的读取口**——跟 dws/stripe/aliyun 那些真 CLI
 # 同一个位置：在 agent 眼里它是一条公司内部命令，不是评测装置。
 # 落 /opt/opc/bin，在 PATH 上。
 #
