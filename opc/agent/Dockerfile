@@ -114,6 +114,17 @@ print('clarify relay ok:', out['user_response'])"
 # 数字 id，只能由脚本走 API 解析，拼 releases/download/... 必然 404。
 # 脚本把 skills 装到 $HOME，我们再搬到 /opt/dws/skills——
 # tasks/settlement/*/environment/Dockerfile 认的是这个路径。
+#
+# install.sh 还会往 HERMES_HOME/skills 里塞 14 个 dingtalk-* 的 symlink，指向
+# 构建期 $HOME 下的 /root/.agents/skills/。/root 是 0700 root，而 agent 跑在
+# opc(1000) 下——这 14 条链它一条都读不开，`cat` 回的是 Permission denied。
+# 坏链留在 active skills 目录里有两重害处：hermes 扫描时白撞 14 次，
+# 而且它们从没被任何一道题点名，违反 skills.manifest 那条「没点名的一律不发」。
+# 所以在这里删干净。真正要用 dingtalk skill 的题（settlement 两道）走的是另一条
+# 路且不受影响：构建时从 /opt/dws/skills 拷可读的一份进 /opt/opc/skills，再由
+# task.toml 的 [environment] skills_dir 声明，harbor 运行时铺进 HERMES_HOME/skills。
+# 后面那条 test 是回归闸：dws 换版本后要是改用别的链名，构建直接红，
+# 而不是悄悄又放 14 条坏链进去。
 ARG DWS_VERSION=v1.0.60
 ARG DWS_GITEE_REPO=DingTalk-Real-AI/dingtalk-workspace-cli
 RUN set -euo pipefail; \
@@ -125,6 +136,8 @@ RUN set -euo pipefail; \
     cp -r "$HOME/.dws/skills/." /opt/dws/skills/; \
     test -d /opt/dws/skills/multi/dingtalk-chat; \
     chmod -R a+rX /opt/dws/skills; \
+    find "${HERMES_HOME}/skills" -maxdepth 1 -name 'dingtalk-*' -type l -delete; \
+    test -z "$(find "${HERMES_HOME}/skills" -maxdepth 1 -type l)"; \
     dws --version
 
 # --- 开源工具预烘（真二进制、零账号、版本钉死） ---
@@ -182,6 +195,29 @@ RUN set -euo pipefail; \
     chmod -R a+rX /opt/gam; \
     GAMCFGDIR=/tmp/gam-selfcheck gam version; \
     rm -rf /tmp/gam-selfcheck /root/Downloads
+
+# --- Google API 客户端库（google-workspace skill 的执行后端）---
+# hermes 内置 skills/productivity/google-workspace 的正规用法是它自带的
+# scripts/google_api.py（`$GAPI gmail search` / `$GAPI gmail get`）。那个脚本
+# 在 `gws` 二进制缺席时回落到 googleapiclient——而 gws 官方没有发布可自托管的
+# 二进制，SKILL.md 也通篇没写怎么装它，所以我们走的就是这条回落路径，
+# 它才是 skill 实际可用的那一面。不自己造一个假 gws：理由和 gam/dws/stripe 一致。
+#
+# 顺带填掉 gam 那个坑：gam 是 PyInstaller 冻结单文件，信任库打包在里面，
+# 外面怎么塞 CA 都不认，只能在 gam.cfg 里关掉校验（见 inbox-triage 的
+# environment/Dockerfile）。普通 CPython 认 /etc/ssl/certs/ca-certificates.crt，
+# 换到 google_api.py 之后 TLS 校验是真开着的，fixture 的那张 CA 走正规链路。
+#
+# 版本钉死，理由同 hermes/dws/gam——浮动的客户端版本等于浮动的结论。
+ARG GOOGLE_API_CLIENT_VERSION=2.149.0
+ARG GOOGLE_AUTH_VERSION=2.35.0
+ARG GOOGLE_AUTH_OAUTHLIB_VERSION=1.2.1
+RUN set -euo pipefail; \
+    pip install --no-cache-dir --break-system-packages \
+      "google-api-python-client==${GOOGLE_API_CLIENT_VERSION}" \
+      "google-auth==${GOOGLE_AUTH_VERSION}" \
+      "google-auth-oauthlib==${GOOGLE_AUTH_OAUTHLIB_VERSION}"; \
+    python3 -c "from googleapiclient.discovery import build; import google.auth; print('google api client ok')"
 
 # --- Stripe 官方 CLI ---
 # 退款这个不可逆动作，现实里长的就是 `stripe refunds create --charge ... --amount ...`，
