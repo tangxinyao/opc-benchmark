@@ -169,8 +169,22 @@ class Router:
     def __init__(self, fixture: dict):
         self.fixture = fixture
 
+    def resolve_user(self, user: str) -> str:
+        """把 Gmail API 的伪用户名 `me` 解析成语料里真实的那个地址。
+
+        gam 每次都显式写全 `user hello@yisi.example.com`，所以以前不需要这一步。
+        hermes 内置 google-workspace skill 的 google_api.py 则全程硬编码
+        `userId="me"`（它没有指定用户的入口），profile 再把这个 `me` 原样当邮箱
+        返回的话，题目要求的 `mailbox` 字段就会变成字符串 "me"。
+        真 Gmail API 里 `me` 恒等于已认证的那个用户，这里照同一条语义解析。
+        """
+        if user == "me":
+            return self.fixture.get("default_user", user)
+        return user
+
     def messages(self, user: str) -> list:
         boxes = self.fixture.get("mailboxes", {})
+        user = self.resolve_user(user)
         box = boxes.get(user) or boxes.get(self.fixture.get("default_user", ""), {})
         return box.get("messages", [])
 
@@ -221,7 +235,7 @@ class Router:
 
         m = re.match(r"^/gmail/v1/users/([^/]+)/profile$", path)
         if m:
-            user = urllib.parse.unquote(m.group(1))
+            user = self.resolve_user(urllib.parse.unquote(m.group(1)))
             msgs = self.messages(user)
             return 200, {"emailAddress": user, "messagesTotal": len(msgs),
                          "threadsTotal": len(msgs), "historyId": "1"}
