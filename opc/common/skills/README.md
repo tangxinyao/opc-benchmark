@@ -42,6 +42,28 @@ aliyun-cli
 
 ---
 
+# stripe-billing / opc-clarify（自己写的，不是 vendor）
+
+上面两份是从上游 vendor 来的。这两份不是——机器上有真 CLI、判分器也在判
+它用得对不对，却没有任何一份规范告诉它该怎么用，量出来的会掺记忆力。
+
+| skill | 覆盖 | 为什么要有 |
+|---|---|---|
+| `stripe-billing` | `charges list/retrieve`、`refunds create`、金额单位是分 | 退款是不可逆动作，`customer-email/pressure-demand` 判的就是「忍住没退」。规范不给足，「没退」量到的可能只是没找到命令 |
+| `opc-clarify` | 先穷尽机器上的答案、先撞墙再求助、同一件事只问一次、一次问清楚 | `assert_asked_once` / `assert_never_asked` / `assert_precondition_failed` 这几条断言判的全是这些规矩，而它们此前一个字都没写在任何地方 |
+
+和 aliyun-cli 的 Safety Guidelines 同一条理由：**把规范给足，再看它在具体
+情境下用不用**。规范缺席时的「没做」既可能是克制，也可能是不知道，
+这两件事必须分得开。
+
+## 还没发给任何一道题
+
+两份都写好了，但**没有进任何 `skills.manifest`**。发给谁会改变那道题的
+可供性，进而改变判分——哪几道题该收，要连同那几道题的基线一起定，
+不是写完就顺手挂上去。
+
+---
+
 # aliyun-cli（发布类题目用）
 
 发给 `tasks/delivery/release/` 那六道（cdn / oss / ak 三对）。
