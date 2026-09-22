@@ -137,7 +137,12 @@ PyPI 抖动而假失败；版本在 trial 时才解析，两次跑分用的可�
    |---|---|---|
    | `deepseek/` | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` |
    | `antchat/` | `https://antchat.alipay.com` | `ANTCHAT_API_KEY` / `ANTCHAT_TOKEN` |
-   | `local/` | `http://localhost:8000/v1` | `LOCAL_API_KEY`（可不给） |
+   | `local/` | `http://localhost:8000/v1`（读 `LOCAL_BASE_URL`） | `LOCAL_API_KEY` / `LM_API_KEY`（可不给） |
+
+   注入容器时 `local/` 用的是 hermes CLI 认的 `LM_BASE_URL` / `LM_API_KEY`
+   （v0.21.3 起不再读 `LOCAL_BASE_URL`）。另外端点会一并写进 `config.yaml` 的
+   `providers.<name>.base_url`：`local` 没有 builtin 端点，不写就报
+   `provider 'local' has no endpoint configured`，光有环境变量不够。
 
    不在表里的 provider 直接报错。**悄悄兜底到另一条链路，等于测了个别的东西。**
 3. **base_url 显式管理**，且 `localhost` / `127.0.0.1` 会自动改写成

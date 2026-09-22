@@ -47,8 +47,8 @@ def test_missing_key_is_an_error_for_remote_providers():
 def test_local_provider_needs_no_key():
     """本地 vLLM / Ollama 多半不校验 key，缺 key 不该拦住运行。"""
     env = resolve_credentials(get_provider("local"), getenv={}.get)
-    assert "LOCAL_API_KEY" not in env
-    assert env["LOCAL_BASE_URL"] == f"http://{DOCKER_HOST_ALIAS}:8000/v1"
+    assert "LM_API_KEY" not in env
+    assert env["LM_BASE_URL"] == f"http://{DOCKER_HOST_ALIAS}:8000/v1"
 
 
 @pytest.mark.parametrize(
@@ -71,7 +71,7 @@ def test_rewrite_can_be_disabled():
     env = resolve_credentials(
         get_provider("local"), rewrite_localhost=False, getenv={}.get
     )
-    assert env["LOCAL_BASE_URL"] == "http://localhost:8000/v1"
+    assert env["LM_BASE_URL"] == "http://localhost:8000/v1"
 
 
 def test_explicit_base_url_wins_over_env():
@@ -80,4 +80,13 @@ def test_explicit_base_url_wins_over_env():
         base_url_override="http://localhost:9000/v1",
         getenv={"LOCAL_BASE_URL": "http://ignored:1/v1"}.get,
     )
-    assert env["LOCAL_BASE_URL"] == f"http://{DOCKER_HOST_ALIAS}:9000/v1"
+    assert env["LM_BASE_URL"] == f"http://{DOCKER_HOST_ALIAS}:9000/v1"
+
+
+def test_local_injects_hermes_native_env_names():
+    """hermes v0.21.3 的 CLI 只认 LM_BASE_URL / LM_API_KEY。"""
+    env = resolve_credentials(
+        get_provider("local"), getenv={"LOCAL_API_KEY": "k"}.get
+    )
+    assert env["LM_API_KEY"] == "k"
+    assert "LOCAL_BASE_URL" not in env

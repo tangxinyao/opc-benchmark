@@ -1,0 +1,13 @@
+# Docker compose overlay：让 Linux 上的容器能访问宿主机的推理服务。
+#
+# Docker Desktop（mac/Windows）自带 host.docker.internal，Linux 不带，
+# 必须显式映射到 host-gateway。opc/agent/providers.py 的 rewrite_loopback()
+# 已经把 base_url 里的 localhost 改写成这个名字，缺了这段就解析不出来。
+#
+# 用法（与 harbor 自己的 compose 文件叠加）：
+#   docker compose -f <harbor 的 compose>.yaml \
+#     -f configs/overrides/host-gateway.yaml up
+services:
+  agent:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

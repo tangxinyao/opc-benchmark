@@ -145,6 +145,7 @@ canary、`BENCHMARK DATA`、`模拟工具` 一类字样）。真正的理由是�
 | [开始使用](docs/getting-started.md) | 五步跑起来、三个测试级别、凭证、排错、常见的坑 |
 | [项目结构](docs/project-structure.md) | 每个目录干嘛的、判分链 harbor 管哪段、跑法怎么配 |
 | [如何拓展](docs/extending.md) | 加新题、换成你自己的语料、差分判分、加 provider / agent |
+| [本地推理](docs/local-inference.md) | 用宿主机上的 vLLM / Ollama 跑分、Linux 的 host-gateway 坑 |
 
 背景材料：[一人公司案例集](docs/一人公司案例集.md)（母题的出处与统计）、
 [初创公司智能化全套材料](docs/初创公司智能化全套材料.md)（讲稿）。

@@ -126,7 +126,8 @@ make run CONFIG=configs/jobs/job-deepseek-x5.yaml    # 4 道题 × 5 遍 = 20 �
   留空装最新版；正式跑分请钉死，浮动的 hermes 版本等于浮动的结论。
 - **`local/` provider 且模型服务在宿主机上时**，Linux 的 Docker 要加
   `--add-host=host.docker.internal:host-gateway`（适配器已经把 URL 改写好了，
-  但 host 别名得 Docker 那边给）。
+  但 host 别名得 Docker 那边给）。compose 场景可以叠加
+  `configs/overrides/host-gateway.yaml`。完整说明见[本地推理](local-inference.md)。
 - **跑在远程环境**（`--env daytona/modal/...`）时，两个基础镜像要先推到 registry，
   任务 Dockerfile 的 `ARG *BASE_IMAGE` 默认值换成带仓库前缀的全名，
   并同步改 `[metadata.opc]` 里的声明（`make lint` 会check两边一致）。

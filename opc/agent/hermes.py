@@ -144,9 +144,13 @@ class Hermes(BaseInstalledAgent):
     # 配置
     # ------------------------------------------------------------------
 
-    def _build_config_yaml(self, model: str) -> str:
+    def _build_config_yaml(
+        self, model: str, *, provider_name: str, base_url: str
+    ) -> str:
         config: dict[str, Any] = {
-            "model": model,
+            # hermes v0.21.3 起 model 可以是 map。显式关流式：本地 OpenAI 兼容
+            # 服务（vLLM / SGLang 等）常常不支持流式工具调用。
+            "model": {"default": model, "streaming": False},
             "provider": "auto",
             "toolsets": ["hermes-cli"],
             "agent": {"max_turns": self.options.max_turns},
@@ -156,6 +160,10 @@ class Hermes(BaseInstalledAgent):
             "delegation": {"max_iterations": 50},
             "checkpoints": {"enabled": False},
         }
+        # 端点一律写进来。local 这类没有 builtin 端点的 provider 不写就报
+        # "provider 'local' has no endpoint configured"——光有环境变量不够；
+        # deepseek/antchat 写的是同一个值，冗余但不会指错地方。
+        config["providers"] = {provider_name: {"base_url": base_url}}
         if self.mcp_servers:
             config["mcp_servers"] = {
                 server.name: (
@@ -349,12 +357,19 @@ class Hermes(BaseInstalledAgent):
 
         cli_model = model if provider.flag else self.model_name
 
+        # 用改写过 localhost 的端点（容器里 localhost 指向容器自己）。
+        config_yaml = self._build_config_yaml(
+            cli_model,
+            provider_name=provider.flag or prefix,
+            base_url=env[provider.inject_base_url_as],
+        )
+
         await self.exec_as_agent(
             environment,
             command=(
                 f"mkdir -p {HERMES_HOME} && "
                 f"cat > {HERMES_HOME}/config.yaml << 'OPCEOF'\n"
-                f"{self._build_config_yaml(cli_model)}OPCEOF"
+                f"{config_yaml}OPCEOF"
             ),
             env=env,
             timeout_sec=10,

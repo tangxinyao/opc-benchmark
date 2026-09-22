@@ -54,11 +54,13 @@ _NATIVE_PROVIDERS: dict[str, NativeProvider] = {
     ),
     "local": NativeProvider(
         flag="local",
-        key_names=("LOCAL_API_KEY", "OPENAI_API_KEY"),
+        key_names=("LOCAL_API_KEY", "LM_API_KEY", "OPENAI_API_KEY"),
         base_url_env="LOCAL_BASE_URL",
         default_base_url="http://localhost:8000/v1",
-        inject_base_url_as="LOCAL_BASE_URL",
-        inject_key_as="LOCAL_API_KEY",
+        # hermes v0.21.3 起，CLI 只认 LM_BASE_URL / LM_API_KEY，
+        # 不再读 LOCAL_BASE_URL。
+        inject_base_url_as="LM_BASE_URL",
+        inject_key_as="LM_API_KEY",
         # 本地 vLLM / SGLang / Ollama 多半不校验 key。
         requires_key=False,
     ),

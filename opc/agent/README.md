@@ -35,5 +35,7 @@ FROM opc-benchmark/hermes-base:local
   任务 Dockerfile 的 `FROM` 要换成带仓库前缀的全名。本地 docker 环境不用。
 - **本地 provider**：模型服务跑在宿主机上时，适配器会把 `localhost` 改写成
   `host.docker.internal`。Linux 的 Docker 还需要给容器加
-  `--add-host=host.docker.internal:host-gateway`（Docker Desktop 自带）。
+  `--add-host=host.docker.internal:host-gateway`（Docker Desktop 自带），
+  compose 场景可以叠加 `configs/overrides/host-gateway.yaml`。
+  完整说明见 [docs/local-inference.md](../../docs/local-inference.md)。
   服务和 agent 在同一个容器里，就用 `--ak rewrite_localhost=false`。
