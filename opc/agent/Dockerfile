@@ -96,9 +96,14 @@ RUN cat /tmp/clarify_override.py >> /usr/local/lib/hermes-agent/tools/clarify_to
  && chmod a+r /opt/opc/lib/clarify_relay.py /opt/opc/clarify.json \
  && /usr/local/lib/hermes-agent/venv/bin/python -c "\
 import sys, json; sys.path.insert(0, '/usr/local/lib/hermes-agent'); \
+import inspect; \
 from tools.clarify_tool import clarify_tool; \
 out = json.loads(clarify_tool('走一下通路')); \
 assert out['user_response'], out; \
+sig = inspect.signature(clarify_tool); \
+assert any(p.kind is inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()), \
+  ('覆盖层必须收 **kwargs，否则 hermes 新加的参数会让每次提问都 TypeError', sig); \
+assert json.loads(clarify_tool('带新参数走一遍', multi_select=True))['user_response']; \
 print('clarify relay ok:', out['user_response'])"
 
 

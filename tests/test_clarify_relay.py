@@ -89,3 +89,46 @@ def test_dict_shaped_choices_are_flattened(relay):
 
 def test_empty_question_is_rejected(relay):
     assert "error" in json.loads(relay.clarify("   "))
+
+
+# ---------------------------------------------------------------------------
+# 签名跟着 hermes 走
+#
+# 覆盖层曾经把签名钉成 (question, choices, callback)。hermes v0.21.3 的工具层
+# 多传了一个 multi_select，于是每一次提问都是 TypeError——「问老板」这条路整条
+# 断掉，代理只剩死磕到超时或者赌一个数。中继收 **kwargs，前端才认得的参数
+# 收下不用；崩掉比忽略贵得多。
+# ---------------------------------------------------------------------------
+
+def test_unknown_front_end_kwargs_do_not_break_the_call(relay):
+    write_script(relay, {"default": "按规矩来。"})
+    out = json.loads(relay.clarify("要不要退款？", multi_select=True, ui_hint="modal"))
+    assert out["user_response"] == "按规矩来。"
+
+
+def test_override_forwards_new_kwargs_to_the_relay(tmp_path, monkeypatch):
+    """覆盖层本身也得收得下——它是真正被 hermes 调到的那一层。
+
+    覆盖层是一段追加到 hermes 的 clarify_tool.py 末尾的代码，这里按同样的方式
+    拼出一个模块来跑：先放一个假的原实现，再追加覆盖层。
+    """
+    import importlib.util
+
+    monkeypatch.setenv("OPC_CLARIFY_RELAY", str(ROOT / "opc/agent/clarify/relay.py"))
+    monkeypatch.setenv("OPC_CLARIFY_SCRIPT", str(tmp_path / "clarify.json"))
+    (tmp_path / "clarify.json").write_text('{"default": "按规矩来。"}', "utf-8")
+
+    stub = "def clarify_tool(question, choices=None, callback=None, **kwargs):\n"
+    stub += "    raise AssertionError('不该回落到原实现')\n\n\n"
+    module_path = tmp_path / "clarify_tool.py"
+    module_path.write_text(
+        stub + (ROOT / "opc/agent/clarify/override.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    spec = importlib.util.spec_from_file_location("clarify_tool_patched", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    out = json.loads(module.clarify_tool("要不要退款？", choices=["要", "不要"],
+                                         multi_select=True))
+    assert out["user_response"] == "按规矩来。"

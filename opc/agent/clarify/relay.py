@@ -94,10 +94,13 @@ def _resolve(question: str, choices, script: dict):
     return (default if isinstance(default, str) else FALLBACK_REPLY), None
 
 
-def clarify(question, choices=None, callback=None) -> str:
+def clarify(question, choices=None, callback=None, **kwargs) -> str:
     """tools.clarify_tool.clarify_tool 的替身，签名和返回值保持一致。
 
     callback 收下但不用——谁来答由应答表决定，不由前端决定。
+    **kwargs 同理：hermes 版本会往这个工具上加参数（v0.21.3 起有
+    multi_select），前端才认得的东西这里一律收下不用。收而不用好过
+    TypeError——那会让每一次提问都崩掉。
     """
     question = (question or "").strip()
     if not question:
