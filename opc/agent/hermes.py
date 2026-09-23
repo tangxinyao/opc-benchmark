@@ -489,22 +489,45 @@ class Hermes(BaseInstalledAgent):
             await self._export_session(environment)
 
     async def _export_session(self, environment: BaseEnvironment) -> None:
-        """导出会话供 ATIF 转换。失败不影响判分，只是拿不到轨迹。"""
+        """导出会话供 ATIF 转换。失败不影响判分，只是拿不到轨迹。
+
+        **不要加 `--source cli`。** hermes 的 `sessions export` 一旦带上任何一个
+        过滤条件（--source 也算），就改走 prune 那套候选查询，而那套查询第一条
+        就是 ``s.ended_at IS NOT NULL``——「只挑已经结束的会话，免得删到活的」。
+        `hermes chat -q ... -Q` 是一次性跑，退出时不写 ended_at，于是这条刚跑完
+        的会话永远不在候选里：导出照样成功、照样打印 "Exported 0 sessions"、
+        照样把文件写成 0 字节。这正是整批 trajectory 全空的原因（本地 hermes
+        上可复现：带 --source 导 0 条，不带导 1 条）。
+
+        不带过滤等于导出这个容器里的全部会话——容器是一次性的、只跑这一道题，
+        所以「全部」就是「这次的」。导出按 last_active 倒序，第一行即最新一条，
+        _extract_native_session_id 取它做 --resume 的锚点。
+
+        stderr 不再吞掉：导出出问题时得在 trial.log 里看得见，而不是留下一个
+        没人解释得了的空文件。
+        """
         try:
             result = await self.exec_as_agent(
                 environment,
                 command=(
-                    f"hermes sessions export {SESSION_LOG} --source cli 2>/dev/null && "
-                    f"head -n 1 {SESSION_LOG} || true"
+                    f"hermes sessions export {SESSION_LOG}; "
+                    f"echo '--- bytes:' $(wc -c < {SESSION_LOG} 2>/dev/null || echo 0); "
+                    f"head -n 1 {SESSION_LOG} 2>/dev/null || true"
                 ),
                 env={"HERMES_HOME": HERMES_HOME},
-                timeout_sec=30,
+                timeout_sec=60,
             )
         except Exception as exc:  # noqa: BLE001
-            self.logger.debug(f"导出 hermes 会话失败: {exc}")
+            self.logger.warning(f"导出 hermes 会话失败: {exc}")
             return
         if session_id := self._extract_native_session_id(result.stdout):
             self._native_session_id = session_id
+        else:
+            # 空轨迹 = 这次跑没有正式证据，判分与复现都少一条腿。不能只 debug。
+            self.logger.warning(
+                "hermes 会话导出没拿到任何会话，trajectory 会是空的。"
+                f"导出输出：{(result.stdout or '').strip()[:500]}"
+            )
 
     # ------------------------------------------------------------------
     # 轨迹转换
