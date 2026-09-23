@@ -25,3 +25,30 @@ verifier_image = "opc-benchmark/verifier-base:local"
 
 # 并发 trial 数，生成 job config 时写进去。
 n_concurrent_trials = 4
+
+# --- 额外的 job：不按题目声明分组，直接指定一套模型跑全部题 ---
+#
+# 上面的 defaults 管的是「正式跑分用什么」，题目在自己的 [metadata.opc] 里
+# 按 (models, attempts) 分组，生成 job-deepseek-x3 / x5 那两份。
+# 这里是**旁路**：跑一个还没上线的模型、或者本地推理服务时，不该去改
+# 22 道题的 task.toml——那会把正式跑分的分组也一起搅了。
+#
+# 每一条生成一个独立的 configs/jobs/job-<name>.yaml，和上面那套互不影响。
+
+[[extra_jobs]]
+name = "local-x3"
+# 模型名格式是 <provider>/<model>，provider 必须是适配器支持的那三个之一。
+# local/ 后面写推理服务自己认的那个名字——vLLM 用 --served-model-name 起的名，
+# 没起名的话就是 --model 那个路径原样。
+models = ["local//home/tangxinyao/Ling-3.0-tiny"]
+attempts = 3
+# 本地推理服务多半是单卡、串行出 token，四个 trial 并发只会互相抢。
+# 正式跑分那两份仍然用 defaults 里的 4。
+n_concurrent_trials = 1
+
+  [extra_jobs.agent_kwargs]
+  # 直接写进 job config，省掉 export LOCAL_BASE_URL。
+  # 容器里的 localhost 指向容器自己，适配器会把它改写成 host.docker.internal
+  # （providers.py 的 rewrite_loopback）。**Linux 上 Docker 不自带这个别名**，
+  # 要 --add-host=host.docker.internal:host-gateway，见 docs/local-inference.md。
+  base_url = "http://127.0.0.1:8000/v1"

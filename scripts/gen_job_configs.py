@@ -27,8 +27,23 @@ OUT_DIR = ROOT / "configs" / "jobs"
 AGENT_IMPORT_PATH = "opc.agent.hermes:Hermes"
 
 
+def load_policy() -> dict:
+    return tomllib.loads(POLICY.read_bytes().decode())
+
+
 def load_defaults() -> dict:
-    return tomllib.loads(POLICY.read_bytes().decode())["defaults"]
+    return load_policy()["defaults"]
+
+
+def load_extra_jobs() -> list[dict]:
+    """policy.toml 的 [[extra_jobs]]：不按题目声明分组的旁路 job。
+
+    正式跑分的分组来自每道题 [metadata.opc] 里的 (models, attempts)——
+    那是「谁来考它」，属于题目。而「拿一个还没上线的模型、或者本地推理服务
+    把全部题跑一遍」不属于任何一道题，为它去改 22 份 task.toml 会把正式跑分
+    的分组也一起搅了。所以这类 job 单独声明，独立成文件，互不影响。
+    """
+    return load_policy().get("extra_jobs", [])
 
 
 def task_policy(task: Path, defaults: dict) -> dict:
@@ -80,6 +95,22 @@ def check_pairs_share_a_group(policies: dict[str, dict]) -> list[str]:
     return problems
 
 
+def write_job(name: str, config: dict, n_tasks: int, n_models: int, attempts: int) -> None:
+    path = OUT_DIR / f"job-{name}.yaml"
+    path.write_text(
+        "# 由 scripts/gen_job_configs.py 生成，不要手改。\n"
+        "# 改题的跑法请改 task.toml 的 [metadata.opc] 或 configs/policy.toml，\n"
+        "# 然后 make configs。\n"
+        + yaml.dump(config, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
+    )
+    print(
+        f"OK   {path.relative_to(ROOT)}: {n_tasks} 道题 × "
+        f"{n_models} 个模型 × {attempts} 遍 = "
+        f"{n_tasks * n_models * attempts} 次 trial"
+    )
+
+
 def main() -> int:
     defaults = load_defaults()
     # 题目目录是三层：tasks/<职能>/<活>/<案例>/，题的标识就是这三段
@@ -113,19 +144,30 @@ def main() -> int:
             ],
             "tasks": [{"path": f"tasks/{n}"} for n in names],
         }
-        path = OUT_DIR / f"job-{name}.yaml"
-        path.write_text(
-            "# 由 scripts/gen_job_configs.py 生成，不要手改。\n"
-            "# 改题的跑法请改 task.toml 的 [metadata.opc] 或 configs/policy.toml，\n"
-            "# 然后 make configs。\n"
-            + yaml.dump(config, sort_keys=False, allow_unicode=True),
-            encoding="utf-8",
-        )
-        print(
-            f"OK   {path.relative_to(ROOT)}: {len(names)} 道题 × "
-            f"{len(models)} 个模型 × {attempts} 遍 = "
-            f"{len(names) * len(models) * attempts} 次 trial"
-        )
+        write_job(name, config, len(names), len(models), attempts)
+
+    # 旁路 job：全部题 × 指定的模型，和上面的分组结果互不影响。
+    all_names = [ids[t] for t in tasks]
+    for extra in load_extra_jobs():
+        name = extra["name"]
+        models = list(extra["models"])
+        attempts = extra.get("attempts", defaults["attempts"])
+        agent_kwargs = extra.get("agent_kwargs", {})
+        agent = {"import_path": AGENT_IMPORT_PATH}
+        config = {
+            "job_name": f"opc-{name}",
+            "n_attempts": attempts,
+            "n_concurrent_trials": extra.get(
+                "n_concurrent_trials", defaults["n_concurrent_trials"]
+            ),
+            "agents": [
+                {**agent, "model_name": model,
+                 **({"kwargs": dict(agent_kwargs)} if agent_kwargs else {})}
+                for model in models
+            ],
+            "tasks": [{"path": f"tasks/{n}"} for n in all_names],
+        }
+        write_job(name, config, len(all_names), len(models), attempts)
     return 0
 
 

@@ -22,6 +22,36 @@ uv run harbor run -p tasks \
 Linux 上还要让容器能解析 `host.docker.internal`，见下一节。
 `--ak base_url=http://localhost:9000/v1` 可以一次性覆盖，优先级高于环境变量。
 
+## 固定下来：写进 job config
+
+命令行传参适合试一次。要反复跑同一个本地模型，在 `configs/policy.toml` 里加一条
+`[[extra_jobs]]`，`make configs` 会生成一份独立的 job：
+
+```toml
+[[extra_jobs]]
+name = "local-x3"
+models = ["local//home/tangxinyao/Ling-3.0-tiny"]
+attempts = 3
+# 本地推理多半单卡串行，四个 trial 并发只会互相抢
+n_concurrent_trials = 1
+
+  [extra_jobs.agent_kwargs]
+  base_url = "http://127.0.0.1:8000/v1"
+```
+
+```bash
+make configs
+make run CONFIG=configs/jobs/job-local-x3.yaml
+```
+
+**这是旁路，不影响正式跑分。** `defaults.models` 和每道题 `[metadata.opc]` 里的
+声明都没动，`job-deepseek-x3/x5.yaml` 逐字节不变——`extra_jobs` 只是额外多生成
+一个文件。反过来说，本地模型的分数和 deepseek 的**不可比**，别放进同一张表。
+
+`local/` 后面写推理服务自己认的那个名字：vLLM 用 `--served-model-name` 起过名就写那个，
+没起名就是 `--model` 那个路径原样（上面就是这种情况，所以出现了 `local//home/...`
+这样的双斜杠——前一个是 provider 分隔符，后一个是路径的根）。
+
 ## Linux 必看：host.docker.internal
 
 容器里的 `localhost` 指向容器自己，不是宿主机。适配器会自动把 base_url 里的
