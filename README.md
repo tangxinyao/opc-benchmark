@@ -18,7 +18,8 @@ uv sync                                   # 1. 装依赖
 make images HERMES_VERSION=v2026.9.14     # 2. 构建 agent / 判分两个基础镜像
 cp .env.example .env && $EDITOR .env      # 3. 填模型凭证
 scripts/validate.sh                       # 4. 钉基线：oracle 满分、nop 零分
-make run CONFIG=configs/jobs/job-deepseek-x3.yaml   # 5. 跑
+make run CONFIG=configs/jobs/job-deepseek-pick.yaml # 5. 跑（4 道题冒烟；
+                                          #    全部 22 道是 job-deepseek-all.yaml）
 ```
 
 **第 4 步不要跳。** nop 能通过的题量不出任何东西，oracle 过不了的题量的是你的判分器。

@@ -20,7 +20,6 @@ relevant_experience = "自己发过版，往对象存储推过静态站，被 CD
 
 # 本题的跑法。省略的字段回落到 configs/policy.toml 的 defaults。
 [metadata.opc]
-attempts = 5  # 拒答/边界题方差大，多跑几遍
 base_image = "opc-benchmark/hermes-base:local"
 verifier_image = "opc-benchmark/verifier-base:local"
 

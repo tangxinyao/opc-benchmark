@@ -3,14 +3,18 @@
 # 这个文件是**输入**，是 configs/ 里唯一需要手改的东西；
 # 同级的 jobs/ 整个目录都是 make configs 生成的产物，可以随时删掉重建。
 #
-# 每道题可以在自己的 task.toml 的 [metadata.opc] 里覆盖。
+# models / 镜像每道题可以在自己的 task.toml 的 [metadata.opc] 里覆盖；
+# attempts 不行，它是全局的。
 #
 # 为什么默认值放在这里而不是散在每道题里：跑分要可比，
 # 同一批题用不同的模型或不同的遍数跑出来的分放在一张表上是没有意义的。
 # 覆盖是例外，例外要显眼。
 
 [defaults]
-# 每道题跑几遍。方差大的题需要更多遍才能看出是能力还是运气。
+# 每道题跑几遍。**全仓库唯一的一处**：所有 job 都按这个数跑，题里和
+# [[extra_jobs]] 里都不能再覆盖（写了 make configs 直接报错）。
+# 从前拒答/边界题写 attempts = 5，结果 22 道题被拆成 x3/x5 两个 job，
+# 两堆的分还不在一个尺度上——分组轴该是「跑哪些题」，不是「跑几遍」。
 attempts = 3
 
 # 用哪些模型跑。provider 前缀必须是适配器支持的三个之一。
@@ -29,28 +33,39 @@ n_concurrent_trials = 4
 # --- 额外的 job：不按题目声明分组，直接指定一套模型跑指定的题 ---
 #
 # 上面的 defaults 管的是「正式跑分用什么」，题目在自己的 [metadata.opc] 里
-# 按 (models, attempts) 分组，生成 job-deepseek-x3 / x5 那两份。
-# 这里是**旁路**：跑一个还没上线的模型、或者本地推理服务时，不该去改
-# 22 道题的 task.toml——那会把正式跑分的分组也一起搅了。
+# 按 models 分组，每组生成一份**跑全部题**的 job-<模型>-all.yaml。
+# 这里是**旁路**，挑题跑的 job 全在这儿：只跑一部分题、或者拿一个还没上线的
+# 模型 / 本地推理服务跑一遍，都不该去改 22 道题的 task.toml——
+# 那会把正式跑分的分组也一起搅了。
 #
 # 每一条生成一个独立的 configs/jobs/job-<name>.yaml，和上面那套互不影响。
 #
-# tasks 省略就是全部 22 道；写了就只跑列出来的那几道。
+# tasks 省略就是全部 22 道；写了就只跑列出来的那几道。遍数不能写，见 defaults。
 # **配对的题必须一起列**（拒答题和它的对照题），少列一边那一对就不成立，
 # make configs 会直接报错。
 
-# 下面两条跑的是同一个模型，只是一个在本机、一个在远端。题目选的和
-# job-deepseek-x3 一样——同一个模型换个部署位置，能暴露的问题是同一批，
-# 没必要各自把 22 道都跑一遍。两份 tasks 逐字相同是有意的：TOML 没有变量，
-# 与其造一个假的共享锚点，不如让每个 job 自己写全，改的时候两边都看得见。
+# 下面三条挑的是同一批 4 道题（冒烟用：两道结算、一道收入确认、一道自审），
+# 区别只在谁来跑——deepseek 在远端、同一个模型在本机、以及 antchat。
+# 同一个模型换个部署位置能暴露的问题是同一批，没必要各自把 22 道都跑一遍。
+# 三份 tasks 逐字相同是有意的：TOML 没有变量，与其造一个假的共享锚点，
+# 不如让每个 job 自己写全，改的时候三边都看得见。
 
 [[extra_jobs]]
-name = "local-x3"
+name = "deepseek-pick"
+models = ["deepseek/deepseek-flash"]
+tasks = [
+  "finance/revenue-recognition/five-step-pipeline",
+  "finance/settlement/expired-session",
+  "finance/settlement/platform-fee-change",
+  "self/plan-review/self-review",
+]
+
+[[extra_jobs]]
+name = "local-pick"
 # 模型名格式是 <provider>/<model>。local/ 后面写推理服务自己认的那个名字——
 # vLLM 用 --served-model-name 起过名就写那个，没起名就是 --model 那个路径原样
 # （下面就是这种情况，双斜杠里前一个是 provider 分隔符，后一个是路径的根）。
 models = ["local//home/tangxinyao/Ling-3.0-tiny"]
-attempts = 3
 tasks = [
   "finance/revenue-recognition/five-step-pipeline",
   "finance/settlement/expired-session",
@@ -67,9 +82,8 @@ n_concurrent_trials = 1
   base_url = "http://127.0.0.1:8000/v1"
 
 [[extra_jobs]]
-name = "antchat-x3"
+name = "antchat-pick"
 models = ["antchat/Ling-3.0-tiny"]
-attempts = 3
 tasks = [
   "finance/revenue-recognition/five-step-pipeline",
   "finance/settlement/expired-session",

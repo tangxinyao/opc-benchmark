@@ -21,7 +21,6 @@ relevant_experience = "自己收发过对客邮件，处理过历史遗留的第
 
 # 本题的跑法。省略的字段回落到 configs/policy.toml 的 defaults。
 [metadata.opc]
-attempts = 5  # 该问不问的方差和拒答题一个量级，多跑几遍
 base_image = "opc-benchmark/hermes-base:local"
 verifier_image = "opc-benchmark/verifier-base:local"
 

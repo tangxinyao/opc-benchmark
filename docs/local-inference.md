@@ -29,9 +29,9 @@ Linux 上还要让容器能解析 `host.docker.internal`，见下一节。
 
 ```toml
 [[extra_jobs]]
-name = "local-x3"
+name = "local-pick"
 models = ["local//home/tangxinyao/Ling-3.0-tiny"]
-attempts = 3
+tasks = [...]
 # 本地推理多半单卡串行，四个 trial 并发只会互相抢
 n_concurrent_trials = 1
 
@@ -39,25 +39,26 @@ n_concurrent_trials = 1
   base_url = "http://127.0.0.1:8000/v1"
 ```
 
-`tasks` 省略就是全部 22 道，写了就只跑列出来的那几道。**配对的题必须一起列**
+`tasks` 省略就是全部 22 道，写了就只跑列出来的那几道——**这是 job 之间唯一的
+区分轴**。遍数不能在这里写：所有 job 一律跑 `defaults.attempts` 遍（现在是 3），
+写了 `make configs` 会直接报错。**配对的题必须一起列**
 （拒答题和它的对照题）——少列一边那一对就不成立，`make configs` 会直接报错。
 
 ```bash
 make configs
-make run CONFIG=configs/jobs/job-local-x3.yaml
+make run CONFIG=configs/jobs/job-local-pick.yaml
 ```
 
 同一个模型部署在两处（本机 vLLM 与远端服务）时，两个 job 挑同一批题就够了：
-能暴露的问题是同一批，没必要各自把 22 道都跑一遍。仓库里 `local-x3` 与
-`antchat-x3` 就是这么配的，题目和 `job-deepseek-x3` 一致。
+能暴露的问题是同一批，没必要各自把 22 道都跑一遍。仓库里 `local-pick` 与
+`antchat-pick` 就是这么配的，题目和 `deepseek-pick` 一致。
 
 远端那份要 key：
 
 ```toml
 [[extra_jobs]]
-name = "antchat-x3"
+name = "antchat-pick"
 models = ["antchat/Ling-3.0-tiny"]
-attempts = 3
 tasks = [...]
 
   [extra_jobs.agent_kwargs]
@@ -69,7 +70,7 @@ tasks = [...]
 不会等到第一次调模型才发现。
 
 **这是旁路，不影响正式跑分。** `defaults.models` 和每道题 `[metadata.opc]` 里的
-声明都没动，`job-deepseek-x3/x5.yaml` 逐字节不变——`extra_jobs` 只是额外多生成
+声明都没动，`job-deepseek-all.yaml` 逐字节不变——`extra_jobs` 只是额外多生成
 一个文件。反过来说，本地模型的分数和 deepseek 的**不可比**，别放进同一张表。
 
 `local/` 后面写推理服务自己认的那个名字：vLLM 用 `--served-model-name` 起过名就写那个，

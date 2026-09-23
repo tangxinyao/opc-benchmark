@@ -66,7 +66,7 @@ def oracle(name: str, fetch, *, retries: int = 2, backoff_sec: float = 2.0):
     """调 fetch() 取真值。失败重试，仍失败就整场判分以 infra error 退出。
 
     retries 是给网络抖动和限流的。重试完还不行说明不是抖动，别把它摊进分数里——
-    x5 重复下，网络贡献的方差会盖过模型本身的方差。
+    每道题重复跑几遍，网络贡献的方差会盖过模型本身的方差。
     """
     if FAKE_ORACLE:
         value = json.loads(Path(FAKE_ORACLE).read_text(encoding="utf-8"))[name]

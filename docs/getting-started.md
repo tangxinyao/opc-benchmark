@@ -22,8 +22,8 @@ scripts/validate.sh
 
 # 5. 跑
 make configs
-make run CONFIG=configs/jobs/job-deepseek-x5.yaml
-make run CONFIG=configs/jobs/job-deepseek-x3.yaml
+make run CONFIG=configs/jobs/job-deepseek-pick.yaml  # 4 道题冒烟
+make run CONFIG=configs/jobs/job-deepseek-all.yaml  # 全部 22 道
 ```
 
 ## 测试的三个级别
@@ -83,9 +83,13 @@ agent 会不会真的去调工具。**拿到 0 分不要紧，这一级看的是
 
 ```bash
 make configs
-make run CONFIG=configs/jobs/job-deepseek-x3.yaml    # 3 道题 × 3 遍 = 9 次 trial
-make run CONFIG=configs/jobs/job-deepseek-x5.yaml    # 4 道题 × 5 遍 = 20 次 trial
+make run CONFIG=configs/jobs/job-deepseek-pick.yaml  # 4 道题 × 3 遍 = 12 次 trial
+make run CONFIG=configs/jobs/job-deepseek-all.yaml  # 22 道题 × 3 遍 = 66 次 trial
 ```
+
+job 之间的区分轴只有一个：**跑哪些题**。遍数一律 3 遍，由
+`configs/policy.toml` 的 `defaults.attempts` 统一决定；挑题跑写
+`[[extra_jobs]]` 的 `tasks`。
 
 ## 凭证
 

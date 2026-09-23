@@ -197,19 +197,25 @@ trajectory 里的一个 tool_call，判分器从那里读（`preflight.clarify_c
 | 想配的东西 | harbor 支持在哪一层 | 本仓库怎么写 |
 |---|---|---|
 | **docker 镜像** | ✅ 任务级原生 | 任务 Dockerfile 的 `ARG BASE_IMAGE`，并在 `[metadata.opc]` 里声明 |
-| **跑几遍** | ❌ 只有 job 级（`n_attempts`） | `[metadata.opc] attempts`，由生成器展开 |
+| **跑几遍** | ❌ 只有 job 级（`n_attempts`） | `configs/policy.toml` 的 `defaults.attempts`，全局一个数 |
 | **用哪些模型** | ❌ 只有 job 级（`agents[]`） | `[metadata.opc] models`，由生成器展开 |
 
 harbor 的 trial 数是 `任务 × agents × n_attempts`，**一道题不能自己决定谁来考它**——
 这是它的设计取向，不是缺陷：各题用不同模型跑出来的分放在一张表上没有意义。
 
-所以本仓库的做法是：task.toml 里写**声明**，`make configs` 按 (models, attempts)
-把题分组，每组生成一个 job config。
+所以本仓库的做法是：task.toml 里写**声明**，`make configs` 按 models 把题分组，
+每组生成一份跑**全部题**的 `job-<模型>-all.yaml`；只跑一部分题的，写
+`configs/policy.toml` 的 `[[extra_jobs]]`，生成 `job-<名字>.yaml`。
+
+**遍数不是分组轴。** 所有 job 一律跑 `defaults.attempts` 遍（现在是 3），
+题里和 `[[extra_jobs]]` 里都不能覆盖。从前拒答/边界题写 `attempts = 5`，
+22 道题就被拆成 x3/x5 两个 job——看着像两档跑法，其实只是把同一个模型的题
+分成了两堆，两堆的分还不在一个尺度上。job 之间该区分的是**跑哪些题**。
 
 ```
 configs/policy.toml   ─┐
                        ├─→ gen_job_configs.py ─→ configs/jobs/job-*.yaml ─→ harbor run -c
-tasks/*/*/*/task.toml  ─┘      按 (models, attempts) 分组
+tasks/*/*/*/task.toml  ─┘      按 models 分组 + extra_jobs 挑题
   [metadata.opc]
 ```
 
@@ -220,8 +226,7 @@ tasks/*/*/*/task.toml  ─┘      按 (models, attempts) 分组
 ```toml
 # tasks/<职能>/<活>/<案例>/task.toml
 [metadata.opc]
-attempts = 5                 # 省略则回落到 configs/policy.toml 的 defaults
-models = ["deepseek/deepseek-flash"]
+models = ["deepseek/deepseek-flash"]   # 省略则回落到 configs/policy.toml 的 defaults
 base_image = "opc-benchmark/hermes-base:local"
 verifier_image = "opc-benchmark/verifier-base:local"
 ```

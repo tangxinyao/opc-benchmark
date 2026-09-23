@@ -3,8 +3,13 @@
 为什么需要这一步：harbor 的「跑几遍」（n_attempts）和「用哪些模型」（agents）
 是 **job 级**的，task.toml 里没有这两个字段——一道题不该自己决定谁来考它，
 否则各题的分数不可比。所以 task.toml 里的 [metadata.opc] 是**声明**，
-由这个脚本按 (models, attempts) 把题分组，
-每组在 configs/policy.toml 的默认值之上生成一个 job config。
+由这个脚本按 models 把题分组，每组在 configs/policy.toml 的默认值之上生成
+一个**跑全部题**的 job config。
+
+「跑几遍」不再是分组轴：所有 job 一律跑 configs/policy.toml 的
+`defaults.attempts` 遍（现在是 3）。从前按 attempts 分出 x3/x5 两份，
+看着像两档跑法，实际只是把同一个模型的题拆成了两堆——分组轴该是
+**跑哪些题**，不是跑几遍。挑题跑请写 [[extra_jobs]] 的 tasks。
 
     make configs        # 读 configs/policy.toml，生成到 configs/jobs/
     harbor run -c configs/jobs/job-<组名>.yaml
@@ -38,8 +43,8 @@ def load_defaults() -> dict:
 def load_extra_jobs() -> list[dict]:
     """policy.toml 的 [[extra_jobs]]：不按题目声明分组的旁路 job。
 
-    正式跑分的分组来自每道题 [metadata.opc] 里的 (models, attempts)——
-    那是「谁来考它」，属于题目。而「拿一个还没上线的模型、或者本地推理服务
+    正式跑分的分组来自每道题 [metadata.opc] 里的 models——那是「谁来考它」，
+    属于题目。而「拿一个还没上线的模型、或者本地推理服务
     把全部题跑一遍」不属于任何一道题，为它去改 22 份 task.toml 会把正式跑分
     的分组也一起搅了。所以这类 job 单独声明，独立成文件，互不影响。
     """
@@ -51,10 +56,26 @@ def task_policy(task: Path, defaults: dict) -> dict:
     metadata = config.get("metadata", {})
     opc = metadata.get("opc", {})
     return {
-        "attempts": opc.get("attempts", defaults["attempts"]),
         "models": tuple(opc.get("models", defaults["models"])),
         "tags": [str(t) for t in metadata.get("tags", [])],
     }
+
+
+def check_no_attempts_override(task: Path, rel: str) -> list[str]:
+    """遍数只有一个来源：configs/policy.toml 的 defaults.attempts。
+
+    从前每道题可以自己写 attempts，于是 22 道题按 3/5 分成两个 job，
+    看着像两档跑法，其实只是把同一个模型的题拆成两堆，还让两堆的分不可比。
+    现在一律 3 遍，题里再写 attempts 只会造成「我改了却没生效」。
+    """
+    config = tomllib.loads((task / "task.toml").read_bytes().decode())
+    if "attempts" in config.get("metadata", {}).get("opc", {}):
+        return [
+            f"{rel}: [metadata.opc] 不再支持 attempts——遍数由 "
+            "configs/policy.toml 的 defaults.attempts 统一决定，"
+            "想只跑一部分题请写 [[extra_jobs]] 的 tasks"
+        ]
+    return []
 
 
 def pair_of(policy: dict) -> str | None:
@@ -64,20 +85,20 @@ def pair_of(policy: dict) -> str | None:
 
 
 def group_key(policy: dict) -> tuple:
-    return (policy["attempts"], policy["models"])
+    return policy["models"]
 
 
 def group_name(key: tuple) -> str:
-    attempts, models = key
-    slug = "-".join(m.split("/", 1)[0] for m in models)
-    return f"{slug}-x{attempts}"
+    """跑全部题的那一份，名字里带 -all，与挑题的旁路 job 区分开。"""
+    slug = "-".join(m.split("/", 1)[0] for m in key)
+    return f"{slug}-all"
 
 
 def check_pairs_share_a_group(policies: dict[str, dict]) -> list[str]:
-    """配对的两道题必须用同一套模型、同样的遍数跑。
+    """配对的两道题必须用同一套模型跑。
 
-    否则那一对就失去意义了：拒答题跑 5 遍、对照题跑 1 遍，
-    两个数不在同一个尺度上，凑在一起说明不了「它敢说不知道」。
+    否则那一对就失去意义了：两道题的分不在同一个尺度上，
+    凑在一起说明不了「它敢说不知道」。遍数已经全局统一，不用再查。
     """
     problems = []
     for name, policy in policies.items():
@@ -90,7 +111,7 @@ def check_pairs_share_a_group(policies: dict[str, dict]) -> list[str]:
             problems.append(
                 f"{name} 与配对的 {pair} 跑法不一致"
                 f"（{group_key(policy)} vs {group_key(policies[pair])}）——"
-                "配对的两道题必须同模型、同遍数，否则那一对不成立"
+                "配对的两道题必须用同一套模型，否则那一对不成立"
             )
     return problems
 
@@ -102,7 +123,7 @@ def check_extra_job_tasks(
 
     少列一边，那一对就不成立了——拒答题单独跑出来的分说明不了
     「它敢说不知道」，因为一律拒答的模型也能拿满分。这和
-    check_pairs_share_a_group() 是同一条规矩，只是那条管「同模型同遍数」，
+    check_pairs_share_a_group() 是同一条规矩，只是那条管「同一套模型」，
     这条管「别把一对拆开」。
     """
     problems = []
@@ -143,7 +164,10 @@ def main() -> int:
     ids = {t: t.relative_to(TASKS_DIR).as_posix() for t in tasks}
     policies = {ids[t]: task_policy(t, defaults) for t in tasks}
 
-    if problems := check_pairs_share_a_group(policies):
+    problems = [p for t in tasks
+                for p in check_no_attempts_override(t, ids[t])]
+    problems += check_pairs_share_a_group(policies)
+    if problems:
         for problem in problems:
             print(f"FAIL {problem}")
         return 1
@@ -156,9 +180,9 @@ def main() -> int:
     for stale in OUT_DIR.glob("job-*.yaml"):
         stale.unlink()
 
-    for key, names in sorted(groups.items(), key=lambda kv: group_name(kv[0])):
-        attempts, models = key
-        name = group_name(key)
+    attempts = defaults["attempts"]
+    for models, names in sorted(groups.items(), key=lambda kv: group_name(kv[0])):
+        name = group_name(models)
         config = {
             "job_name": f"opc-{name}",
             "n_attempts": attempts,
@@ -176,7 +200,10 @@ def main() -> int:
     for extra in load_extra_jobs():
         name = extra["name"]
         models = list(extra["models"])
-        attempts = extra.get("attempts", defaults["attempts"])
+        if "attempts" in extra:
+            print(f"FAIL {name}: [[extra_jobs]] 不再支持 attempts——"
+                  "所有 job 一律跑 defaults.attempts 遍，区分点是跑哪些题")
+            return 1
         agent_kwargs = extra.get("agent_kwargs", {})
         picked = list(extra.get("tasks", all_names))
 
