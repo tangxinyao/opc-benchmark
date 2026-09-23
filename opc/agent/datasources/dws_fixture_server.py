@@ -141,9 +141,68 @@ def list_conversation_message(fixture: dict, arguments: dict) -> dict:
     return payload
 
 
+def _conversation_summary(conversation: dict) -> dict:
+    """语料里的一个会话 -> 钉钉开放平台风格的会话摘要。
+
+    只给寻址要用的东西：ID、群名、类型、最后活跃时间。消息不在这里出，
+    要消息还是得走 list_conversation_message_v2——「取全」那一段难度不变。
+    """
+    messages = conversation.get("messages") or []
+    last_ts = max((parse_ts(m["ts"]) for m in messages), default=None)
+    return {
+        "openConversationId": conversation["open_conversation_id"],
+        "conversationId": conversation["open_conversation_id"],
+        "title": conversation.get("title", ""),
+        "name": conversation.get("title", ""),
+        "conversationType": "2",  # 2 = 群会话，照开放平台的取值
+        "memberCount": len({m.get("sender_id") for m in messages if m.get("sender_id")}),
+        "lastActiveTime": int(last_ts * 1000) if last_ts else None,
+    }
+
+
+CONVERSATION_QUERY_KEYS = (
+    "keyword", "query", "name", "title", "conversation_name", "conversationName",
+    "group_name", "groupName", "search",
+)
+
+
+def list_conversations(fixture: dict, arguments: dict) -> dict:
+    """会话列表 / 按名字找群。
+
+    有它才有「从群名走到群 ID」这条路。没有它的时候，题面说「以群里最新公告
+    为准」，环境里却没有任何合法手段拿到那个 openConversationId——代理只剩
+    两条路：拿编出来的群名当 ID 猛打（实测 17 万次调用打到超时），或者
+    干脆赌老板口述的数。两条都不是这道题想量的东西。
+
+    关键词匹配是子串、不区分大小写；不给关键词就返回全部会话。
+    """
+    needle = ""
+    for key in CONVERSATION_QUERY_KEYS:
+        value = arguments.get(key)
+        if isinstance(value, str) and value.strip():
+            needle = value.strip().lower()
+            break
+
+    rows = [
+        _conversation_summary(conversation)
+        for conversation in fixture.get("conversations", [])
+        if not needle or needle in (conversation.get("title", "") or "").lower()
+    ]
+    rows.sort(key=lambda row: row["lastActiveTime"] or 0, reverse=True)
+    return {"conversations": rows, "groups": rows, "total": len(rows), "hasMore": False}
+
+
+# 同一个实现挂多个名字：CLI 的不同子命令打的是不同的 tool 名（实跑里见过
+# search_groups 和 list_all_conversations），少挂一个就又是一句
+# "tool not supported"。名字只增不改——改名等于把已有的跑分基线作废。
 TOOLS = {
     "list_conversation_message_v2": list_conversation_message,
     "list_individual_chat_message": list_conversation_message,
+    "list_all_conversations": list_conversations,
+    "list_conversations": list_conversations,
+    "search_groups": list_conversations,
+    "search_conversations": list_conversations,
+    "get_conversation_list": list_conversations,
 }
 
 

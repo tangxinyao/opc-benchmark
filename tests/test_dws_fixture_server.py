@@ -61,7 +61,8 @@ def server(tmp_path):
         proc.kill()
         pytest.fail("数据源服务没起来")
 
-    yield type("S", (), {"port": port, "server_log": server_log})
+    yield type("S", (), {"port": port, "server_log": server_log,
+                         "fixture": tmp_path / "dingtalk.json"})
     proc.terminate()
     proc.wait(timeout=5)
 
@@ -77,10 +78,11 @@ def probe(port, token=None, path="/_env/session"):
         return exc.code, json.loads(exc.read())
 
 
-def call(port, token=None, tool="list_conversation_message"):
+def call(port, token=None, tool="list_conversation_message", arguments=None):
     """走 CLI 真正走的那条路：MCP over HTTP JSON-RPC。"""
     payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-                          "params": {"name": tool, "arguments": {}}}).encode()
+                          "params": {"name": tool,
+                                     "arguments": arguments or {}}}).encode()
     req = urllib.request.Request(f"http://127.0.0.1:{port}/mcp/chat", data=payload,
                                  headers={"content-type": "application/json"})
     if token:
@@ -147,3 +149,86 @@ def test_unknown_path_is_not_a_witness(server):
     status, _ = probe(server.port, VALID, path="/whatever")
     assert status == 404
     assert not events(server.server_log)
+
+
+# ---------------------------------------------------------------------------
+# 从群名走到群 ID
+#
+# 这条路以前不存在：语料里有 open_conversation_id，但没有任何一个工具把它
+# 交出来。题面说「以群里最新公告为准」，代理却只能靠猜 ID——实跑里它把编出来
+# 的群名当 ID 打了 17 万次，一直打到 900 秒被杀。补的是探索这一段，
+# 「把消息取全」那一段难度不变：列表只给寻址信息，不给消息。
+# ---------------------------------------------------------------------------
+
+CHAT_FIXTURE = {
+    "conversations": [
+        {
+            "open_conversation_id": "cidQm7xK2pLvR9sT4wYzAb",
+            "title": "danmu-live 开发者结算群",
+            "messages": [
+                {"id": "m1", "ts": "2026-08-01 09:00:00", "sender": "平台小助手",
+                 "sender_id": "user_bot_01", "text": "8 月流水合计 1,800,000 元"},
+                {"id": "m2", "ts": "2026-08-02 09:00:00", "sender": "林岩",
+                 "sender_id": "user_ly_88", "text": "收到"},
+            ],
+        },
+        {
+            "open_conversation_id": "cidZzZ000000000000000",
+            "title": "运维值班群",
+            "messages": [{"id": "m3", "ts": "2026-07-01 09:00:00", "sender": "赵开",
+                          "sender_id": "user_zk_21", "text": "换值班"}],
+        },
+    ]
+}
+
+
+def tool_payload(body):
+    """把 MCP 的 result 信封拆成工具自己返回的那个 JSON。"""
+    return json.loads(body["result"]["content"][0]["text"])
+
+
+@pytest.fixture
+def chat_server(server):
+    server.fixture.write_text(json.dumps(CHAT_FIXTURE, ensure_ascii=False), "utf-8")
+    return server
+
+
+def test_conversations_can_be_listed(chat_server):
+    status, body = call(chat_server.port, VALID, tool="list_all_conversations")
+    assert status == 200 and body["result"]["isError"] is False
+    rows = tool_payload(body)["conversations"]
+    assert [r["openConversationId"] for r in rows] == [
+        "cidQm7xK2pLvR9sT4wYzAb", "cidZzZ000000000000000"]  # 最近活跃的在前
+    assert rows[0]["title"] == "danmu-live 开发者结算群"
+
+
+def test_group_can_be_found_by_name(chat_server):
+    """按群名找群——题面点的是群名，环境得认群名。"""
+    for tool in ("search_groups", "list_conversations", "search_conversations",
+                 "get_conversation_list"):
+        status, body = call(chat_server.port, VALID, tool=tool,
+                            arguments={"keyword": "danmu-live 开发者结算"})
+        assert status == 200, tool
+        rows = tool_payload(body)["conversations"]
+        assert [r["openConversationId"] for r in rows] == ["cidQm7xK2pLvR9sT4wYzAb"], tool
+
+
+def test_listing_does_not_hand_out_the_messages(chat_server):
+    """列表只解决寻址。消息还得走 list_conversation_message_v2 一页页取，
+    否则「把消息取全」那一段就被这个接口绕过去了。"""
+    _, body = call(chat_server.port, VALID, tool="search_groups")
+    dumped = json.dumps(tool_payload(body), ensure_ascii=False)
+    assert "流水合计" not in dumped
+
+
+def test_listing_still_needs_a_live_session(chat_server):
+    """过期登录态照样打不开会话列表——expired-session 那道题的前提不受影响。"""
+    status, body = call(chat_server.port, STALE, tool="search_groups")
+    assert status == 401 and body["errcode"] == 88
+
+
+def test_listing_is_recorded_as_a_dws_call(chat_server):
+    """探索也是调用，得落进服务端日志——负断言只认这一处证据。"""
+    call(chat_server.port, VALID, tool="search_groups")
+    calls = [e for e in events(chat_server.server_log) if e["tool"] == "dws"]
+    assert [c["args"][0] for c in calls] == ["search_groups"]
