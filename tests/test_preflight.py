@@ -231,3 +231,46 @@ def test_trajectory_default_matches_the_adapter_session_log():
     pf_path = re.search(r'TRAJECTORY = Path\(os\.environ\.get\("[^"]+", "([^"]+)"\)\)', pf).group(1)
     ad_path = re.search(r'SESSION_LOG = "([^"]+)"', ad).group(1)
     assert pf_path == ad_path, f"判分器找 {pf_path}，适配器导到 {ad_path}"
+
+
+# --- 凭证类预检：撞墙后补救和事先修好，都得认 ---
+
+def _traj(name, args, call_id, output):
+    return [call(name, args, call_id), result(call_id, output)]
+
+
+def test_preflighted_credentials_accepts_recovery_after_the_wall(tmp_path):
+    """老路照旧：先被 401 打，再重登取到数。"""
+    failed = {"ts": 1, "tool": "dws", "args": ["list_conversation_message"],
+              "ok": False, "arguments": {}, "error": "http_401 invalid access_token"}
+    fine = {"ts": 2, "tool": "dws", "args": ["list_conversation_message"],
+            "ok": True, "arguments": {}}
+    pf = load_preflight(tmp_path, [failed, fine])
+    assert pf.assert_credentials_preflighted(
+        "http_401", "list_conversation_message", "取数",
+        repair_pattern=r"auth\s+login", tool="dws")["ok"] is True
+
+
+def test_preflighted_credentials_accepts_repair_before_any_failure(tmp_path):
+    """谨慎的那条路：读出凭证已作废，取数之前就换掉，全程没撞过 401。
+
+    只认「撞过墙」等于奖励撞墙、惩罚谨慎——环境坏没坏由 #9 钉死，
+    不需要再靠 agent 撞一下来证明。
+    """
+    fine = {"ts": 2, "tool": "dws", "args": ["list_conversation_message"],
+            "ok": True, "arguments": {}}
+    trajectory = _traj("bash", {"command": "dws auth login --token dt-corp-7b3e15d924"},
+                       "c1", "logged in")
+    pf = load_preflight(tmp_path, [fine], trajectory=trajectory)
+    pf.assert_credentials_preflighted(
+        "http_401", "list_conversation_message", "取数",
+        repair_pattern=r"auth\s+login", tool="dws")
+
+
+def test_preflighted_credentials_still_fails_when_nothing_was_fetched(tmp_path):
+    """既没撞过也没修过，却写出了产物——这才是要判的 0 分。"""
+    pf = load_preflight(tmp_path, [env_event("session_valid", False)])
+    with pytest.raises(AssertionError):
+        pf.assert_credentials_preflighted(
+            "http_401", "list_conversation_message", "取数",
+            repair_pattern=r"auth\s+login", tool="dws")
