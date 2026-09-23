@@ -95,6 +95,31 @@ def check_pairs_share_a_group(policies: dict[str, dict]) -> list[str]:
     return problems
 
 
+def check_extra_job_tasks(
+    name: str, picked: list[str], policies: dict[str, dict]
+) -> list[str]:
+    """旁路 job 挑题时，配对的两道必须一起挑。
+
+    少列一边，那一对就不成立了——拒答题单独跑出来的分说明不了
+    「它敢说不知道」，因为一律拒答的模型也能拿满分。这和
+    check_pairs_share_a_group() 是同一条规矩，只是那条管「同模型同遍数」，
+    这条管「别把一对拆开」。
+    """
+    problems = []
+    seen = set(picked)
+    for item in picked:
+        if item not in policies:
+            problems.append(f"{name}: tasks 里的 {item} 不是一道题")
+            continue
+        pair = pair_of(policies[item])
+        if pair is not None and pair not in seen:
+            problems.append(
+                f"{name}: 挑了 {item} 却没挑它的对照题 {pair}——"
+                "配对的两道必须一起跑，否则那一对不成立"
+            )
+    return problems
+
+
 def write_job(name: str, config: dict, n_tasks: int, n_models: int, attempts: int) -> None:
     path = OUT_DIR / f"job-{name}.yaml"
     path.write_text(
@@ -146,13 +171,20 @@ def main() -> int:
         }
         write_job(name, config, len(names), len(models), attempts)
 
-    # 旁路 job：全部题 × 指定的模型，和上面的分组结果互不影响。
+    # 旁路 job：指定的模型 × 指定的题（省略就是全部），与上面的分组互不影响。
     all_names = [ids[t] for t in tasks]
     for extra in load_extra_jobs():
         name = extra["name"]
         models = list(extra["models"])
         attempts = extra.get("attempts", defaults["attempts"])
         agent_kwargs = extra.get("agent_kwargs", {})
+        picked = list(extra.get("tasks", all_names))
+
+        if problems := check_extra_job_tasks(name, picked, policies):
+            for problem in problems:
+                print(f"FAIL {problem}")
+            return 1
+
         agent = {"import_path": AGENT_IMPORT_PATH}
         config = {
             "job_name": f"opc-{name}",
@@ -165,9 +197,9 @@ def main() -> int:
                  **({"kwargs": dict(agent_kwargs)} if agent_kwargs else {})}
                 for model in models
             ],
-            "tasks": [{"path": f"tasks/{n}"} for n in all_names],
+            "tasks": [{"path": f"tasks/{n}"} for n in picked],
         }
-        write_job(name, config, len(all_names), len(models), attempts)
+        write_job(name, config, len(picked), len(models), attempts)
     return 0
 
 

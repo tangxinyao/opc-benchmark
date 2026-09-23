@@ -26,7 +26,7 @@ verifier_image = "opc-benchmark/verifier-base:local"
 # 并发 trial 数，生成 job config 时写进去。
 n_concurrent_trials = 4
 
-# --- 额外的 job：不按题目声明分组，直接指定一套模型跑全部题 ---
+# --- 额外的 job：不按题目声明分组，直接指定一套模型跑指定的题 ---
 #
 # 上面的 defaults 管的是「正式跑分用什么」，题目在自己的 [metadata.opc] 里
 # 按 (models, attempts) 分组，生成 job-deepseek-x3 / x5 那两份。
@@ -34,21 +34,52 @@ n_concurrent_trials = 4
 # 22 道题的 task.toml——那会把正式跑分的分组也一起搅了。
 #
 # 每一条生成一个独立的 configs/jobs/job-<name>.yaml，和上面那套互不影响。
+#
+# tasks 省略就是全部 22 道；写了就只跑列出来的那几道。
+# **配对的题必须一起列**（拒答题和它的对照题），少列一边那一对就不成立，
+# make configs 会直接报错。
+
+# 下面两条跑的是同一个模型，只是一个在本机、一个在远端。题目选的和
+# job-deepseek-x3 一样——同一个模型换个部署位置，能暴露的问题是同一批，
+# 没必要各自把 22 道都跑一遍。两份 tasks 逐字相同是有意的：TOML 没有变量，
+# 与其造一个假的共享锚点，不如让每个 job 自己写全，改的时候两边都看得见。
 
 [[extra_jobs]]
 name = "local-x3"
-# 模型名格式是 <provider>/<model>，provider 必须是适配器支持的那三个之一。
-# local/ 后面写推理服务自己认的那个名字——vLLM 用 --served-model-name 起的名，
-# 没起名的话就是 --model 那个路径原样。
+# 模型名格式是 <provider>/<model>。local/ 后面写推理服务自己认的那个名字——
+# vLLM 用 --served-model-name 起过名就写那个，没起名就是 --model 那个路径原样
+# （下面就是这种情况，双斜杠里前一个是 provider 分隔符，后一个是路径的根）。
 models = ["local//home/tangxinyao/Ling-3.0-tiny"]
 attempts = 3
+tasks = [
+  "finance/revenue-recognition/five-step-pipeline",
+  "finance/settlement/expired-session",
+  "finance/settlement/platform-fee-change",
+  "self/plan-review/self-review",
+]
 # 本地推理服务多半是单卡、串行出 token，四个 trial 并发只会互相抢。
-# 正式跑分那两份仍然用 defaults 里的 4。
 n_concurrent_trials = 1
 
   [extra_jobs.agent_kwargs]
   # 直接写进 job config，省掉 export LOCAL_BASE_URL。
-  # 容器里的 localhost 指向容器自己，适配器会把它改写成 host.docker.internal
-  # （providers.py 的 rewrite_loopback）。**Linux 上 Docker 不自带这个别名**，
-  # 要 --add-host=host.docker.internal:host-gateway，见 docs/local-inference.md。
+  # 容器里的 localhost 指向容器自己，适配器会把它改写成 host.docker.internal，
+  # 并在 Linux 上自动钉到默认路由网关（_ensure_host_gateway），不用手加 --add-host。
   base_url = "http://127.0.0.1:8000/v1"
+
+[[extra_jobs]]
+name = "antchat-x3"
+models = ["antchat/Ling-3.0-tiny"]
+attempts = 3
+tasks = [
+  "finance/revenue-recognition/five-step-pipeline",
+  "finance/settlement/expired-session",
+  "finance/settlement/platform-fee-change",
+  "self/plan-review/self-review",
+]
+# 远端服务，并发放开到和正式跑分一样。
+
+  [extra_jobs.agent_kwargs]
+  # providers.py 里 antchat 的默认端点不带 /v1，这里显式写全。
+  # 这个 provider **要 key**：ANTCHAT_API_KEY（或 ANTCHAT_TOKEN）放 .env，
+  # 缺了会在 resolve_credentials 就报错，不会等到调用模型才发现。
+  base_url = "https://antchat.alipay.com/v1"

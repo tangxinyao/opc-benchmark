@@ -39,10 +39,34 @@ n_concurrent_trials = 1
   base_url = "http://127.0.0.1:8000/v1"
 ```
 
+`tasks` 省略就是全部 22 道，写了就只跑列出来的那几道。**配对的题必须一起列**
+（拒答题和它的对照题）——少列一边那一对就不成立，`make configs` 会直接报错。
+
 ```bash
 make configs
 make run CONFIG=configs/jobs/job-local-x3.yaml
 ```
+
+同一个模型部署在两处（本机 vLLM 与远端服务）时，两个 job 挑同一批题就够了：
+能暴露的问题是同一批，没必要各自把 22 道都跑一遍。仓库里 `local-x3` 与
+`antchat-x3` 就是这么配的，题目和 `job-deepseek-x3` 一致。
+
+远端那份要 key：
+
+```toml
+[[extra_jobs]]
+name = "antchat-x3"
+models = ["antchat/Ling-3.0-tiny"]
+attempts = 3
+tasks = [...]
+
+  [extra_jobs.agent_kwargs]
+  # providers.py 里 antchat 的默认端点不带 /v1，显式写全
+  base_url = "https://antchat.alipay.com/v1"
+```
+
+`ANTCHAT_API_KEY`（或 `ANTCHAT_TOKEN`）放 `.env`。缺了会在解析凭证时就报错，
+不会等到第一次调模型才发现。
 
 **这是旁路，不影响正式跑分。** `defaults.models` 和每道题 `[metadata.opc]` 里的
 声明都没动，`job-deepseek-x3/x5.yaml` 逐字节不变——`extra_jobs` 只是额外多生成
