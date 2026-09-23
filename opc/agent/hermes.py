@@ -50,6 +50,7 @@ from harbor.models.trajectories import (
 )
 
 from opc.agent.providers import (
+    DOCKER_HOST_ALIAS,
     SUPPORTED_PROVIDERS,
     NativeProvider,
     get_provider,
@@ -273,6 +274,76 @@ class Hermes(BaseInstalledAgent):
                 timeout_sec=10,
             )
 
+    GATEWAY_MARKER = "# opc-host-gateway"
+    """给 host.docker.internal 兜底时写进 /etc/hosts 的标记。"""
+
+    # 在容器里算出「宿主机」的地址：默认路由的网关就是它。
+    # 不用 `ip route`——基础镜像没装 iproute2（见 opc/agent/Dockerfile 的 apt 列表），
+    # 而 python3 一定在。/proc/net/route 的 Gateway 列是小端十六进制。
+    _GATEWAY_PY = (
+        "import socket,struct;"
+        "rows=[l.split() for l in open('/proc/net/route').read().splitlines()[1:]];"
+        "gw=[r[2] for r in rows if r[1]=='00000000' and r[2]!='00000000'];"
+        "print(socket.inet_ntoa(struct.pack('<L',int(gw[0],16))) if gw else '')"
+    )
+
+    async def _ensure_host_gateway(
+        self, environment: BaseEnvironment, host: str
+    ) -> None:
+        """Linux 上给 host.docker.internal 兜底，让用户不必自己加 --add-host。
+
+        rewrite_loopback() 把本地推理服务的 localhost 改写成了
+        host.docker.internal，但**这个别名是 Docker Desktop 才自带的**。
+        Linux 的 Docker 不给，要么 run 时 --add-host=host.docker.internal:host-gateway，
+        要么 compose 里 extra_hosts——两条都要用户自己记得，忘了就只得到
+        hermes 一句「can't reach the model provider」，看不出是 DNS 的事。
+
+        这里改成自动：解析得出就什么都不做（Docker Desktop、或者用户已经加过），
+        解析不出才按容器的默认路由网关钉一条。网关正是 host-gateway 指的那个地址。
+
+        失败不抛：这条只是兜底，硬失败会把本来能跑的情况（别名已经有了、
+        或者根本没用本地模型）一起拖死。真连不上的话，报错仍然会出现在
+        hermes 那一侧，只是少了这一层帮助。
+        """
+        if host != DOCKER_HOST_ALIAS:
+            return
+        try:
+            probe = await self.exec_as_root(
+                environment,
+                command=f"getent hosts {shlex.quote(host)} > /dev/null && echo HIT || echo MISS",
+                timeout_sec=10,
+            )
+            if "HIT" in str(getattr(probe, "stdout", probe)):
+                self.logger.debug("%s 本来就解析得出，不动 /etc/hosts", host)
+                return
+
+            result = await self.exec_as_root(
+                environment,
+                command=f"python3 -c {shlex.quote(self._GATEWAY_PY)}",
+                timeout_sec=10,
+            )
+            gateway = str(getattr(result, "stdout", result)).strip().splitlines()
+            gateway = gateway[-1].strip() if gateway else ""
+            if not gateway:
+                self.logger.warning(
+                    "%s 解析不出，也没找到默认路由网关——本地模型多半连不上。"
+                    " 手动补救：--add-host=%s:host-gateway",
+                    host, host,
+                )
+                return
+
+            await self.exec_as_root(
+                environment,
+                command=(
+                    f"printf '%s\\t%s\\t%s\\n' {shlex.quote(gateway)} "
+                    f"{shlex.quote(host)} {shlex.quote(self.GATEWAY_MARKER)} >> /etc/hosts"
+                ),
+                timeout_sec=10,
+            )
+            self.logger.debug("%s 解析不出，已钉到默认路由网关 %s", host, gateway)
+        except Exception as exc:  # noqa: BLE001 - 兜底不该拖死正常路径
+            self.logger.warning("给 %s 兜底失败（%s），继续跑", host, exc)
+
     @contextlib.asynccontextmanager
     async def _model_endpoint_reachable(
         self,
@@ -402,6 +473,13 @@ class Hermes(BaseInstalledAgent):
 
         run_cmd = (
             f"{' '.join(cli_parts)} 2>&1 | stdbuf -oL tee /logs/agent/hermes.txt"
+        )
+
+        # 在跑之前兜底解析。这一步和网络策略无关——22 道题都是 public，
+        # 走不到 _model_endpoint_reachable 里那段钉 IP 的逻辑，而 Linux 上
+        # host.docker.internal 照样解析不出来。
+        await self._ensure_host_gateway(
+            environment, provider_host(env, provider)
         )
 
         try:

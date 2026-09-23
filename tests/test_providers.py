@@ -90,3 +90,49 @@ def test_local_injects_hermes_native_env_names():
     )
     assert env["LM_API_KEY"] == "k"
     assert "LOCAL_BASE_URL" not in env
+
+
+# --- host.docker.internal 的兜底：容器里怎么算出宿主机地址 -------------------
+# Linux 的 Docker 不给 host.docker.internal 这个别名，适配器解析不出时会按
+# 容器的默认路由网关钉一条。那段代码是要塞进容器 python3 -c 跑的字符串，
+# 这里连同解析逻辑一起验——写错了只会在真跑本地模型时才炸，而那时候
+# 报错长在 hermes 那一侧，看不出是这里的事。
+
+import builtins
+import io
+
+from opc.agent.hermes import Hermes
+
+# /proc/net/route 的真实形状：Gateway 列是小端十六进制。
+# 第一条是 172.17.0.1 的默认路由（Destination 全 0），第二条是同网段直连路由
+# （Gateway 全 0，不能当网关用）。
+_ROUTE_TABLE = (
+    "Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT\n"
+    "eth0\t00000000\t010011AC\t0003\t0\t0\t0\t00000000\t0\t0\t0\n"
+    "eth0\t000011AC\t00000000\t0001\t0\t0\t0\t0000FFFF\t0\t0\t0\n"
+)
+
+
+def _run_gateway_snippet(route_table: str, monkeypatch) -> str:
+    real_open = builtins.open
+
+    def fake_open(path, *args, **kwargs):
+        if str(path) == "/proc/net/route":
+            return io.StringIO(route_table)
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", fake_open)
+    printed: list[str] = []
+    namespace = {"print": printed.append}
+    exec(Hermes._GATEWAY_PY.replace(";", "\n"), namespace)  # noqa: S102
+    return printed[-1]
+
+
+def test_gateway_snippet_reads_the_default_route(monkeypatch):
+    assert _run_gateway_snippet(_ROUTE_TABLE, monkeypatch) == "172.17.0.1"
+
+
+def test_gateway_snippet_is_empty_without_a_default_route(monkeypatch):
+    """没有默认路由时要回空串，不能抛——调用方按空串走告警分支。"""
+    only_direct = "\n".join(_ROUTE_TABLE.splitlines()[:1] + [_ROUTE_TABLE.splitlines()[2]]) + "\n"
+    assert _run_gateway_snippet(only_direct, monkeypatch) == ""

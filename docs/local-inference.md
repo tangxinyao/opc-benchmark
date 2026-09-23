@@ -52,15 +52,26 @@ make run CONFIG=configs/jobs/job-local-x3.yaml
 没起名就是 `--model` 那个路径原样（上面就是这种情况，所以出现了 `local//home/...`
 这样的双斜杠——前一个是 provider 分隔符，后一个是路径的根）。
 
-## Linux 必看：host.docker.internal
+## Linux 上的 host.docker.internal：适配器替你兜住了
 
 容器里的 `localhost` 指向容器自己，不是宿主机。适配器会自动把 base_url 里的
 `localhost` / `127.0.0.1` / `0.0.0.0` 改写成 `host.docker.internal`
-（`rewrite_loopback()`，`opc/agent/providers.py`），但**这个别名得 Docker 那边给**：
+（`rewrite_loopback()`，`opc/agent/providers.py`）。
 
-- **Docker Desktop**（mac / Windows）自带，什么都不用做。
-- **Linux 不自带**，必须显式映射到 `host-gateway`，否则容器里解析不出来，
-  hermes 只会给你一句「can't reach the model provider」：
+这个别名 **Docker Desktop（mac / Windows）自带，Linux 的 Docker 不给**。
+以前这意味着你得自己记得加 `--add-host`，忘了就只得到 hermes 一句
+「can't reach the model provider」，看不出是 DNS 的事。
+
+**现在不用操心了**：跑之前适配器会先在容器里 `getent hosts host.docker.internal`，
+解析得出就什么都不做；解析不出，就按容器的默认路由网关钉一条进 `/etc/hosts`
+——那个网关正是 `host-gateway` 指的地址（`_ensure_host_gateway()`，
+`opc/agent/hermes.py`）。兜底失败不会中断，只会记一条 warning。
+
+（顺带说明为什么不能靠已有的那段钉 IP 逻辑：`_model_endpoint_reachable()`
+只在任务声明成非 public 时才收窄网络并钉 IP，而 22 道题全是 public，走的是早退
+分支。所以兜底必须是独立的一步，和网络策略无关。）
+
+下面这些是**手动补救的办法**，正常情况下用不到——适配器兜不住时才需要：
 
   ```bash
   # 直接跑容器
