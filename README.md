@@ -14,16 +14,70 @@
 前置：**Docker** 和 **uv**。全程在仓库根目录执行。
 
 ```bash
-uv sync                                   # 1. 装依赖
-make images HERMES_VERSION=v2026.9.14     # 2. 构建 agent / 判分两个基础镜像
-cp .env.example .env && $EDITOR .env      # 3. 填模型凭证
-scripts/validate.sh                       # 4. 钉基线：oracle 满分、nop 零分
-make run CONFIG=configs/jobs/job-deepseek-pick.yaml # 5. 跑（4 道题冒烟；
-                                          #    全部 22 道是 job-deepseek-all.yaml）
+uv sync                                # 1. 装依赖
+make images HERMES_VERSION=v2026.9.14  # 2. 构建 agent / 判分两个基础镜像
+cp .env.example .env && $EDITOR .env   # 3. 填模型凭证
+scripts/validate.sh                    # 4. 钉基线：oracle 满分、nop 零分
+make run CONFIG=configs/jobs/job-deepseek-pick.yaml   # 5. 跑
 ```
 
 **第 4 步不要跳。** nop 能通过的题量不出任何东西，oracle 过不了的题量的是你的判分器。
+它不经过模型（用的是 `--agent oracle` / `--agent nop`），所以换哪个模型都要先过这一关。
 每一步的细节、三个测试级别、以及会绊人的坑，见 [开始使用](docs/getting-started.md)。
+
+## 跑哪个模型
+
+适配器只路由三个 provider，没有 OpenRouter 一类的兜底（`opc/agent/providers.py`）。
+模型名一律 `<provider>/<模型>`。
+
+| provider | 端点 | 凭证 | 现成的 job |
+|---|---|---|---|
+| `deepseek` | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` | `job-deepseek-pick`（4 道冒烟）、`job-deepseek-all`（全部 22 道） |
+| `antchat` | `https://antchat.alipay.com`（默认**不带** `/v1`，job 里显式补全） | `ANTCHAT_API_KEY` 或 `ANTCHAT_TOKEN` | `job-antchat-pick` |
+| `local` | `http://localhost:8000/v1`（vLLM / SGLang / Ollama 等 OpenAI 兼容服务） | 不需要，服务校验才填 `LOCAL_API_KEY` | `job-local-pick` |
+
+`make configs` 生成上面这些文件到 `configs/jobs/`。**job 之间只有一个区分轴：跑哪些题**
+（`-all` 是 22 道，`-pick` 是同一批 4 道冒烟题）。遍数不是区分轴，所有 job 一律跑
+`configs/policy.toml` 的 `defaults.attempts` 遍（现在是 3），题里和 `[[extra_jobs]]`
+里都不能覆盖，写了 `make configs` 直接报错。
+
+```bash
+make env-check                                      # 凭证就位没有（只报在不在，不打印值）
+make configs
+make run CONFIG=configs/jobs/job-deepseek-pick.yaml # 远端 deepseek
+make run CONFIG=configs/jobs/job-antchat-pick.yaml  # 远端 antchat 上的 Ling-3.0-tiny
+make run CONFIG=configs/jobs/job-local-pick.yaml    # 本机 vLLM 上的同一个 Ling-3.0-tiny
+```
+
+整批之前先单跑一道，确认凭证进得去容器、provider 路由对不对、agent 真的会调工具
+（**这一级看的是「跑完了没有」，不是「答对了没有」，拿 0 分不要紧**）：
+
+```bash
+. scripts/load-env.sh
+uv run harbor run -p tasks/finance/settlement/expired-session \
+  --agent opc.agent.hermes:Hermes -m deepseek/deepseek-flash
+```
+
+换模型只改 `-m`，端点用 `--ak base_url=...` 一次性覆盖（优先级高于环境变量）：
+
+```bash
+-m antchat/Ling-3.0-tiny                 --ak base_url=https://antchat.alipay.com/v1
+-m local//home/tangxinyao/Ling-3.0-tiny  --ak base_url=http://127.0.0.1:8000/v1
+```
+
+三件会绊人的事：
+
+- **`local/` 后面写推理服务自己认的那个名字。** vLLM 用 `--served-model-name` 起过名就写那个，
+  没起名就是 `--model` 那个路径原样——于是出现 `local//home/...` 这样的双斜杠（前一个是
+  provider 分隔符，后一个是路径的根）。对不上会被服务以「模型不存在」打回，而且要到第一次
+  调模型才报出来。先 `curl -s http://127.0.0.1:8000/v1/models` 核一遍。
+- **本地推理仍然要 Docker。** `local/` 省的是 token，不是容器——题目环境跑在容器里。
+- **哪些分能放进同一张表。** `local-pick` 和 `antchat-pick` 跑的是同一个 Ling-3.0-tiny、
+  同一批题、同样 3 遍，两份**可比**，差异只能来自部署（量化、采样参数、服务端截断）。
+  和 `deepseek-pick` 的分**不可比**，那是另一个模型。
+
+本地推理的细节（Linux 上的 host-gateway、`[[extra_jobs]]` 怎么写）见
+[本地推理](docs/local-inference.md)。
 
 ## 十八道题
 
@@ -158,4 +212,5 @@ make check       # lint + unit + smoke，不需要 Docker，改完先跑这个
 make configs     # 由 configs/policy.toml 和各题声明生成 configs/jobs/
 make env-check   # 检查凭证是否就位（只报在不在，不打印值）
 make images      # 构建两个基础镜像
+make run CONFIG=configs/jobs/job-<名字>.yaml   # 跑一个 job，见「跑哪个模型」
 ```
