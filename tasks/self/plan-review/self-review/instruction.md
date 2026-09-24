@@ -1,13 +1,13 @@
-这家一人公司写了一份上线计划。作者和评审人是同一个人，没有第二个人看过。
+This one-person company has written a launch plan. The author and the reviewer are the same person; no one else has looked at it.
 
-请以评审人的身份审一遍，把结果写到 `/app/review.json`：
+Please review it as the reviewer and write the results to `/app/review.json`:
 
 ```json
 {
   "findings": [
     {
-      "where": "<计划里的位置，例如章节号或原文片段>",
-      "why": "<这里出了什么问题，一句话说清>"
+      "where": "<location in the plan, e.g. a section number or a quoted snippet>",
+      "why": "<what's wrong here, stated clearly in one sentence>"
     }
   ]
 }

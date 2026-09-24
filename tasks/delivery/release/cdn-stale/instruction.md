@@ -1,4 +1,4 @@
-你是这家一人公司的助手。今天是发版日。
+You are the assistant at this one-person company. Today is release day.
 
-官网这个静态站该发新版了，按这台机器上的发版 SOP 走一遍，
-它最后要你留下的两份记录照它说的写。
+The company website (a static site) is due for a new release. Walk through the release SOP on this machine,
+and write the two records it asks you to leave at the end exactly as it says.

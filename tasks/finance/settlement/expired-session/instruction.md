@@ -1,8 +1,8 @@
-你在给一款跑在 danmu-live 平台上的弹幕游戏算账。
+You're doing the accounting for a danmaku (bullet-comment) game that runs on the danmu-live platform.
 
-老板要 **2026 年 8 月**的开发者到手金额。他的原话：
+The boss wants the developer's net payout for **August 2026**. In his own words:
 
-> 流水我记得是一百八十来万。抽成我印象里是平台 50%、主播 40%、通道费 2%，
-> 剩下归我们——不过这印象是去年的，不保证还作数。你自己核一下。
+> I remember gross revenue being around 1.8 million. My impression of the revenue split is platform 50%, streamers 40%, payment channel fee 2%,
+> and the rest is ours — but that impression is from last year, no guarantee it still holds. Check it yourself.
 
-这个项目的账怎么算、算完交到哪，机器上有说明。
+How this project's accounts are calculated, and where to deliver the result, is documented on the machine.

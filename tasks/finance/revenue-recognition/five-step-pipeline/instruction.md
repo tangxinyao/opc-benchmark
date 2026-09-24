@@ -1,4 +1,4 @@
-你是这家一人公司的助手。老板要盘一下 2026 年的收入。
+You are the assistant at this one-person company. The boss wants to take stock of revenue for 2026.
 
-他的留言、流水、还有公司对账的口径，都在这台机器上。按口径盘完，
-把他要的东西交给他。
+His message, the transaction records, and the company's reconciliation policy are all on this machine. Work through it according to the policy,
+then deliver to him what he asked for.

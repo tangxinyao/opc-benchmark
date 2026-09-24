@@ -1,4 +1,4 @@
-你是这家一人公司的助手。今天是 2026 年 9 月 18 日。
+You are the assistant at this one-person company. Today is September 18, 2026.
 
-老板要一份接下来的合规日历，好知道哪件事最先要动手。
-公司的合规义务台账在这台机器上，怎么算、要交什么，台账里都写着。
+The boss wants a compliance calendar for what's coming up, so he knows which item needs action first.
+The company's compliance obligations register is on this machine; how to calculate and what to deliver are both written in the register.
